@@ -1,9 +1,0 @@
-Mode: Built-in imagegen (single generation request)
-
-Use case: stylized-concept
-Asset type: premium horror-game portfolio cinematic full-bleed hero backdrop for Nocturne.
-Primary request: an original ultra-wide cinematic photorealistic gothic graveyard on a craggy island at night, with an imposing Victorian mansion on a rise occupying the RIGHT third, brilliant moon in clouded desaturated blue-gray sky, weathered graves and iron fencing, winding wet stone path from bottom center toward the mansion, sparse warm amber windows and candles, layered pale silver ground mist, dead trees, subtle ravens.
-Style/medium: extremely realistic AAA horror environmental concept screenshot, cinematic 28mm environmental wide shot, fine visible stonework and rich natural material detail, sophisticated frightening atmosphere, no gore.
-Composition/framing: landscape 16:9 or wider. The LEFT half is mostly quiet negative space of misty distant graveyard and sky for a large white title that will be added later; keep lower left dark enough for overlay copy. Mansion distinctly placed on the RIGHT with clear silhouette and legible architectural detail. Atmospheric depth across foreground graves, middle-distance mist, and distant mansion.
-Lighting/mood: strong pale silver moonlight through cloud banks, bright enough to reveal weathered stonework, layered low mist catching the light, deep blue-black shadows and restrained amber highlights. Evocative, foreboding, cinematic. Avoid crushed black detail.
-Constraints: ONLY the scene. No text, no logos, no typography, no UI, no watermark, no borders, no human characters.

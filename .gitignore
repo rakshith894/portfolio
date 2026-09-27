@@ -1,0 +1,13 @@
+# Local review output, browser profiles, recordings and packaging scratch files.
+/output/
+
+# App dependencies and generated output.
+/nocturne/node_modules/
+/nocturne/dist/
+/nocturne/work/
+/nocturne/.wrangler/
+/nocturne/.next/
+/nocturne/.vinext/
+*.tsbuildinfo
+.env*
+!.env.example
