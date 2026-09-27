@@ -1,0 +1,11 @@
+Use case: ads-marketing
+Asset type: landscape social preview card for a premium cinematic gothic horror game portfolio. One finished image, approximately 1.91:1 aspect ratio.
+Scene/backdrop: realistic blue-gray moonlit coastal graveyard with sea mist, ancient distressed stone graves and tiny amber candles. A richly detailed gothic mansion occupies the right half, with pointed rooflines and a few subtle warm windows. Dark elegant negative space across the left half.
+Style/medium: premium realistic cinematic game key art, sophisticated atmospheric photography and exceptionally refined editorial typography, finely detailed physical stone textures, subtle film grain.
+Composition/framing: wide landscape card, title and text on the left in safe margins; the right side frames the mansion rising through mist. Dark charcoal and midnight blue palette with ivory type and restrained amber candle accents.
+Text (verbatim), exactly these three lines with no additional lettering:
+"NOCTURNE."
+"A WORLD BY RAKSHITH"
+"Some stories refuse to stay buried."
+Typography: NOCTURNE. very large elegant high contrast ivory serif, spelled N O C T U R N E followed by a period. Subtitle smaller widely tracked ivory capitals, spelled A WORLD BY RAKSHITH. Supporting sentence below in a clear elegant small ivory serif. All text perfectly legible, accurately spelled, optically aligned and generously spaced on the left.
+Constraints: one complete polished social preview artwork; no gore, no people, no watermarks, no logos, no extra text, no UI chrome; text must remain crisp against dark negative space.
