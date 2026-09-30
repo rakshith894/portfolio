@@ -63,7 +63,7 @@ void test('the seated traveller grips both moving oars and releases them on dise
   }
 });
 
-void test('the temporary avatar stays hidden until loading finishes', async context => {
+void test('a visible articulated avatar works during a stalled download and is replaced when loading finishes', async context => {
   const originalWindow=Object.getOwnPropertyDescriptor(globalThis,'window');
   const resources=new Set<{dispose:()=>void}>();
   const gltf=await loadHuman();
@@ -72,13 +72,15 @@ void test('the temporary avatar stays hidden until loading finishes', async cont
     Object.defineProperty(globalThis,'window',{value:{},configurable:true});
     context.mock.method(GLTFLoader.prototype,'load',(_url: string,onLoad: (value: typeof gltf)=>void)=>{deliver=()=>onLoad(gltf);});
     const avatar=createIslandAvatar(resources,false);
-    assert.equal(avatar.root.visible,false);
+    assert.equal(avatar.root.visible,true);
+    avatar.update(1, true, 1 / 60, false);
+    assert.equal(avatar.root.children[0].visible,true);
     let ready=false;void avatar.ready.then(()=>{ready=true;});
     await Promise.resolve();assert.equal(ready,false);
     deliver();await avatar.ready;
     assert.equal(avatar.root.visible,true);
     assert.ok(avatar.root.getObjectByName('Human traveller'));
-    assert.equal(avatar.root.children[0].visible,false,'Procedural body is never shown on a successful load');
+    assert.equal(avatar.root.children[0].visible,false,'Detailed model replaces the provisional body without doubling it');
   } finally {
     resources.forEach(resource=>resource.dispose());
     if(originalWindow)Object.defineProperty(globalThis,'window',originalWindow);else Reflect.deleteProperty(globalThis,'window');

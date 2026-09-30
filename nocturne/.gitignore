@@ -39,3 +39,6 @@ next-env.d.ts
 
 # TypeScript incremental cache
 *.tsbuildinfo
+/content/.profile.tmp
+/content/.hall-projects.tmp
+/content/.skills.tmp

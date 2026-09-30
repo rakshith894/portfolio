@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createIslandWeather, stormFlash } from '../lib/island-weather.ts';
+import { islandMode } from '../lib/island-mode.ts';
 import {
   cemeteryLayout,
   createReferenceGraves,
@@ -53,6 +54,31 @@ void test('weather follows exploration without advancing a paused storm', () => 
   }
 });
 
+void test('day mode clears rain and lightning and returns to the same night weather without rebuilding', () => {
+  const resources = new Set<{ dispose: () => void }>();
+  try {
+    const weather = createIslandWeather(new THREE.Scene(), resources, false);
+    const sky = weather.sky;
+    const count = resources.size;
+    weather.update(6.35);
+    assert.ok(weather.lightning.intensity > 1.7);
+    weather.setDaylight(true);
+    assert.equal(weather.sky.material.uniforms.daylight.value, true);
+    assert.equal(weather.rain.visible, false);
+    assert.equal(weather.bolt.visible, false);
+    assert.equal(weather.lightning.intensity, 0);
+    weather.update(33.35);
+    assert.equal(weather.lightning.intensity, 0);
+    weather.setDaylight(false);
+    assert.equal(weather.sky, sky);
+    assert.equal(resources.size, count);
+    assert.equal(weather.rain.visible, true);
+    assert.ok(weather.lightning.intensity > 1.7);
+  } finally {
+    resources.forEach(resource => resource.dispose());
+  }
+});
+
 void test('cemetery layouts keep paths clear and reduce density on mobile', () => {
   const desktop = cemeteryLayout(false),
     mobile = cemeteryLayout(true);
@@ -93,4 +119,42 @@ void test('chest tomb foundations reach the downhill terrain beneath their front
   } finally {
     resources.forEach((resource) => resource.dispose());
   }
+});
+
+void test('day, night and winter switch distinct effects without new resources and shelter stops precipitation', () => {
+  for (const mobile of [false, true]) {
+    const resources = new Set<{ dispose: () => void }>();
+    const weather = createIslandWeather(new THREE.Scene(), resources, mobile);
+    const count = resources.size;
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(500, 35, -400);
+    try {
+      for (const mode of ['winter', 'day', 'night', 'winter', 'night'] as const) {
+        weather.setMode(mode); weather.update(33.35, camera);
+        assert.equal(weather.rain.visible, mode === 'night');
+        assert.equal(weather.particles.visible, mode !== 'night');
+        assert.equal(weather.sky.material.uniforms.winter.value, mode === 'winter');
+        assert.equal(weather.sky.material.uniforms.daylight.value, mode === 'day');
+        assert.equal(weather.lightning.intensity > 0, mode === 'night');
+        assert.ok(weather.particles.material.uniforms.center.value.equals(camera.position));
+        weather.setSheltered(true);
+        assert.equal(weather.rain.visible, false);
+        assert.equal(weather.particles.visible, false);
+        weather.setMode(mode); // Switching while indoors must not bring snow inside.
+        assert.equal(weather.particles.visible, false);
+        weather.setSheltered(false);
+        assert.equal(weather.particles.visible, mode !== 'night');
+        assert.equal(resources.size, count);
+      }
+      assert.equal(weather.particles.geometry.getAttribute('position').count, mobile ? 650 : 1800);
+    } finally { resources.forEach(resource => resource.dispose()); }
+  }
+});
+
+void test('atmosphere preference accepts winter and falls back safely for old or invalid values', () => {
+  assert.equal(islandMode('winter'), 'winter');
+  assert.equal(islandMode('day'), 'day');
+  assert.equal(islandMode('night'), 'night');
+  assert.equal(islandMode(null), 'night');
+  assert.equal(islandMode('broken'), 'night');
 });

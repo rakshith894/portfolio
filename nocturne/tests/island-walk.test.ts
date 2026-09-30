@@ -185,7 +185,7 @@ void test('the following camera shortens its orbit when a monument blocks the pl
   const originalDistance = camera.distanceTo(target);
   walker.constrainCamera(camera, target);
   assert.ok(camera.distanceTo(target) < originalDistance - 1);
-  assert.ok(camera.distanceTo(target) >= 1);
+  assert.ok(camera.distanceTo(target) >= .15 - 1e-8);
 });
 
 void test('sprinting cannot cross any cemetery fence segment, even after a long frame', () => {

@@ -30,6 +30,7 @@ export function createIslandLife(
     return item;
   };
   const time = { value: 0 };
+  const oceanDaylight = { value: 0 };
   const boatMasks={value:Array.from({length:5},()=>new THREE.Matrix4().makeTranslation(1e9,1e9,1e9))};
   const waterGeometry = own(
     new THREE.PlaneGeometry(240, 240, mobile ? 100 : 180, mobile ? 100 : 180),
@@ -43,14 +44,15 @@ export function createIslandLife(
   const water = own(
     new THREE.MeshPhysicalMaterial({
       color: 0x233d4a,
-      roughness: 0.32,
-      metalness: 0.12,
-      clearcoat: 0.45,
-      clearcoatRoughness: 0.13,
+      roughness: 0.18,
+      metalness: 0,
+      ior: 1.333,
+      clearcoat: 0,
     }),
   );
   water.onBeforeCompile = (shader) => {
     shader.uniforms.islandTime = time;
+    shader.uniforms.oceanDaylight = oceanDaylight;
     shader.uniforms.islandBoats=boatMasks;
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -68,7 +70,7 @@ export function createIslandLife(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        `#include <common>\nuniform float islandTime;uniform mat4 islandBoats[5];varying vec3 oceanPosition;${noiseGLSL}`,
+        `#include <common>\nuniform float islandTime;uniform float oceanDaylight;uniform mat4 islandBoats[5];varying vec3 oceanPosition;${noiseGLSL}\n${oceanGLSL}`,
       )
       .replace(
         '#include <color_fragment>',
@@ -91,13 +93,30 @@ float distanceToCliff=length(coastPoint)-coast;`
 float foamNoise=fbm(oceanPosition.xz*.85-vec2(islandTime*.23,islandTime*.17));
 float shore=exp(-abs(distanceToCliff-2.3)*.6)*smoothstep(.43,.75,foamNoise+sin(distanceToCliff*2.1-islandTime*1.7)*.2);
 float crest=smoothstep(.68,1.35,oceanPosition.y)*smoothstep(.4,.62,foamNoise);
-float fineRipples=sin(oceanPosition.x*3.7+oceanPosition.z*1.9-islandTime*3.1)*sin(oceanPosition.z*2.8+islandTime*2.2);
-diffuseColor.rgb*=.92+fineRipples*.035;
-diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.48,.56,.59),clamp(shore*.75+crest*.25,0.,.72));`,
+float oceanFoam=clamp(shore*.75+crest*.25,0.,.72);
+diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.65,.72,.73),oceanFoam);`,
       );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+roughnessFactor=mix(roughnessFactor,.74,oceanFoam);`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+vec3 waterSlope=oceanSample(oceanPosition.xz,islandTime);
+float rippleFade=1.-smoothstep(35.,160.,length(cameraPosition-oceanPosition));
+vec2 ripples=vec2(.08,.035)*cos(dot(oceanPosition.xz,vec2(2.3,1.1))-islandTime*2.1)+vec2(-.035,.07)*cos(dot(oceanPosition.xz,vec2(-1.7,3.2))-islandTime*2.8);
+vec3 waterNormal=normalize(vec3(-waterSlope.y-ripples.x*rippleFade,1.,-waterSlope.z-ripples.y*rippleFade));
+normal=normalize(mat3(viewMatrix)*waterNormal);nonPerturbedNormal=normal;`)
+      .replace('#include <opaque_fragment>', `vec3 waterView=normalize(cameraPosition-oceanPosition);
+vec3 reflectedRay=reflect(-waterView,waterNormal);
+float skyHeight=smoothstep(0.,.85,reflectedRay.y);
+vec3 nightSky=mix(vec3(.028,.052,.072),vec3(.012,.025,.047),skyHeight);
+vec3 daySky=mix(vec3(.61,.78,.91),vec3(.12,.39,.76),skyHeight);
+vec3 reflectedSky=mix(nightSky,daySky,oceanDaylight);
+float fresnel=.0204+.9796*pow(1.-max(dot(waterNormal,waterView),0.),5.);
+outgoingLight=mix(outgoingLight,reflectedSky,fresnel*.8*(1.-oceanFoam));
+#include <opaque_fragment>`);
   };
   water.customProgramCacheKey = () =>
-    `nocturne-living-water-2-${layout.coastGLSL ?? 'legacy'}`;
+    `nocturne-living-water-3-${layout.coastGLSL ?? 'legacy'}`;
   const sea = new THREE.Mesh(waterGeometry, water);
   sea.position.y = SEA_LEVEL;
   scene.add(sea);
@@ -314,7 +333,7 @@ void main(){vec3 direction=normalize(skyDirection);vec2 p=direction.xz/(max(dire
     return { root, tail, ring, ringMaterial, spray, sprayMaterial, droplets };
   });
 
-  // Feathered silhouettes bank through broad arcs; each wing alternates flapping and gliding.
+  // Feathered silhouettes cross the island, alternating wingbeats and gliding.
   const crowMaterial = own(
     new THREE.MeshStandardMaterial({
       color: 0x080e14,
@@ -355,23 +374,26 @@ void main(){vec3 direction=normalize(skyDirection);vec2 p=direction.xz/(max(dire
     (_, index) => {
       const root = new THREE.Group();
       scene.add(root);
-      const body = new THREE.Mesh(crowBody, crowMaterial);
+      const birdMaterial = own(crowMaterial.clone());
+      birdMaterial.transparent = true;
+      birdMaterial.depthWrite = false;
+      const body = new THREE.Mesh(crowBody, birdMaterial);
       body.scale.set(0.43, 0.18, 0.2);
       root.add(body);
-      const head = new THREE.Mesh(crowBody, crowMaterial);
+      const head = new THREE.Mesh(crowBody, birdMaterial);
       head.scale.set(0.17, 0.16, 0.15);
       head.position.set(0.36, 0.12, 0);
       root.add(head);
-      const beak = new THREE.Mesh(beakGeometry, crowMaterial);
+      const beak = new THREE.Mesh(beakGeometry, birdMaterial);
       beak.position.set(0.57, 0.1, 0);
       root.add(beak);
-      const tail = new THREE.Mesh(crowTail, crowMaterial);
+      const tail = new THREE.Mesh(crowTail, birdMaterial);
       tail.position.x = -0.3;
       root.add(tail);
       const wings = [-1, 1].map((side) => {
         const pivot = new THREE.Group();
         root.add(pivot);
-        const wing = new THREE.Mesh(wingGeometry, crowMaterial);
+        const wing = new THREE.Mesh(wingGeometry, birdMaterial);
         wing.scale.z = side;
         wing.position.z = side * 0.1;
         pivot.add(wing);
@@ -380,7 +402,7 @@ void main(){vec3 direction=normalize(skyDirection);vec2 p=direction.xz/(max(dire
       root.scale.setScalar(
         (layout.referenceBirds && index < 6 ? 1.35 : 1) + (index % 3) * 0.08,
       );
-      return { root, wings };
+      return { root, wings, material: birdMaterial };
     },
   );
   function update(seconds: number, camera?: THREE.Camera) {
@@ -428,13 +450,16 @@ void main(){vec3 direction=normalize(skyDirection);vec2 p=direction.xz/(max(dire
         : crowPose(seconds, index);
       crow.root.position.set(pose.x, pose.y, pose.z);
       if (layout.crowOffset) crow.root.position.add(layout.crowOffset);
-      crow.root.rotation.set(pose.bank, pose.yaw, 0, 'YXZ');
+      crow.root.visible = pose.opacity > .001;
+      crow.material.opacity = pose.opacity;
+      crow.root.rotation.set(pose.bank, pose.yaw, pose.pitch, 'YXZ');
       crow.wings[0].rotation.x = pose.flap;
       crow.wings[1].rotation.x = -pose.flap;
     });
   }
   update(0);
   return { update, water, sea, horizon, clouds, fishes, crows,
+    setDaylight(enabled: boolean) { oceanDaylight.value = enabled ? 1 : 0; },
     setBoats(boats:THREE.Object3D[]){boatMasks.value.forEach((mask,i)=>{
       const boat=boats[i];if(!boat){mask.makeTranslation(1e9,1e9,1e9);return;}
       boat.updateWorldMatrix(true,false);mask.copy(boat.matrixWorld).invert();

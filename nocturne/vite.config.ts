@@ -3,6 +3,10 @@ import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
 import { defineConfig } from 'vite';
 import hostingConfig from './.openai/hosting.json';
+import { localProjectEditor } from './tools/local-project-editor';
+import { localProfileEditor } from './tools/local-profile-editor';
+import { localSkillEditor } from './tools/local-skill-editor';
+import { localContentUpdates } from './tools/local-content-updates';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   '00000000-0000-4000-8000-000000000000';
@@ -48,6 +52,7 @@ export default defineConfig(async () => {
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
     server: {
+      host: '127.0.0.1',
       watch: {
         ignored: [
           '**/.next/**',
@@ -55,6 +60,9 @@ export default defineConfig(async () => {
           '**/dist/**',
           '**/work/**',
           '**/.wrangler/**',
+          '**/.hall-projects.tmp',
+          '**/.profile.tmp',
+          '**/.skills.tmp',
         ],
         ...(usePolling
           ? { useFsEvents: false, usePolling: true, interval: 300 }
@@ -62,6 +70,10 @@ export default defineConfig(async () => {
       },
     },
     plugins: [
+      localContentUpdates(),
+      localProjectEditor(),
+      localProfileEditor(),
+      localSkillEditor(),
       vinext(),
       sites(),
       cloudflare({

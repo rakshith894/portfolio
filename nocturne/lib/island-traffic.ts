@@ -28,7 +28,7 @@ export function createOceanTraffic(
     lantern.position.set(1.8, 0.95, 0);
     root.add(lantern);
     scene.add(root);
-    return { root, passenger, rowing:bindRowboatOars(root), poseTime:0, heading: index * 1.7, initialized: false };
+    return { root, passenger, rowing:bindRowboatOars(root), heading: index * 1.7, initialized: false };
   });
   let previous = 0;
   return {
@@ -90,14 +90,9 @@ export function createOceanTraffic(
           -entry.heading,
           -Math.atan2(wave.normal.x, wave.normal.y) * 0.35,
         );
-        // Distant passengers do not need sixty full skeleton updates per second.
-        entry.poseTime+=dt;
-        if(entry.poseTime >= (root.position.distanceToSquared(viewer)<900 ? 1/30 : 1/12)) {
-          entry.rowing.update(entry.poseTime,clear);
-          if(entry.rowing.available)passenger.setRowingTargets(entry.rowing.leftHand,entry.rowing.rightHand);
-          passenger.update(0, false, entry.poseTime, false);
-          entry.poseTime=0;
-        }
+        entry.rowing.update(dt,clear);
+        if(entry.rowing.available)passenger.setRowingTargets(entry.rowing.leftHand,entry.rowing.rightHand);
+        passenger.update(0, false, dt, false);
       });
     },
   };

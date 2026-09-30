@@ -95,8 +95,8 @@ export default function Portfolio({
                 <span className="project-status">IN DEVELOPMENT</span>
                 <h3>Nocturne</h3>
                 <p>
-                  A moonlit island with a walking guide, a boat to sail,
-                  a Gothic mansion, and six underground galleries.
+                  A moonlit island with a walking guide, a boat to sail, and a
+                  haunted Gothic mansion with four rooms to explore.
                 </p>
                 <div className="technology-tags">
                   <span>React</span>
@@ -140,8 +140,8 @@ export default function Portfolio({
               </div>
             </div>
             <p className="content-caption">
-              THE ISLAND DEMONSTRATES CHARACTER ANIMATION AND INTERACTIVE NAVIGATION.
-              RAKSHITH’S VERIFIED SKILL PROFILE WILL BE ADDED LATER.
+              THE ISLAND DEMONSTRATES CHARACTER ANIMATION AND INTERACTIVE
+              NAVIGATION. RAKSHITH’S VERIFIED SKILL PROFILE WILL BE ADDED LATER.
             </p>
           </TabsContent>
           <TabsContent className="portfolio-content" value="resume">

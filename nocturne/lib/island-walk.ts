@@ -232,7 +232,7 @@ export function createIslandWalker(
   for (const rock of cemeteryRocks())
     cameraBox(rock.x, rock.z, rock.radius, rock.radius, rock.sy * 1.28);
   cameraBox(-52, -31, 3.3, 3.15, 16);
-  for (const rock of COASTAL_ROCKS) cameraBounds.push(new THREE.Box3(
+  const coastalCameraBounds = COASTAL_ROCKS.map(rock => new THREE.Box3(
     new THREE.Vector3(rock.x-rock.radius,rock.y-rock.sy*1.28,rock.z-rock.radius),
     new THREE.Vector3(rock.x+rock.radius,rock.y+rock.sy*1.28,rock.z+rock.radius),
   ));
@@ -252,8 +252,30 @@ export function createIslandWalker(
       if (cameraRay.intersectBox(box, intersection))
         visibleDistance = Math.min(
           visibleDistance,
-          Math.max(1, target.distanceTo(intersection) - 0.22),
+          Math.max(0.15, target.distanceTo(intersection) - 0.22),
         );
+    }
+    for (const box of coastalCameraBounds) {
+      if (!cameraRay.intersectBox(box, intersection)) continue;
+      const entry = box.containsPoint(target) ? 0 : target.distanceTo(intersection);
+      for (let distance = entry; distance < visibleDistance; distance += .12) {
+        cameraRay.at(distance, intersection);
+        if (!box.containsPoint(intersection)) break;
+        if (intersection.y > clearedSceneryHeight(intersection.x, intersection.z, Infinity)) continue;
+        visibleDistance = Math.max(.15, distance - .22);
+        break;
+      }
+    }
+    // Shorten along the sight line at cliffs, rather than lifting the camera
+    // suddenly onto the terrain above a carved stair corridor.
+    for (let distance = .2; distance < visibleDistance; distance += .15) {
+      cameraRay.at(distance, intersection);
+      const floor = onIsland(intersection.x, intersection.z)
+        ? clearedSceneryHeight(intersection.x, intersection.z, groundHeight(intersection.x, intersection.z)) + .3
+        : 1.2;
+      if (intersection.y >= floor) continue;
+      visibleDistance = Math.max(.15, distance - .2);
+      break;
     }
     if (visibleDistance < length)
       position

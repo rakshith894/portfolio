@@ -1,3 +1,4 @@
+import type { IslandMode } from './island-mode.ts';
 export function createAmbience() {
   const ctx = new AudioContext();
   const gain = ctx.createGain();
@@ -20,11 +21,13 @@ export function createAmbience() {
   noise.connect(filter);
   filter.connect(gain);
   noise.start();
+  const droneGains: GainNode[] = [];
   const drones = [55, 82.6].map((hz) => {
     const o = ctx.createOscillator();
     o.frequency.value = hz;
     const g = ctx.createGain();
     g.gain.value = 0.075;
+    droneGains.push(g);
     o.connect(g);
     g.connect(gain);
     o.start();
@@ -60,6 +63,12 @@ export function createAmbience() {
     source.start();source.stop(now+duration);
   }
   return {
+    get running() { return !closed && ctx.state === 'running'; },
+    setMode(mode: IslandMode) {
+      if (closed) return;
+      filter.frequency.setTargetAtTime(mode === 'winter' ? 850 : mode === 'day' ? 550 : 380, ctx.currentTime, .6);
+      for (const g of droneGains) g.gain.setTargetAtTime(mode === 'night' ? .075 : mode === 'winter' ? .016 : 0, ctx.currentTime, .6);
+    },
     step: (running = false, wooden = false, side = 0) => {
       tone(wooden?150:95,wooden?65:42,.14,running?.48:.3,side);
       rustle(.13,wooden?650:1400,running?1.5:1,side);

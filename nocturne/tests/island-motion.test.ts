@@ -7,6 +7,7 @@ import {
   fishPose,
   fishRoutes,
   crowPose,
+  referenceCrowPose,
   SEA_LEVEL,
   waves,
 } from '../lib/island-motion.ts';
@@ -14,7 +15,10 @@ import { createIslandLife } from '../lib/island-life.ts';
 import { DOCK_HEIGHT } from '../lib/island-stairs.ts';
 
 void test('the dock remains above the highest possible wave crest', () => {
-  assert.ok(DOCK_HEIGHT > SEA_LEVEL + waves.reduce((sum, wave) => sum + wave.amplitude, 0) + .2);
+  assert.ok(
+    DOCK_HEIGHT >
+      SEA_LEVEL + waves.reduce((sum, wave) => sum + wave.amplitude, 0) + 0.2,
+  );
 });
 
 void test('ocean normals agree with the slope of the moving water', () => {
@@ -82,23 +86,63 @@ void test('fish emerge from below the waves, clear the island, then land with a 
   });
 });
 
-void test('crows clear the spires and retain a continuous flight path at orbit boundaries', () => {
-  for (let index = 0; index < 8; index++) {
-    const period = (2 * Math.PI) / 0.085;
-    const first = crowPose(0, index),
-      next = crowPose(period, index);
-    assert.ok(
-      Math.hypot(first.x - next.x, first.y - next.y, first.z - next.z) < 1e-10,
-    );
-    for (let t = 0; t < period; t += 0.2) {
-      const pose = crowPose(t, index),
-        after = crowPose(t + 0.001, index);
-      assert.ok(pose.y > 27.6);
+void test('crows travel across the island and leave, without visible resets or stationary circling', () => {
+  for (const poseAt of [crowPose, referenceCrowPose]) {
+    for (let index = 0; index < 11; index++) {
+      let minX = Infinity,
+        maxX = -Infinity,
+        hidden = 0,
+        travelled = 0;
+      for (let time = 0; time < 240; time += 0.2) {
+        const pose = poseAt(time, index),
+          after = poseAt(time + 0.001, index);
+        assert.ok(pose.y > (index < 6 ? 32 : 67));
+        assert.ok(pose.opacity >= 0 && pose.opacity <= 1);
+        if (index < 6)
+          assert.ok(
+            pose.z > 0,
+            'Low flights stay in front of the manor and tower',
+          );
+        if (pose.opacity < 0.001) hidden++;
+        const dx = after.x - pose.x,
+          dz = after.z - pose.z;
+        const step = Math.hypot(dx, dz);
+        if (step > 0.02) {
+          assert.equal(
+            pose.opacity,
+            0,
+            'Route resets must happen only while invisible',
+          );
+          assert.ok(after.opacity < 0.001);
+        } else if (pose.opacity > 0.1 && after.opacity > 0.1) {
+          assert.ok(
+            step > 0.006 && step < 0.012,
+            'A visible crow must travel forward at flight speed',
+          );
+          const headingAgreement =
+            (Math.cos(pose.yaw) * dx - Math.sin(pose.yaw) * dz) / step;
+          assert.ok(
+            headingAgreement > 0.99999,
+            'The crow faces the direction it travels',
+          );
+          travelled++;
+        }
+        if (pose.opacity > 0.1) {
+          minX = Math.min(minX, pose.x);
+          maxX = Math.max(maxX, pose.x);
+        }
+      }
       assert.ok(
-        Math.hypot(after.x - pose.x, after.y - pose.y, after.z - pose.z) < 0.01,
+        maxX - minX > 180,
+        'Flight coverage must extend well beyond the old small orbit',
+      );
+      assert.ok(hidden > 0 && travelled > 100);
+      assert.equal(
+        poseAt(5 - index * 0.53 + 11.2, index).flap,
+        0.08,
+        'Flights include gliding between wingbeats',
       );
     }
-    assert.equal(crowPose(5 - index * 0.21, index).flap, 0.08);
   }
 });
 
@@ -140,9 +184,41 @@ void test('the scene wires motion to live shader uniforms, fish, crows, and paus
   life.crows.forEach((crow, index) => {
     const pose = crowPose(6.5, index);
     assert.equal(crow.root.rotation.x, pose.bank);
-    assert.equal(crow.root.rotation.z, 0);
+    assert.equal(crow.root.rotation.z, pose.pitch);
+    assert.equal(crow.root.visible, pose.opacity > 0.001);
+    assert.equal(crow.material.opacity, pose.opacity);
     assert.ok(birds[index].equals(crow.root.position));
   });
   assert.ok(life.sea.geometry.boundingBox!.max.y >= 1.38);
   resources.forEach((resource) => resource.dispose());
+});
+
+void test('the live graveyard flock translates during flight and hides between coastal passes', () => {
+  for (const mobile of [false, true]) {
+    const resources = new Set<{ dispose: () => void }>();
+    const life = createIslandLife(new THREE.Scene(), resources, mobile, {
+      referenceBirds: true,
+    });
+    assert.equal(life.crows.length, mobile ? 8 : 11);
+    for (const time of [0, 12, 35, 43, 85, 160]) {
+      life.update(time);
+      life.crows.forEach((crow, index) => {
+        const pose = referenceCrowPose(time, index);
+        assert.ok(
+          crow.root.position.distanceTo(
+            new THREE.Vector3(pose.x, pose.y, pose.z),
+          ) < 1e-9,
+        );
+        assert.equal(crow.material.opacity, pose.opacity);
+        assert.equal(crow.root.visible, pose.opacity > 0.001);
+        assert.equal(crow.root.rotation.z, pose.pitch);
+      });
+    }
+    assert.notEqual(
+      life.crows[0].material,
+      life.crows[1].material,
+      'One departing bird must not fade the whole flock',
+    );
+    resources.forEach((resource) => resource.dispose());
+  }
 });

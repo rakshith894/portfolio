@@ -3,6 +3,7 @@ import { MANOR_SOLIDS, MANOR_TOWERS, MANOR_DOOR, MANOR_ENTRY_ARCHES, MANOR_ARCH_
 import * as THREE from 'three';
 import { projectSurfaceUV } from './surface-uv.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { cutManorInterior } from './manor-interior-cut.ts';
 
 export type ManorMaterials = Record<
   | 'stone'
@@ -178,11 +179,29 @@ export function createReferenceManor(
   const MZ = -20,
     base = 2.22;
   const front = MZ + 4;
-  for (const solid of MANOR_SOLIDS)
-    box(materials[solid.material], solid.x, solid.y, solid.z, solid.width, solid.height, solid.depth);
+  for (const solid of MANOR_SOLIDS) {
+    if (solid.name === 'Entrance recess') continue;
+    if (solid.name === 'Main walls' || solid.name === 'Main foundation') {
+      // A real opening continues through the facade and its foundation.
+      const halfOpening = 1.2;
+      const sideWidth = solid.width / 2 - halfOpening;
+      for (const side of [-1, 1]) box(materials[solid.material], side * (halfOpening + sideWidth / 2), solid.y, solid.z, sideWidth, solid.height, solid.depth);
+      if (solid.name === 'Main walls') {
+        const top = solid.y + solid.height / 2, lintel = MANOR_DOOR.y + MANOR_DOOR.height;
+        box(materials[solid.material], 0, (top + lintel) / 2, solid.z, halfOpening * 2, top - lintel, solid.depth);
+      }
+    } else box(materials[solid.material], solid.x, solid.y, solid.z, solid.width, solid.height, solid.depth);
+  }
   for (const y of [base + 0.9, base + 4.4, base + 8.05, base + 11.25]) {
-    box(edge, 0, y, MZ, 18.5, 0.2, 8.5);
-    box(darkStone, 0, y - 0.15, front + 0.13, 18.25, 0.15, 0.4);
+    if (y < MANOR_DOOR.y + MANOR_DOOR.height) {
+      for (const side of [-1, 1]) {
+        box(edge, side * 5.225, y, MZ, 8.05, .2, 8.5);
+        box(darkStone, side * 5.1625, y - .15, front + .13, 7.925, .15, .4);
+      }
+    } else {
+      box(edge, 0, y, MZ, 18.5, 0.2, 8.5);
+      box(darkStone, 0, y - 0.15, front + 0.13, 18.25, 0.15, 0.4);
+    }
   }
   // Quoin stones and buttresses break up every vertical façade.
   for (const x of [-8.7, -5.6, -2.4, 2.4, 5.6, 8.7]) {
@@ -191,16 +210,7 @@ export function createReferenceManor(
       box(edge, x, base + y, front + 0.43, 0.5, 0.23, 0.19);
     tapered(edge, x, base + 12, front + 0.1, 0.025, 0.32, 1.4, 4);
   }
-  for (const x of [-7.1, -4, -1, 1, 4, 7.1])
-    for (const [level, y] of [1.2, 4.9, 8.5].entries())
-      pane(
-        x,
-        base + y,
-        front + 0.028,
-        level === 2 ? 0.77 : 0.98,
-        level === 2 ? 1.75 : 2.5,
-        rand() > 0.43,
-      );
+  // Habitable floors use the shared HOUSE_WINDOWS glazing and reveals.
   const roofGeometry = own(new THREE.CylinderGeometry(0, 1, 1, 4, 1));
   const mainRoofShape = new THREE.Shape();
   mainRoofShape.moveTo(-5.1, 0);
@@ -337,20 +347,9 @@ export function createReferenceManor(
         list[i].translate(x, 0, z);
       }
   }
-  for (const x of [-7.1, -4, -1, 1, 4, 7.1])
-    for (const [level, y] of [1.2, 4.9, 8.5].entries())
-      facingPane(
-        x,
-        base + y,
-        MZ - 4.035,
-        0.92,
-        level === 2 ? 1.75 : 2.45,
-        rand() > 0.52,
-        Math.PI,
-      );
   for (const side of [-1, 1]) {
     for (const z of [-21, -23])
-      for (const y of [1.2, 4.8])
+      for (const y of [4.8])
         facingPane(
           side * 12.53,
           base + y,
@@ -535,8 +534,10 @@ export function createReferenceManor(
     const merged = mergeGeometries(normalized, false);
     normalized.forEach((g) => g.dispose());
     if (!merged) continue;
-    own(merged);
-    const mesh = new THREE.Mesh(merged, m);
+    const hollow = own(cutManorInterior(merged));
+    merged.dispose();
+    projectSurfaceUV(hollow, 2.4);
+    const mesh = new THREE.Mesh(hollow, m);
     mesh.castShadow = !mobile;
     mesh.receiveShadow = true;
     root.add(mesh);

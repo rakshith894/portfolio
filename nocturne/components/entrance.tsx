@@ -1,24 +1,54 @@
 ﻿'use client';
 import Image from 'next/image';
-import { useState } from 'react';
-import { ArrowRight, Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Pause,
+  Play,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EntranceAtmosphere } from '@/components/entrance-atmosphere';
 
 type Props = {
   onExplore: () => void;
+  onPrepare: () => void;
   onPortfolio: () => void;
-  sound: boolean;
-  onSound: () => void;
   audioError: boolean;
 };
 
-export function Entrance({ onExplore, onPortfolio, sound, onSound, audioError }: Props) {
+export function Entrance({
+  onExplore,
+  onPrepare,
+  onPortfolio,
+  audioError,
+}: Props) {
   const [paused, setPaused] = useState(false);
   const [failedImage, setFailedImage] = useState(false);
+  const [entering, setEntering] = useState(false);
+  const departure = useRef({ frame: 0, timer: 0, active: false });
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(departure.current.frame);
+      window.clearTimeout(departure.current.timer);
+    },
+    [],
+  );
+  const enter = () => {
+    if (departure.current.active) return;
+    departure.current.active = true;
+    setEntering(true);
+    onPrepare();
+    // Paint the button feedback before the island builds its geometry.
+    departure.current.frame = requestAnimationFrame(() => {
+      departure.current.timer = window.setTimeout(onExplore, 0);
+    });
+  };
   return (
     <main
       className="entrance-scene portfolio-landing"
+      data-paused={paused}
+      aria-busy={entering}
       aria-label="Rakshith's portfolio"
     >
       <div className="entrance-viewport">
@@ -26,11 +56,12 @@ export function Entrance({ onExplore, onPortfolio, sound, onSound, audioError }:
           <Image
             unoptimized
             className="entrance-image"
-            src="/graveyard.png"
+            src="/graveyard.webp"
             alt="A moonlit graveyard and a winding stone path leading to a Gothic house by the sea."
             width={1672}
             height={941}
             fetchPriority="high"
+            loading="eager"
             draggable={false}
             onError={() => setFailedImage(true)}
           />
@@ -39,6 +70,7 @@ export function Entrance({ onExplore, onPortfolio, sound, onSound, audioError }:
           )}
         </div>
       </div>
+      <div className="landing-haze" aria-hidden="true" />
       <header className="entrance-header">
         <div className="entrance-brand">
           <p className="landing-wordmark">NOCTURNE.</p>
@@ -51,52 +83,63 @@ export function Entrance({ onExplore, onPortfolio, sound, onSound, audioError }:
             className="entrance-motion"
             onClick={() => setPaused((value) => !value)}
             aria-pressed={paused}
-            aria-label={paused ? 'Resume candle flames' : 'Pause candle flames'}
+            aria-label={paused ? 'Resume atmosphere' : 'Pause atmosphere'}
           >
             {paused ? <Play /> : <Pause />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="entrance-sound"
-            onClick={onSound}
-            aria-label={sound ? 'Mute ambience' : 'Enable ambience'}
-            aria-pressed={sound}
-          >
-            {sound ? <Volume2 /> : <VolumeX />}
           </Button>
         </div>
       </header>
       <section className="landing-copy">
-        <p className="landing-eyebrow">CREATIVE DEVELOPER</p>
+        <p className="landing-eyebrow">
+          <span /> CREATIVE DEVELOPER · A WORLD BUILDER
+        </p>
         <h1>
-          Every story
+          Some stories
           <br />
-          has a beginning.
+          refuse to stay
+          <br />
+          <em>buried.</em>
         </h1>
         <p className="landing-intro">
-          I’m Rakshith. Welcome to my world.
+          I’m Rakshith. I build things for the web.
           <br />
-          Follow the path to discover what I create.
+          Follow the lights. Discover what lies beyond.
         </p>
-        <Button
-          className="landing-next"
-          variant="outline"
-          onClick={onExplore}
-          aria-label="Next — enter my 3D portfolio"
-        >
-          <span>
-            Next <small>MY PORTFOLIO</small>
-          </span>
-          <ArrowRight />
-        </Button>
+        <div className="landing-actions">
+          <Button
+            className="landing-next"
+            variant="outline"
+            onPointerEnter={onPrepare}
+            onFocus={onPrepare}
+            onPointerDown={onPrepare}
+            onClick={enter}
+            disabled={entering}
+            aria-label="Enter the island — explore my 3D portfolio"
+          >
+            <span>
+              {entering ? 'Opening the gates…' : 'Enter the island'}{' '}
+              <small>BEGIN THE JOURNEY</small>
+            </span>
+            <ArrowRight />
+          </Button>
+          <Button
+            className="landing-work"
+            variant="ghost"
+            onClick={onPortfolio}
+          >
+            View my work <ArrowUpRight />
+          </Button>
+        </div>
         <p className="landing-note">
-          An interactive journey through the graveyard.
+          A portfolio you don’t just see. You explore.
         </p>
-        <Button variant="ghost" onClick={onPortfolio}>
-          View portfolio
-        </Button>
       </section>
+      <footer className="landing-colophon">
+        <span>
+          <b>01</b> THE ARRIVAL
+        </span>
+        <p>A little curiosity goes a long way.</p>
+      </footer>
       {audioError && (
         <output className="island-audio-note">
           Sound could not start. You can still explore.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createReferenceEnvironment } from '../lib/reference-environment.ts';
+import { createIslandWalker, walkingHeight } from '../lib/island-walk.ts';
 import {
   SHORE_ROUTE,
   TOWER_ROUTE,
@@ -112,6 +113,32 @@ for (const mobile of [false, true]) {
         0,
         'Dock is obstructed',
       );
+      // Check the actual rendered retaining faces, shoulders and rocks from
+      // both travel directions and while orbiting through each stair turn.
+      const walker = createIslandWalker(mobile);
+      const obstructionFailures: string[] = [];
+      for (let i = 1; i < SHORE_ROUTE.length; i++) {
+        const a = SHORE_ROUTE[i - 1], b = SHORE_ROUTE[i];
+        for (const progress of [.1, .5, .9]) for (let heading = 0; heading < 8; heading++) {
+          const x = THREE.MathUtils.lerp(a[0], b[0], progress);
+          const z = THREE.MathUtils.lerp(a[2], b[2], progress);
+          const target = new THREE.Vector3(x, walkingHeight(x, z) + 1.65, z);
+          const camera = target.clone().add(new THREE.Vector3(
+            Math.sin(heading * Math.PI / 4) * 9, 4, Math.cos(heading * Math.PI / 4) * 9,
+          ));
+          walker.constrainCamera(camera, target);
+          const originalDirection = camera.clone().sub(target).normalize();
+          environment.constrainShoreCamera(camera, target);
+          assert.ok(camera.clone().sub(target).normalize().distanceTo(originalDirection) < 1e-8,
+            'Wall avoidance must not lift or swing the camera away from the traveller');
+          ray.set(target, originalDirection);
+          ray.near = .001;
+          ray.far = camera.distanceTo(target) - .05;
+          if (ray.intersectObjects(solids, false).length)
+            obstructionFailures.push(`segment ${i}, progress ${progress}, heading ${heading}`);
+        }
+      }
+      assert.deepEqual(obstructionFailures, [], 'Boat stair walls must never stand between camera and traveller');
     } finally {
       environment.dispose();
       resources.forEach((resource) => resource.dispose());

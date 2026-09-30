@@ -28,7 +28,8 @@ export function createIslandAvatar(
   const capsule = own(new THREE.CapsuleGeometry(1, 1, 4, 10));
   const box = own(new THREE.BoxGeometry(1, 1, 1));
   const root = new THREE.Group();
-  root.visible = typeof window === 'undefined';
+  // Keep the local articulated avatar usable while the detailed model streams.
+  root.visible = true;
   let finishLoading!: () => void;
   const ready = new Promise<void>(resolve => { finishLoading = resolve; });
   root.name = 'Rakshith — player';

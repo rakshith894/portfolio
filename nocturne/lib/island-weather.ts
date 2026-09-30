@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { IslandMode } from './island-mode.ts';
 
 /** A broad single lightning pulse, with a long quiet interval between storms. */
 export function stormFlash(time: number) {
@@ -22,15 +23,19 @@ export function createIslandWeather(
   };
   const time = { value: 0 },
     flash = { value: 0 };
+  const daylight = { value: false };
+  const winter = { value: false };
+  const sheltered = { value: false };
+  let mode: IslandMode = 'night';
   const skyMaterial = own(
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
       depthTest: false,
-      uniforms: { weatherTime: time, lightning: flash, skyImage: { value: null }, hasSkyImage: { value: false } },
+      uniforms: { weatherTime: time, lightning: flash, daylight, winter, skyImage: { value: null }, hasSkyImage: { value: false } },
       vertexShader:
         'varying vec3 skyRay;void main(){skyRay=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-      fragmentShader: `uniform float weatherTime;uniform float lightning;uniform sampler2D skyImage;uniform bool hasSkyImage;varying vec3 skyRay;${cloudNoise}
+      fragmentShader: `uniform float weatherTime;uniform float lightning;uniform bool daylight;uniform bool winter;uniform sampler2D skyImage;uniform bool hasSkyImage;varying vec3 skyRay;${cloudNoise}
 void main(){
   vec3 ray=normalize(skyRay);
   vec2 p=ray.xz/(abs(ray.y)+.38)*3.1;
@@ -79,6 +84,20 @@ void main(){
     color=mix(photograph*(.92+low*.12),silverCloud,foreground);
     color+=vec3(.12,.16,.22)*lightning*(.5+density*.5);
     color=mix(vec3(.0203,.0307,.0437),color,smoothstep(-.035,.15,ray.y));
+  }
+  if(daylight){
+    vec3 sunRay=normalize(vec3(-38.,65.,40.));
+    float sunDistance=length(ray-sunRay);
+    vec3 blue=mix(vec3(.61,.78,.91),vec3(.12,.39,.76),smoothstep(0.,.85,ray.y));
+    blue+=vec3(1.,.83,.53)*(exp(-sunDistance*12.)*.24+(1.-smoothstep(.016,.020,sunDistance))*3.);
+    float softCloud=smoothstep(.48,.78,billow);
+    color=mix(blue,mix(vec3(.62,.7,.77),vec3(.97,.97,.91),edge),softCloud*.88);
+    color=mix(vec3(.61,.78,.91),color,smoothstep(-.08,.12,ray.y));
+  }
+  if(winter){
+    vec3 overcast=mix(vec3(.64,.73,.79),vec3(.29,.4,.53),smoothstep(-.05,.8,ray.y));
+    color=mix(overcast,vec3(.79,.83,.85),smoothstep(.34,.72,billow)*.65);
+    color+=vec3(.12,.13,.12)*exp(-length(ray-normalize(vec3(-38.,65.,40.)))*9.);
   }
   gl_FragColor=vec4(color,1.);
   #include <tonemapping_fragment>
@@ -135,6 +154,47 @@ void main(){if(rainWorld.y < -11.8)discard;gl_FragColor=vec4(vec3(.57,.7,.79)+li
   rain.frustumCulled = false;
   scene.add(rain);
 
+  // One GPU particle volume gives winter drifting flakes and day golden motes.
+  // Flakes remain in world space while the volume wraps around the traveller.
+  const particleCount = mobile ? 650 : 1800;
+  const particleSeeds = new Float32Array(particleCount * 3);
+  for (let i = 0; i < particleSeeds.length; i++) particleSeeds[i] = random();
+  const particlesGeometry = own(new THREE.BufferGeometry());
+  particlesGeometry.setAttribute('position', new THREE.BufferAttribute(particleSeeds, 3));
+  const particleMaterial = own(new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { weatherTime: time, winter, sheltered, center: { value: new THREE.Vector3() } },
+    vertexShader: `uniform float weatherTime;uniform bool winter;uniform vec3 center;varying float alpha;
+void main(){
+  float t=weatherTime; vec3 seed=position; vec3 p;
+  if(winter){
+    p=seed*vec3(74.,42.,74.)+vec3(t*1.15,-t*(.85+seed.x*1.1),t*.32);
+    p.x+=sin(t*.8+seed.z*40.)*.85;p.z+=cos(t*.6+seed.x*30.)*.7;
+    p=mod(p-center+vec3(37.,21.,37.),vec3(74.,42.,74.))-vec3(37.,21.,37.)+center;
+  }else{
+    p=seed*vec3(46.,18.,46.)+vec3(t*.16,sin(t*.24+seed.x*30.)*.6,t*.09);
+    p=mod(p-center+vec3(23.,9.,23.),vec3(46.,18.,46.))-vec3(23.,9.,23.)+center;
+  }
+  vec4 view=viewMatrix*vec4(p,1.);float d=length(view.xyz);
+  alpha=smoothstep(.8,3.,d)*(1.-smoothstep(winter?25.:12.,winter?50.:23.,d));
+  if(!winter && seed.x>.2)alpha=0.;
+  gl_PointSize=clamp((winter?190.:65.)*(.45+seed.z)/max(2.,-view.z),1.,winter?8.:4.);
+  gl_Position=projectionMatrix*view;
+}`,
+    fragmentShader: `uniform bool winter;uniform bool sheltered;varying float alpha;
+void main(){if(sheltered)discard;vec2 p=gl_PointCoord*2.-1.;float r=length(p);if(r>1.)discard;
+float soft=pow(1.-smoothstep(.08,1.,r),1.4);vec3 color=winter?vec3(.89,.95,1.):vec3(1.,.83,.43);
+gl_FragColor=vec4(color,soft*alpha*(winter?.82:.42));
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`,
+  }));
+  const particles = new THREE.Points(particlesGeometry, particleMaterial);
+  particles.name = 'Seasonal snowflakes and sunlit motes';
+  particles.frustumCulled = false;
+  particles.visible = false;
+  scene.add(particles);
+
   const boltPoints: THREE.Vector3[] = [];
   let last = new THREE.Vector3(-82, 117, -170);
   for (let i = 1; i <= 12; i++) {
@@ -170,17 +230,34 @@ void main(){if(rainWorld.y < -11.8)discard;gl_FragColor=vec4(vec3(.57,.7,.79)+li
   scene.add(lightning);
   function update(seconds: number, camera?: THREE.Camera) {
     time.value = seconds;
-    flash.value = stormFlash(seconds);
+    flash.value = mode === 'night' ? stormFlash(seconds) : 0;
     boltMaterial.opacity = flash.value * 0.85;
     bolt.visible = flash.value > 0;
     lightning.intensity = flash.value * 1.8;
     if (camera) {
       sky.position.copy(camera.position);
       rain.position.copy(camera.position);
+      particleMaterial.uniforms.center.value.copy(camera.position);
     }
   }
   update(0);
-  return { update, sky, rain, bolt, lightning, time,
+  function setMode(value: IslandMode) {
+    mode = value;
+    daylight.value = value === 'day';
+    winter.value = value === 'winter';
+    rain.visible = value === 'night' && !sheltered.value;
+    particles.visible = value !== 'night' && !sheltered.value;
+    update(time.value);
+  }
+  return { update, sky, rain, particles, bolt, lightning, time, setMode,
+    setSheltered(this: void, value: boolean) {
+      sheltered.value = value;
+      rain.visible = mode === 'night' && !value;
+      particles.visible = mode !== 'night' && !value;
+    },
+    setDaylight(enabled: boolean) {
+      setMode(enabled ? 'day' : 'night');
+    },
     setSkyTexture(texture: THREE.Texture) {
       skyMaterial.uniforms.skyImage.value = texture;
       skyMaterial.uniforms.hasSkyImage.value = true;

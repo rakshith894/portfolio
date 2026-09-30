@@ -4,50 +4,84 @@ import { Button } from '@/components/ui/button';
 import { Entrance } from '@/components/entrance';
 import { SceneBoundary } from '@/components/scene-boundary';
 import { createAmbience } from '@/lib/ambience';
+import { islandMode } from '@/lib/island-mode';
 import type { Destination } from '@/lib/nocturne';
 
-const IslandViewer = lazy(() => import('@/components/island-viewer'));
-const Mansion = lazy(() => import('@/components/mansion'));
+let islandModule:
+  | Promise<typeof import('@/components/island-viewer')>
+  | undefined;
+const loadIsland = () =>
+  (islandModule ??= import('@/components/island-viewer'));
+function prepareIsland() {
+  void loadIsland()
+    .then((module) => module.preloadIslandAssets())
+    .catch(() => {
+      islandModule = undefined;
+    });
+}
+const IslandViewer = lazy(loadIsland);
 const Portfolio = lazy(() => import('@/components/portfolio'));
 
 export default function Home() {
-  const [scene, setScene] = useState<'entrance' | 'island' | 'house'>(
-    'entrance',
-  );
-  const [startAtHouse, setStartAtHouse] = useState(false);
+  const [scene, setScene] = useState<'entrance' | 'island'>('entrance');
   const [section, setSection] = useState<Destination | null>(null);
-  const [sound, setSound] = useState(false);
-  const [quiet, setQuiet] = useState(false);
   const [audioError, setAudioError] = useState(false);
   const audio = useRef<ReturnType<typeof createAmbience> | null>(null);
-  const audioBusy = useRef(false);
   const sceneTitle = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => audio.current?.close(), []);
   useEffect(() => {
+    if (scene !== 'entrance' || section) return;
+    const connection = (
+      navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string };
+      }
+    ).connection;
+    if (
+      connection?.saveData ||
+      /(^|-)2g$/.test(connection?.effectiveType ?? '')
+    )
+      return;
+    let timer = 0,
+      idle = 0;
+    const schedule = () => {
+      timer = window.setTimeout(() => {
+        if ('requestIdleCallback' in window)
+          idle = window.requestIdleCallback(prepareIsland, { timeout: 4000 });
+        else prepareIsland();
+      }, 2500);
+    };
+    // Let the first screen finish before optional 3D assets compete for bandwidth.
+    if (document.readyState === 'complete') schedule();
+    else window.addEventListener('load', schedule, { once: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('load', schedule);
+      if (idle) window.cancelIdleCallback(idle);
+    };
+  }, [scene, section]);
+  useEffect(() => {
     sceneTitle.current?.focus();
   }, [scene]);
 
-  async function toggleSound() {
-    if (audioBusy.current) return;
-    audioBusy.current = true;
+  function startSound() {
+    if (audio.current?.running) return;
     try {
-      audio.current ??= createAmbience();
-      await (sound ? audio.current.suspend() : audio.current.resume());
-      setSound(!sound);
-      setAudioError(false);
+      if (!audio.current) {
+        audio.current = createAmbience();
+        let mode = islandMode(null);
+        try { mode = islandMode(localStorage.getItem('nocturne-mode') ?? localStorage.getItem('nocturne-daylight')); } catch {}
+        audio.current.setMode(mode);
+      }
+      // Resume in the original click/key event, before lazy loading the scene.
+      // Further gestures also recover audio interrupted by the browser.
+      void audio.current.resume().then(() => setAudioError(false), () => setAudioError(true));
     } catch {
       setAudioError(true);
-    } finally {
-      audioBusy.current = false;
     }
   }
 
-  function exploreIsland(fromHouse = false) {
-    // The 3D viewer owns its ambience; avoid playing both soundscapes.
-    if (audio.current) void audio.current.suspend().catch(() => {});
-    setSound(false);
-    setStartAtHouse(fromHouse);
+  function exploreIsland() {
     setScene('island');
   }
   const back = () => setScene('entrance');
@@ -57,13 +91,14 @@ export default function Home() {
       tabIndex={-1}
       className="nocturne-scene"
       aria-label="Nocturne"
+      onClickCapture={startSound}
+      onKeyDownCapture={startSound}
     >
       {scene === 'entrance' ? (
         <Entrance
+          onPrepare={prepareIsland}
           onExplore={() => exploreIsland()}
           onPortfolio={() => setSection('projects')}
-          sound={sound}
-          onSound={toggleSound}
           audioError={audioError}
         />
       ) : (
@@ -81,35 +116,23 @@ export default function Home() {
           <Suspense
             fallback={
               <div className="entrance-transition" aria-live="polite">
-                <p>
-                  {scene === 'house'
-                    ? 'Opening the house…'
-                    : 'Crossing the island…'}
-                </p>
+                <span className="arrival-eyebrow">NOCTURNE · THE CROSSING</span>
+                <h2>Beyond the gates.</h2>
+                <p>Crossing the island...</p>
+                <span className="arrival-progress" aria-hidden="true" />
                 <Button variant="outline" onClick={back}>
                   Back to the entrance
                 </Button>
               </div>
             }
           >
-            {scene === 'island' ? (
-              <IslandViewer
-                onExit={back}
-                onHouse={() => setScene('house')}
-                startAtHouse={startAtHouse}
-              />
-            ) : (
-              <Mansion
-                onExit={() => exploreIsland(true)}
-                onPortfolio={setSection}
-                sound={sound}
-                onSound={toggleSound}
-                audioError={audioError}
-                quiet={quiet}
-                onQuiet={() => setQuiet((value) => !value)}
-                exitLabel="The island"
-              />
-            )}
+            <IslandViewer
+              ambience={audio}
+              audioError={audioError}
+              onExit={back}
+              onPortfolio={() => setSection('projects')}
+              active={!section}
+            />
           </Suspense>
         </SceneBoundary>
       )}

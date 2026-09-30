@@ -6,7 +6,7 @@ import { clearStairScenery } from '../lib/stair-clearance.ts';
 void test('carved scenery has a floor and closed cut faces behind the shore stairs', () => {
   const geometry=new THREE.BoxGeometry(4,8,4).translate(-22,23,-34);
   clearStairScenery(geometry,true);
-  const material=new THREE.MeshBasicMaterial({side:THREE.DoubleSide});
+  const material=new THREE.MeshBasicMaterial();
   const mesh=new THREE.Mesh(geometry,material);
   mesh.updateMatrixWorld(true);
   try {

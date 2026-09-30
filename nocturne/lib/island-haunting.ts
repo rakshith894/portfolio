@@ -13,7 +13,7 @@ export function apparitionOpacity(
   const phase = ((time + index * 19) % 53) / 53;
   return (
     Math.pow(Math.max(0, Math.sin(phase * Math.PI * 2)), 4) *
-    0.44 *
+    0.64 *
     THREE.MathUtils.smoothstep(distance, 5, 13)
   );
 }
@@ -24,6 +24,7 @@ export function createHaunting(
   resources: Set<{ dispose: () => void }>,
   mobile: boolean,
 ) {
+  let enabled = true;
   const own = <T extends { dispose: () => void }>(item: T) => {
     resources.add(item);
     return item;
@@ -48,6 +49,7 @@ export function createHaunting(
     .map(({x, z}, index) => {
       const root = new THREE.Group();
       root.position.set(x, groundHeight(x, z), z);
+      root.scale.set(1.12, 1.28, 1.12);
       const material = own(
         new THREE.MeshBasicMaterial({
           color: 0x788e96,
@@ -84,26 +86,31 @@ export function createHaunting(
         eye.position.set(side * 0.065, 1.85, -0.205);
         root.add(eye);
       }
-      // An unlit glow avoids rebuilding every scene shader as a ghost appears.
-      const wisp = new THREE.Mesh(own(new THREE.SphereGeometry(.1,8,6)), lightMaterial);
-      wisp.position.set(0.5, 0.75, 0.2);
-      root.add(wisp);
+      // Keep the light in the scene while the spirit fades, retaining its cold
+      // illumination without changing the shader's light count on each visit.
+      const wisp = new THREE.PointLight(0x78afbd, 0, 5, 2);
+      wisp.position.copy(root.position).add(new THREE.Vector3(.5,.75,.2));
+      scene.add(wisp);
       scene.add(root);
       return { root, material, faceMaterial, lightMaterial, wisp, index, body, x, z };
     });
   return {
     spirits,
+    setEnabled(value: boolean) {
+      enabled = value;
+      if (!value) for (const spirit of spirits) { spirit.root.visible = false; spirit.wisp.intensity = 0; }
+    },
     update(time: number, camera?: THREE.Camera) {
       for (const spirit of spirits) {
         const distance = camera
           ? camera.position.distanceTo(spirit.root.position)
           : 30;
-        const alpha = apparitionOpacity(time, spirit.index, distance);
+        const alpha = enabled ? apparitionOpacity(time, spirit.index, distance) : 0;
         spirit.material.opacity = alpha;
-        spirit.lightMaterial.opacity = alpha * 0.6;
-        spirit.faceMaterial.opacity = alpha*1.6;
+        spirit.lightMaterial.opacity = Math.min(1, alpha * 1.4);
+        spirit.faceMaterial.opacity = Math.min(1, alpha*1.6);
         spirit.root.visible = alpha > 0.002;
-        spirit.wisp.scale.setScalar(.8+Math.sin(time*1.3+spirit.index)*.2);
+        spirit.wisp.intensity = alpha * 2;
         spirit.root.position.x = spirit.x + Math.sin(time*.17+spirit.index)*.35;
         spirit.root.position.z = spirit.z + Math.cos(time*.13+spirit.index)*.25;
         spirit.body.scale.x = 1 + Math.sin(time*1.4+spirit.index)*.04;
@@ -111,6 +118,7 @@ export function createHaunting(
         spirit.root.position.y =
           groundHeight(spirit.root.position.x, spirit.root.position.z) +
           .18 + Math.sin(time * 0.5 + spirit.index) * 0.15;
+        spirit.wisp.position.set(spirit.root.position.x+.5,spirit.root.position.y+.75,spirit.root.position.z+.2);
         if (camera)
           spirit.root.rotation.y = Math.atan2(
             spirit.root.position.x - camera.position.x,

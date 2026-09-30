@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { projectSurfaceUV } from './surface-uv.ts';
 import {
   SHORE_ROUTE,
   TOWER_ROUTE,
@@ -130,7 +131,8 @@ export function clearStairScenery(geometry: THREE.BufferGeometry, sealTerrain = 
             const a = inside[edge], b = inside[j];
             const boundary = [0, 2].some(axis => [box.min, box.max].some(side =>
               Math.abs(a[axis]-side.getComponent(axis))<1e-5 && Math.abs(b[axis]-side.getComponent(axis))<1e-5));
-            if (boundary) next.push([a, floor[edge], floor[j], b]);
+            // Face the excavated corridor, not the solid terrain behind it.
+            if (boundary) next.push([b, floor[j], floor[edge], a]);
           }
         }
       }
@@ -155,7 +157,10 @@ export function clearStairScenery(geometry: THREE.BufferGeometry, sealTerrain = 
       new THREE.Float32BufferAttribute(values, attribute.itemSize),
     );
   if (geometry.getAttribute('normal')) geometry.normalizeNormals();
-  if (sealTerrain) geometry.computeVertexNormals();
+  if (sealTerrain) {
+    geometry.computeVertexNormals();
+    projectSurfaceUV(geometry, 4);
+  }
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
 }

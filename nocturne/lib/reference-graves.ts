@@ -215,7 +215,8 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
     'broken',
   ] as GraveKind[]) {
     current = [];
-    plinth(kind === 'cross' ? 1.42 : 1.2);
+    if (kind === 'chest') slab(1.2, .18, .35, 0, .09, -.38);
+    else plinth(kind === 'cross' ? 1.42 : 1.2);
     if (kind === 'cross') {
       const cross = new THREE.Shape([
         new THREE.Vector2(-0.25, 0),
@@ -291,7 +292,9 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
         [0.04, 0.37, 1],
         [0.43, 0.13, 1.08],
       ] as const) {
-        const g = new THREE.ExtrudeGeometry(coffin, {
+        const outline = coffin.clone();
+        if (y === .04) outline.holes.push(new THREE.Path(coffin.getPoints().map(point => new THREE.Vector2(point.x * .78, .95 + (point.y - .95) * .85)).reverse()));
+        const g = new THREE.ExtrudeGeometry(outline, {
           depth,
           bevelEnabled: true,
           bevelSize: 0.045,
@@ -305,6 +308,10 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
         g.userData.terrainFoundation = y === 0.04;
         g.userData.coffinLid = y === 0.43;
       }
+      const floor = new THREE.ExtrudeGeometry(coffin, { depth: .12, bevelEnabled: false });
+      floor.rotateX(Math.PI / 2); floor.translate(0, .16, -.95); floor.scale(.99, 1, .99); floor.translate(0, 0, .95);
+      floor.userData.terrainFoundation = true;
+      part(floor, 0, 0, 0, carving);
       slab(0.11, 0.035, 1.2, 0, 0.625, 1.05, carving);
       current[current.length - 1].geometry.userData.coffinLid = true;
       slab(0.57, 0.035, 0.11, 0, 0.625, 0.7, carving);
@@ -335,7 +342,7 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
       new THREE.Euler(
         0,
         grave.turn,
-        grave.kind === 'broken' ? -0.065 : Math.sin(index * 7.3) * 0.015,
+        grave.kind === 'chest' ? 0 : grave.kind === 'broken' ? -0.065 : Math.sin(index * 7.3) * 0.015,
       ),
     );
     transform.compose(

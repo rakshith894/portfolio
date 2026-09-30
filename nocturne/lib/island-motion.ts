@@ -106,25 +106,7 @@ export function fishPose(time: number, index: number) {
 }
 
 export function crowPose(time: number, index: number) {
-  const speed = 0.085,
-    angle = time * speed + index * 0.09;
-  const rx = 24 + (index % 3) * 1.1,
-    rz = 27 + (index % 2) * 1.1;
-  const x = -3 + Math.sin(angle) * rx,
-    z = -15 + Math.cos(angle) * rz,
-    y = 29.5 + Math.sin(angle * 2 + index * 0.25) * 1.8;
-  const dx = Math.cos(angle) * rx,
-    dz = -Math.sin(angle) * rz;
-  const cycle = (time + index * 0.21) % 7.4;
-  const envelope = cycle < 4.4 ? Math.sin((Math.PI * cycle) / 4.4) : 0;
-  return {
-    x,
-    y,
-    z,
-    yaw: -Math.atan2(dz, dx),
-    bank: -0.13 * Math.sin(angle),
-    flap: 0.08 + Math.sin(time * 9.5 + index * 0.45) * 0.65 * envelope,
-  };
+  return travellingCrowPose(time, index, false);
 }
 
 export function advanceAtmosphere(
@@ -135,22 +117,63 @@ export function advanceAtmosphere(
   return paused ? previous : previous + Math.max(0, Math.min(delta, 0.1));
 }
 
-/** Lower, staggered passes across the cemetery, plus a separate high flock. */
+/** Low cemetery crossings and high coastal flyovers, rather than fixed orbits. */
 export function referenceCrowPose(time: number, index: number) {
+  return travellingCrowPose(time, index, true);
+}
+
+function travellingCrowPose(time: number, index: number, reference: boolean) {
   const near = index < 6;
-  const angle = time * (near ? 0.265 : 0.145) + index * 2.399963 + 1.4;
-  const rx = near ? 22 + index * 0.5 : 48 + (index - 6) * 4;
-  const rz = near ? 13 : 29;
-  const dx = Math.cos(angle) * rx,
-    dz = -Math.sin(angle) * rz;
-  const cycle = (time + index * 0.53) % 5.6;
-  const flapEnvelope = cycle < 3.6 ? Math.sin((Math.PI * cycle) / 3.6) : 0;
+  const duration = (near ? 34 : 42) + (index % 3) * 4;
+  const period = duration + 7 + (index % 4) * 2;
+  const shifted = Math.max(0, time) + index * 7.7 + duration * 0.32;
+  const flight = Math.floor(shifted / period);
+  const elapsed = shifted - flight * period;
+  const progress = Math.min(1, elapsed / duration);
+  const seed = index * 2.399963 + flight * 1.618034;
+  // Lower birds cross the front cemetery, keeping clear of the manor and tower.
+  // Higher birds change their compass bearing on each visit to the island.
+  const bearing = near ? ((index + flight) % 2) * Math.PI : seed;
+  const forwardX = Math.cos(bearing),
+    forwardZ = Math.sin(bearing);
+  const length = near ? 290 : 370;
+  const distance = (progress - 0.5) * length;
+  const sway = Math.sin(progress * Math.PI * 2 + seed) * (near ? 5 : 13);
+  const swayVelocity =
+    (Math.cos(progress * Math.PI * 2 + seed) * (near ? 5 : 13) * Math.PI * 2) /
+    duration;
+  const speed = length / duration;
+  const dx = forwardX * speed - forwardZ * swayVelocity;
+  const dz = forwardZ * speed + forwardX * swayVelocity;
+  const smooth = (value: number) => {
+    const t = Math.max(0, Math.min(1, value));
+    return t * t * (3 - 2 * t);
+  };
+  // Every new route begins and ends out at sea while the bird is invisible.
+  const opacity =
+    elapsed >= duration
+      ? 0
+      : smooth(progress / 0.09) * smooth((1 - progress) / 0.09);
+  const cycle = (Math.max(0, time) + index * 0.53) % 5.6;
+  const envelope = cycle < 3.6 ? Math.sin((Math.PI * cycle) / 3.6) : 0;
+  const verticalPhase = progress * Math.PI * 2 + seed;
+  const lift = near ? 1.2 : 2.5;
+  const dy = (Math.cos(verticalPhase) * lift * Math.PI * 2) / duration;
+  const swayAcceleration =
+    -Math.sin(verticalPhase) *
+    (near ? 5 : 13) *
+    ((Math.PI * 2) / duration) ** 2;
   return {
-    x: 9 + Math.sin(angle) * rx,
-    y: (near ? 33 : 56) + Math.sin(angle * 2 + index) * (near ? 2 : 4),
-    z: (near ? 8 : -24) + Math.cos(angle) * rz,
+    x: (reference ? 9 : -3) + forwardX * distance - forwardZ * sway,
+    y: (near ? 34 : 70) + Math.sin(verticalPhase) * lift,
+    z:
+      (near ? 10 + (index % 3) * 6 + Math.sin(seed) * 3 : -24) +
+      forwardZ * distance +
+      forwardX * sway,
     yaw: -Math.atan2(dz, dx),
-    bank: -0.2 * Math.sin(angle),
-    flap: 0.08 + Math.sin(time * 10.8 + index * 0.6) * 0.72 * flapEnvelope,
+    pitch: Math.atan2(dy, Math.hypot(dx, dz)),
+    bank: Math.max(-0.3, Math.min(0.3, -Math.atan2(swayAcceleration, 9.81))),
+    flap: 0.08 + Math.sin(time * 10.8 + index * 0.6) * 0.72 * envelope,
+    opacity,
   };
 }

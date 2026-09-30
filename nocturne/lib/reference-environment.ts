@@ -4,8 +4,11 @@ import { createHaunting } from './island-haunting.ts';
 import { SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE, stairTreads, stairRails, BOAT_DOCK, BOAT_MOORING, DOCK_HEIGHT } from './island-stairs.ts';
 import { islandLamps } from './island-lamps.ts';
 import * as THREE from 'three';
+import type { IslandMode } from './island-mode.ts';
+import { addWinterSurface } from './winter-surface.ts';
 import { projectSurfaceUV } from './surface-uv.ts';
 import { clearStairScenery } from './stair-clearance.ts';
+import { createShoreCamera } from './shore-camera.ts';
 import { coastalRocks, stairSupports } from './coastal-layout.ts';
 import {
   mergeGeometries,
@@ -53,6 +56,7 @@ export function createReferenceEnvironment(
     return value;
   };
   const pending: Promise<unknown>[] = [];
+  const shoreCamera = own(createShoreCamera());
   const loader = new THREE.TextureLoader();
   const textures = new Map<
     string,
@@ -147,22 +151,28 @@ export function createReferenceEnvironment(
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nvarying vec3 terrainPosition;',
+        '#include <common>\nvarying vec3 terrainPosition;varying vec3 terrainNormal;',
       )
       .replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\nterrainPosition=position;',
+        '#include <begin_vertex>\nterrainPosition=position;terrainNormal=normal;',
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nvarying vec3 terrainPosition;uniform sampler2D groundRock;',
+        '#include <common>\nvarying vec3 terrainPosition;varying vec3 terrainNormal;uniform sampler2D groundRock;',
       )
       .replace(
         '#include <map_fragment>',
-        '#include <map_fragment>\nfloat rockBlend=smoothstep(.22,.8,sin(terrainPosition.x*.24+sin(terrainPosition.z*.18))*sin(terrainPosition.z*.3)*.5+.5);vec3 crag=texture2D(groundRock,terrainPosition.xz/3.).rgb;crag=vec3(dot(crag,vec3(.2126,.7152,.0722)))*vec3(.13,.15,.14);diffuseColor.rgb=mix(diffuseColor.rgb,crag,rockBlend*.55);',
+        // Excavating the stairs adds vertical retaining faces. Sampling only XZ
+        // collapses their texture to a single row, producing the dark streaked
+        // panels beside the lanterns. Blend physical-scale projections instead.
+        '#include <map_fragment>\nvec3 rockWeights=pow(abs(normalize(terrainNormal)),vec3(6.));rockWeights/=max(dot(rockWeights,vec3(1.)),.001);float rockBlend=smoothstep(.22,.8,sin(terrainPosition.x*.24+sin(terrainPosition.z*.18))*sin(terrainPosition.z*.3)*.5+.5);vec3 crag=texture2D(groundRock,terrainPosition.yz/3.).rgb*rockWeights.x+texture2D(groundRock,terrainPosition.xz/3.).rgb*rockWeights.y+texture2D(groundRock,terrainPosition.xy/3.).rgb*rockWeights.z;crag=vec3(dot(crag,vec3(.2126,.7152,.0722)))*vec3(.13,.15,.14);diffuseColor.rgb=mix(diffuseColor.rgb,crag,rockBlend*.55);',
       );
   };
+  const winterCover = { value: 0 };
+  for (const mat of [stone, darkStone, edge, rock, soil, path, roof, graveStone, perimeterWood])
+    addWinterSurface(mat, winterCover);
   const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
   const boxGeo = own(new THREE.BoxGeometry(1, 1, 1));
   const orbGeo = own(new THREE.SphereGeometry(1, 10, 8));
@@ -259,6 +269,7 @@ export function createReferenceEnvironment(
     geo.computeVertexNormals();
     // Sampled terrain and cliff triangles must leave the same corridor as rocks.
     clearStairScenery(geo, true);
+    shoreCamera.add(geo);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = name;
     mesh.receiveShadow = true;
@@ -449,7 +460,7 @@ export function createReferenceEnvironment(
 
   const fires: THREE.Mesh[] = [];
   const lampSources: THREE.Vector3[] = [];
-  const localLights = Array.from({length: mobile ? 3 : 6}, () => {
+  const localLights = Array.from({length: mobile ? 5 : 10}, () => {
     const light = new THREE.PointLight(0xffbc80, 0, 17, 2);
     scene.add(light);
     return light;
@@ -957,6 +968,7 @@ export function createReferenceEnvironment(
     const merged = mergeGeometries(normalized, false);
     normalized.forEach((g) => g.dispose());
     if (merged) {
+      shoreCamera.add(merged);
       const mesh = new THREE.Mesh(own(merged), mat);
       mesh.castShadow = !mobile;
       mesh.receiveShadow = true;
@@ -967,14 +979,16 @@ export function createReferenceEnvironment(
     coastGLSL: referenceCoastGLSL,
     referenceBirds: true,
   });
-  pending.push(
-    loadCoastalProps(scene, resources, mobile, () => disposed, groundHeight, {
-      gate: gatePoint,
-    }),
-  );
+  // Optional scanned statues can finish after entry; keep the full-quality
+  // terrain, sky and real traveller as the entry requirements.
+  const detailsReady = loadCoastalProps(scene, resources, mobile, () => disposed, groundHeight, {
+    gate: gatePoint,
+  });
   life.clouds.visible = false;
   const weather = createIslandWeather(scene, resources, mobile);
-  const sky = load('/environment/reference-sky.png', true);
+  let daylight = false;
+  let mode: IslandMode = 'night';
+  const sky = load('/environment/reference-sky.webp', true);
   sky.texture.mapping = THREE.EquirectangularReflectionMapping;
   pending.push(
     sky.ready.then(() => {
@@ -988,7 +1002,7 @@ export function createReferenceEnvironment(
       try {
         const target = own(pmrem.fromEquirectangular(sky.texture));
         scene.environment = target.texture;
-        scene.environmentIntensity = 0.32;
+        scene.environmentIntensity = daylight ? 0.12 : 0.32;
       } catch {
         /* Direct lighting remains available on limited GPUs. */
       } finally {
@@ -1002,26 +1016,38 @@ export function createReferenceEnvironment(
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
-      uniforms: { time: mistTime },
+      uniforms: { time: mistTime, density: { value: 1 } },
       vertexShader:
         'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader:
-        'varying vec2 vUv;uniform float time;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}void main(){vec2 p=vUv*8.+vec2(time*.045,time*.012);float n=noise(p)*.6+noise(p*2.1)*.28;float edge=smoothstep(0.,.22,vUv.x)*smoothstep(0.,.22,1.-vUv.x)*smoothstep(0.,.22,vUv.y)*smoothstep(0.,.22,1.-vUv.y);gl_FragColor=vec4(.44,.51,.56,edge*n*.19);}',
+        'varying vec2 vUv;uniform float time;uniform float density;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}void main(){vec2 p=vUv*8.+vec2(time*.045,time*.012);float n=noise(p)*.6+noise(p*2.1)*.28;float edge=smoothstep(0.,.22,vUv.x)*smoothstep(0.,.22,1.-vUv.x)*smoothstep(0.,.22,vUv.y)*smoothstep(0.,.22,1.-vUv.y);gl_FragColor=vec4(.44,.51,.56,edge*n*.19*density);}',
     }),
   );
-  const mistGeo = own(new THREE.PlaneGeometry(80, 80));
-  for (let i = 0; i < (mobile ? 2 : 4); i++) {
+  const mistGeo = own(new THREE.PlaneGeometry(100, 100));
+  for (let i = 0; i < (mobile ? 4 : 8); i++) {
     const mist = new THREE.Mesh(mistGeo, mistMat);
     mist.rotation.set(-Math.PI / 2, 0, i * 0.7);
-    mist.position.set(i % 2 ? -23 : 15, -5 + i * 6.6, -10);
+    mist.position.set(i % 2 ? -23 : 15, -5 + i * 3.3, -10);
     scene.add(mist);
   }
   for(const [x,z] of [[-4,4],[21,-12],[-7,-20],[-5,15],[16,-40],[-10,-27]]){
     const mist=new THREE.Mesh(mistGeo,mistMat);
-    mist.scale.set(.24,.17,1);mist.rotation.x=-Math.PI/2;
+    mist.scale.set(.19,.13,1);mist.rotation.x=-Math.PI/2;
     mist.position.set(x,groundHeight(x,z)+.32,z);scene.add(mist);
   }
+  function setMode(value: IslandMode) {
+    mode = value;
+    daylight = value !== 'night';
+    winterCover.value = value === 'winter' ? 1 : 0;
+    weather.setMode(value);
+    life.setDaylight(daylight);
+    haunting.setEnabled(value === 'night');
+    life.water.color.setHex(value === 'winter' ? 0x527783 : daylight ? 0x3d879d : 0x233d4a);
+    mistMat.uniforms.density.value = value === 'day' ? .15 : value === 'winter' ? .75 : 1;
+    scene.environmentIntensity = daylight ? .12 : .32;
+  }
   return {
+    constrainShoreCamera: shoreCamera.constrain,
     ground,
     manor,
     boat,
@@ -1031,6 +1057,12 @@ export function createReferenceEnvironment(
     towerDoor,
     coffins: cemetery.coffins,
     ready: Promise.all(pending),
+    detailsReady,
+    setMode,
+    setSheltered: weather.setSheltered,
+    setDaylight(enabled: boolean) {
+      setMode(enabled ? 'day' : 'night');
+    },
     update(time: number, camera?: THREE.Camera) {
       life.update(time,camera);
       traffic.update(time,camera?.position ?? boat.position,boat.position);
@@ -1047,7 +1079,7 @@ export function createReferenceEnvironment(
           const source=nearest[i];
           if (!source) { lamp.intensity=0; return; }
           lamp.position.copy(source.position);
-          lamp.intensity=30*(1+.05*Math.sin(time*4.1+source.index*2.1));
+          lamp.intensity=(mode === 'day' ? 5 : mode === 'winter' ? 22 : 30)*(1+.05*Math.sin(time*4.1+source.index*2.1));
         });
       }
       mistTime.value = time;

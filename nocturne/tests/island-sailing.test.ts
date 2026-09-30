@@ -186,7 +186,7 @@ void test('the house-side opening is passable and visible bridge walls stop spri
 void test('apparitions fade slowly and disappear at close range', () => {
   for (let t = 0; t < 110; t += 0.05) {
     const opacity = apparitionOpacity(t, 0, 20);
-    assert.ok(opacity >= 0 && opacity <= 0.44);
+    assert.ok(opacity >= 0 && opacity <= 0.64);
     assert.ok(Math.abs(opacity - apparitionOpacity(t + 0.05, 0, 20)) < 0.01);
     assert.equal(apparitionOpacity(t, 0, 3), 0);
   }
