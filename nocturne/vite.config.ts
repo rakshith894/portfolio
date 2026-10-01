@@ -50,6 +50,9 @@ export default defineConfig(async () => {
   const { cloudflare } = await import('@cloudflare/vite-plugin');
 
   return {
+    build: {
+      chunkSizeWarningLimit: 1600,
+    },
     css: { postcss: { plugins: [tailwindcss()] } },
     server: {
       host: '127.0.0.1',
