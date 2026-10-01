@@ -1,6 +1,6 @@
 /** Shared tread surfaces for the west staircase and the upstairs hall. */
 export const UPPER_HALL = {
-  id: 'upper-hall', name: 'The west landing', detail: 'Open the side door to the master hall, or follow the stairs down.',
+  id: 'upper-hall', name: 'The west landing', detail: 'Open the side door to the Projects Room, or follow the stairs down.',
   x: 0, z: -5.325, width: 17.2, depth: 7.45, y: 5, height: 4.7,
 };
 export const HOUSE_STAIRS = {

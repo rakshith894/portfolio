@@ -42,3 +42,12 @@ void test('thunder follows lightning once per storm and bells stay on the island
   cues.update(100,0,false,true,200,200,0);
   assert.equal(events.filter(e=>e==='bell').length,1);
 });
+
+void test('narration can be muted independently of the ambient audio engine', async () => {
+  const { setNarrationEnabled, isNarrationEnabled, speakIsland } = await import('../lib/island-commands.ts');
+  try {
+    setNarrationEnabled(false); assert.equal(isNarrationEnabled(), false);
+    assert.equal(speakIsland('Muted explanation'), false);
+    setNarrationEnabled(true); assert.equal(isNarrationEnabled(), true);
+  } finally { setNarrationEnabled(true); }
+});

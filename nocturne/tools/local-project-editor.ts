@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
 import { resolve } from 'node:path';
-import { isHallProjectId, projectUrl, projectCover, readHallProjects, type HallProject } from '../lib/hall-projects.ts';
+import { isHallProjectId, nextHallProject, projectUrl, projectCover, readHallProjects, type HallProject } from '../lib/hall-projects.ts';
 import { profileImage } from './local-image.ts';
 
 const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
@@ -46,7 +46,7 @@ export function localProjectEditor(): Plugin {
       };
       server.middlewares.use('/__nocturne/projects', (request, response) => {
         if (!localEditorRequestAllowed(request)) { reply(response, 403, { error: 'Editing is available only on your local computer.' }); return; }
-        if (!['GET', 'PUT', 'POST'].includes(request.method ?? '')) { reply(response, 405, { error: 'Method not allowed.' }); return; }
+        if (!['GET', 'PUT', 'POST', 'DELETE'].includes(request.method ?? '')) { reply(response, 405, { error: 'Method not allowed.' }); return; }
         void (async () => {
           if (request.method === 'GET') {
             await pending;
@@ -63,6 +63,23 @@ export function localProjectEditor(): Plugin {
           let input: unknown;
           try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
           catch { reply(response, 400, { error: 'Invalid project details.' }); return; }
+          const create = request.method === 'POST' && !!input && typeof input === 'object' && (input as { action?: unknown }).action === 'create';
+          if (create || request.method === 'DELETE') {
+            const id = input && typeof input === 'object' ? (input as { id?: unknown }).id : undefined;
+            if (!create && !isHallProjectId(id)) { reply(response, 400, { error: 'Choose a valid frame to remove.' }); return; }
+            const change = pending.then(async () => {
+              let projects = readHallProjects(await readFile(file, 'utf8'));
+              const project = create ? nextHallProject(projects) : null;
+              if (project && !isHallProjectId(project.id)) { reply(response, 409, { error: 'No more frame identifiers are available.' }); return; }
+              projects = project ? [...projects, project] : projects.filter(current => current.id !== id);
+              await writeFile(temporary, JSON.stringify(projects, null, 2) + '\n', 'utf8');
+              await rename(temporary, file);
+              reply(response, 200, { projects, ...(project ? { project } : {}) });
+            });
+            pending = change.catch(() => {});
+            await change;
+            return;
+          }
           if (request.method === 'POST') {
             const image = profileImage((input as { image?: unknown })?.image);
             if (!image) { reply(response, 400, { error: 'Choose a PNG, JPEG or WebP image smaller than 5 MB.' }); return; }

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { profileImage } from './local-image.ts';
+import { resumeDocument } from './local-resume.ts';
 export { profileImage } from './local-image.ts';
 import type { Plugin } from 'vite';
 import { localEditorRequestAllowed } from './local-project-editor.ts';
@@ -29,6 +30,13 @@ export function localProfileEditor(): Plugin {
           let value: unknown;
           try { value = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { reply(400, { error: 'Invalid profile details.' }); return; }
           if (request.method === 'POST') {
+            if (value && typeof value === 'object' && 'resume' in value) {
+              const document = resumeDocument(value.resume);
+              if (!document) { reply(400, { error: 'Choose a PDF résumé smaller than 5 MB.' }); return; }
+              const directory = resolve(server.config.root, 'public/resumes');
+              await mkdir(directory, { recursive: true }); await writeFile(resolve(directory, document.name), document.bytes);
+              reply(200, { resume: `/resumes/${document.name}` }); return;
+            }
             const image = profileImage((value as { image?: unknown })?.image);
             if (!image) { reply(400, { error: 'Choose a PNG, JPEG, or WebP photo smaller than 5 MB.' }); return; }
             const directory = resolve(server.config.root, 'public/profile');

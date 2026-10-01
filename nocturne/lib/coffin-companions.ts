@@ -103,9 +103,22 @@ export function createCoffinCompanions(scene: THREE.Scene, coffins: Coffin[], re
       if (!materials.has(source)) { const copy = source.clone(); copy.transparent = true; resources.add(copy); materials.set(source, copy); }
       object.material = materials.get(source)!;
     } });
-    return { coffin, body, home, exit, exitCandidates, summonTarget: home.clone(), phase: 'sleeping' as Phase, elapsed: 0, wanted: false, near: false, cursor: 0, route: [] as THREE.Vector3[], joining: false, request: 0, stride: 0, materials };
+    return { coffin, body, home, exit, exitCandidates, summonTarget: home.clone(), phase: 'sleeping' as Phase, elapsed: 0, blocked: 0, wanted: false, near: false, cursor: 0, route: [] as THREE.Vector3[], joining: false, request: 0, stride: 0, materials };
   });
   const opacity = (companion: typeof companions[number], value: number) => companion.materials.forEach(material => { material.opacity = value; });
+  const spacing = (a: typeof companions[number], b: typeof companions[number]) => Math.max(.9, (a.body.scale.x + b.body.scale.x) * .43);
+  const occupied = (c: typeof companions[number], point: THREE.Vector3) => companions.some(other => other !== c && other.wanted &&
+    [other.body.position, other.summonTarget].some(p => Math.abs(p.y - point.y) < 1.6 && Math.hypot(p.x - point.x, p.z - point.z) < spacing(c, other)));
+  function meetingPoint(c: typeof companions[number], player: THREE.Vector3) {
+    for (let ring = 0; ring < 6; ring++) for (let i = 0; i < 20; i++) {
+      const angle = (i + c.coffin.id * 3) * Math.PI / 10, radius = 1.8 + ring * .65;
+      const point = player.clone().add(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
+      if (!canStand(point.x, point.z)) continue;
+      point.y = walkingHeight(point.x, point.z);
+      if (Math.abs(point.y - player.y) < .5 && !occupied(c, point)) return point;
+    }
+    return null;
+  }
   function toggle(id: number, player: THREE.Vector3) {
     const c = companions.find(entry => entry.coffin.id === id);
     if (!c) return false;
@@ -125,7 +138,14 @@ export function createCoffinCompanions(scene: THREE.Scene, coffins: Coffin[], re
     const delta = target.clone().sub(c.body.position), remaining = delta.length();
     if (remaining < .025) { c.body.position.copy(target); return true; }
     const moved = Math.min(distance, remaining);
-    c.body.position.addScaledVector(delta, moved / remaining); c.stride += moved;
+    const next = c.body.position.clone().addScaledVector(delta, moved / remaining);
+    // Swept separation prevents a fast catch-up step passing through another guardian.
+    for (const other of companions) {
+      if (other === c || !other.body.visible || !['joining', 'phasing', 'following'].includes(other.phase)) continue;
+      const segment = new THREE.Line3(c.body.position, next), nearest = segment.closestPointToPoint(other.body.position, true, new THREE.Vector3());
+      if (Math.abs(nearest.y - other.body.position.y) < 1.6 && Math.hypot(nearest.x - other.body.position.x, nearest.z - other.body.position.z) < spacing(c, other) && next.distanceToSquared(other.body.position) <= c.body.position.distanceToSquared(other.body.position)) return false;
+    }
+    c.body.position.copy(next); c.stride += moved;
     if (Math.hypot(delta.x, delta.z) > .001) c.body.rotation.y = Math.atan2(delta.x, delta.z);
     return remaining <= distance;
   }
@@ -159,8 +179,11 @@ export function createCoffinCompanions(scene: THREE.Scene, coffins: Coffin[], re
           if (c.elapsed >= 2.8) { c.phase = 'joining'; c.elapsed = 0; }
         } else if (c.phase === 'joining') {
           if (!c.joining) {
+            const meeting = meetingPoint(c, trail[c.cursor] ?? player);
+            if (!meeting) continue;
+            c.summonTarget.copy(meeting);
             c.joining = true;
-            const request = ++c.request, index = c.cursor, target = trail[index]?.clone() ?? player.clone();
+            const request = ++c.request, target = meeting;
             const cancelled = () => disposed || c.request !== request;
             const findRoute = async () => {
               for (const exit of c.exitCandidates) {
@@ -183,20 +206,41 @@ export function createCoffinCompanions(scene: THREE.Scene, coffins: Coffin[], re
             });
           }
           if (c.route.length && step(c, c.route[0], dt * 6)) { c.route.shift(); if (!c.route.length) c.phase = 'following'; }
+          c.blocked = c.route.length && c.body.position.distanceToSquared(previous) < 1e-8 ? c.blocked + dt : 0;
+          if (c.blocked > .7) { c.phase = 'phasing'; c.elapsed = 0; c.blocked = 0; c.route = []; }
         } else if (c.phase === 'phasing') {
           if (c.elapsed < .5) opacity(c, 1 - c.elapsed * 2);
-          else { c.body.position.copy(c.summonTarget); opacity(c, Math.min(1, (c.elapsed - .5) * 2)); }
+          else {
+            if (occupied(c, c.summonTarget)) { const point = meetingPoint(c, player); if (!point) continue; c.summonTarget.copy(point); }
+            c.body.position.copy(c.summonTarget); opacity(c, Math.min(1, (c.elapsed - .5) * 2));
+          }
           if (c.elapsed >= 1) c.phase = 'following';
         } else if (c.phase === 'following') {
           opacity(c, c.body.position.distanceTo(player) < .9 ? .25 : 1);
-          const lag = 1.8 + (c.coffin.id % 12) * .5;
+          const rank = companions.filter(other => other.wanted && other.coffin.id < c.coffin.id).length;
+          const lag = 1.8 + rank * 1.15;
+          let trailAhead = 0;
+          for (let i = trail.length - 1; i > c.cursor; i--) trailAhead += trail[i].distanceTo(trail[i - 1]);
           let remaining = dt * Math.min(17, 4 + c.body.position.distanceTo(player) * .65);
           while (remaining > 0 && c.cursor < trail.length) {
             const target = trail[c.cursor];
-            if (c.cursor >= trail.length - 2 && c.body.position.distanceTo(player) < lag) break;
+            if (trailAhead < lag) break;
             const length = c.body.position.distanceTo(target);
             if (!step(c, target, remaining)) break;
             c.cursor++; remaining -= length;
+            if (c.cursor < trail.length) trailAhead -= trail[c.cursor].distanceTo(target);
+          }
+          // A tight doorway can leave the join order reversed. Recover along the
+          // recorded safe trail instead of permanently blocking every follower.
+          c.blocked = trailAhead > lag + .5 && c.body.position.distanceToSquared(previous) < 1e-8 ? c.blocked + dt : 0;
+          if (c.blocked > 2) {
+            let behind = 0;
+            for (let i = trail.length - 1; i >= 0; i--) {
+              if (i < trail.length - 1) behind += trail[i].distanceTo(trail[i + 1]);
+              if (behind < lag || occupied(c, trail[i])) continue;
+              c.summonTarget.copy(trail[i]); c.cursor = i;
+              c.phase = 'phasing'; c.elapsed = 0; c.blocked = 0; break;
+            }
           }
         } else if (c.phase === 'recalling') {
           const t = Math.min(1, c.elapsed / .65); opacity(c, 1 - t);

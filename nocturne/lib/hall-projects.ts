@@ -30,7 +30,7 @@ export function projectCover(value: unknown): string | null {
   return typeof value === 'string' && /^\/project-covers\/cover-[a-f0-9]{24}\.(png|jpg|webp)$/.test(value) ? value : null;
 }
 export function emptyHallProjects(): HallProject[] {
-  return HALL_FRAMES.map(({ id }) => ({ id, title: '', description: '', url: '' }));
+  return [];
 }
 export function projectUrl(value: string): string | null {
   if (!value.trim() || value.length > 2048) return null;
@@ -46,7 +46,7 @@ export function readHallProjects(value: string | null): HallProject[] {
   try {
     const parsed: unknown = JSON.parse(value);
     if (!Array.isArray(parsed)) return empty;
-    const projects = new Map(empty.map(project => [project.id, project]));
+    const projects = new Map<HallFrameId, HallProject>();
     for (const item of parsed) {
       if (!item || !isHallProjectId(item.id) || typeof item.title !== 'string' || typeof item.description !== 'string' || typeof item.url !== 'string') continue;
       if (!item.title && !item.description && !item.url) {

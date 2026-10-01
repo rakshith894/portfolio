@@ -8,7 +8,7 @@ import { islandMode, ISLAND_MODES, type IslandMode } from '@/lib/island-mode';
 import { BOAT_DOCK, BOAT_MOORING } from '@/lib/island-stairs';
 import { createHouseExploration, type HouseStatus } from '@/lib/house-exploration';
 import { DEFAULT_HALL_SETTINGS, hallLighting, type HallSettings } from '@/lib/master-hall';
-import { HALL_PROJECT_KEY, readHallProjects, hallProjectPage, hallPageCount, nextHallProject, HALL_PAGE_SIZE, type HallFrameId, type HallProject } from '@/lib/hall-projects';
+import { HALL_PROJECT_KEY, readHallProjects, hallProjectPage, hallPageCount, HALL_PAGE_SIZE, type HallFrameId, type HallProject } from '@/lib/hall-projects';
 import { HallProjectDialog } from '@/components/hall-project-dialog';
 import savedProjects from '@/content/hall-projects.json';
 import savedProfile from '@/content/profile.json';
@@ -16,9 +16,12 @@ import type { ContactProfile } from '@/lib/contact-profile';
 import { ContactApparitionDialog } from '@/components/contact-apparition-dialog';
 import { createContactApparition } from '@/lib/contact-apparition';
 import { createSkillHolograms } from '@/lib/skill-holograms';
-import { readSkills, SKILLS_PER_PAGE, type GallerySkill } from '@/lib/skill-gallery';
+import { readSkills, type GallerySkill } from '@/lib/skill-gallery';
 import { SkillGalleryDialog } from '@/components/skill-gallery-dialog';
+import { IslandChatWidget, type AssistantHandle } from '@/components/island-chat-widget';
+import type { AssistantAction } from '@/lib/portfolio-assistant';
 import savedSkills from '@/content/skills.json';
+import { createPortfolioTour, portfolioStops, type TourStatus, type TourStop } from '@/lib/portfolio-tour';
 import { createCoffinCompanions } from '@/lib/coffin-companions';
 import { createTravelDirection, createFollowOrbit, followBehind } from '@/lib/chase-camera';
 import { useEffect, useRef, useState, type RefObject } from 'react';
@@ -33,11 +36,16 @@ import {
   DoorOpen,
   Maximize2,
   Mic,
-  MicOff,
   Sun,
   Moon,
   Snowflake,
   Lightbulb,
+  Volume2,
+  VolumeX,
+  FolderGit2,
+  Sparkles,
+  Compass,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createReferenceEnvironment } from '@/lib/reference-environment';
@@ -55,25 +63,12 @@ import { createIslandSoundCues } from '@/lib/island-sound-cues';
 import {
   islandPlaces,
   menuPlaces,
-  parseIslandCommand,
   speakIsland,
+  setNarrationEnabled,
+  chooseMaleVoice,
   stopIslandSpeech,
   type PlaceId,
 } from '@/lib/island-commands';
-
-type VoiceRecognition = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((event: {
-    results: ArrayLike<ArrayLike<{ transcript: string }>>;
-  }) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
-};
 
 const movementKeys = new Set([
   'KeyW',
@@ -95,6 +90,7 @@ export default function IslandViewer({
   onPortfolio,
   active = true,
   startAtHouse = false,
+  guided = false,
 }: {
   ambience: RefObject<ReturnType<typeof createAmbience> | null>;
   audioError: boolean;
@@ -102,7 +98,11 @@ export default function IslandViewer({
   onPortfolio?: () => void;
   active?: boolean;
   startAtHouse?: boolean;
+  guided?: boolean;
 }) {
+  const [tourStatus, setTourStatus] = useState<TourStatus>(null);
+  const tourControl = useRef<ReturnType<typeof createPortfolioTour> | null>(null);
+  const guidedRef = useRef(guided);
   const mount = useRef<HTMLDivElement>(null);
   const activeScene = useRef(active);
   const [mode, setMode] = useState<IslandMode>(() => {
@@ -131,9 +131,15 @@ export default function IslandViewer({
   const cameraCommand = useRef<
     (action: 'overview' | 'zoomIn' | 'zoomOut') => void
   >(() => {});
-  const recognition = useRef<VoiceRecognition | null>(null);
+  const assistant = useRef<AssistantHandle | null>(null);
   const [houseStatus, setHouseStatus] = useState<HouseStatus>(null);
-  const canEditProjects = process.env.NODE_ENV === 'development';
+  // Strict edit security: only allow editing when running locally on your computer
+  // and NOT in guest preview mode. When deployed to a public URL, this is always false.
+  const isLocalHost = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '::1');
+  const isGuestMode = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('view') === 'guest';
+  const canEditProjects = isLocalHost && !isGuestMode;
   const [profile, setProfile] = useState<ContactProfile>(savedProfile);
   const profileRef = useRef(profile);
   const [contactOpen, setContactOpen] = useState(false);
@@ -141,19 +147,13 @@ export default function IslandViewer({
   const [skills, setSkills] = useState<GallerySkill[]>(() => readSkills(savedSkills));
   const skillsRef = useRef(skills), skillsOpenRef = useRef(false);
   const [skillsOpen, setSkillsOpen] = useState(false), [selectedSkill, setSelectedSkill] = useState<string | null>(null);
-  const [skillsPage, setSkillsPage] = useState(0);
-  const skillsPageRef = useRef(0);
-  const applySkills = useRef<(skills: GallerySkill[], page: number) => void>(() => {});
+  const applySkills = useRef<(skills: GallerySkill[]) => void>(() => {});
   function showSkills(open: boolean, id: string | null = null) {
+    if (open) tourControl.current?.stop();
     skillsOpenRef.current = open; setSkillsOpen(open); setSelectedSkill(id); contactInteraction.current(open);
   }
   function selectSkill(id: string | null) {
     setSelectedSkill(id);
-    if (id) changeSkillsPage(Math.floor(skillsRef.current.findIndex(skill => skill.id === id) / SKILLS_PER_PAGE));
-  }
-  function changeSkillsPage(page: number) {
-    const next = Math.max(0, Math.min(Math.max(1, Math.ceil(skillsRef.current.length / SKILLS_PER_PAGE)) - 1, page));
-    skillsPageRef.current = next; setSkillsPage(next); applySkills.current(skillsRef.current, next);
   }
   async function saveSkill(skill: GallerySkill, remove = false): Promise<string | null> {
     if (!canEditProjects) return 'This portfolio is view-only.';
@@ -162,13 +162,13 @@ export default function IslandViewer({
       const result = await response.json() as { skills?: unknown; error?: string };
       if (!response.ok) return result.error ?? 'Could not save this skill.';
       const next = readSkills(result.skills); skillsRef.current = next; setSkills(next);
-      changeSkillsPage(remove ? skillsPageRef.current : Math.floor(next.findIndex(item => item.id === skill.id) / SKILLS_PER_PAGE));
+      applySkills.current(next);
       setSelectedSkill(remove ? next[0]?.id ?? null : skill.id); return null;
     } catch { return 'Could not reach the local editor. Your entered text is still here.'; }
   }
   const contactInteraction = useRef<(open: boolean) => void>(() => {});
   const applyProfile = useRef<(profile: ContactProfile) => void>(() => {});
-  function showContact(open: boolean) { contactOpenRef.current = open; setContactOpen(open); contactInteraction.current(open); }
+  function showContact(open: boolean) { if (open) tourControl.current?.stop(); contactOpenRef.current = open; setContactOpen(open); contactInteraction.current(open); }
   function saveProfile(value: ContactProfile) { profileRef.current = value; setProfile(value); applyProfile.current(value); }
   const [projects, setProjects] = useState<HallProject[]>(() => readHallProjects(JSON.stringify(savedProjects)));
   const projectsRef = useRef(projects);
@@ -180,17 +180,50 @@ export default function IslandViewer({
     galleryPageRef.current = next; setGalleryPage(next);
     applyProjects.current(hallProjectPage(projectsRef.current, next));
   }
-  function addProject() {
-    if (!canEditProjects) return;
-    const blank = projectsRef.current.find(project => !project.url);
-    const project = blank ?? nextHallProject(projectsRef.current);
-    if (!blank) { const next = [...projectsRef.current, project]; projectsRef.current = next; setProjects(next); }
-    chooseProject(project.id);
+  const [frameBusy, setFrameBusy] = useState(false);
+  const frameMutation = useRef(false);
+  const [frameNotice, setFrameNotice] = useState('');
+  function updateProjectCollection(next: HallProject[]) {
+    projectsRef.current = next; setProjects(next);
+    changeGalleryPage(galleryPageRef.current);
+  }
+  async function addProject(): Promise<string | null> {
+    if (!canEditProjects) return 'This portfolio is view-only.';
+    if (frameMutation.current) return 'Wait for the current frame change to finish.';
+    frameMutation.current = true; setFrameBusy(true); setFrameNotice('');
+    try {
+      const response = await fetch('/__nocturne/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create' }) });
+      const result = await response.json() as { projects?: unknown; project?: HallProject; error?: string };
+      if (!response.ok || !result.project) throw new Error(result.error || 'Could not add a frame. Please try again.');
+      updateProjectCollection(readHallProjects(JSON.stringify(result.projects)));
+      chooseProject(result.project.id);
+      return null;
+    } catch (problem) {
+      const message = problem instanceof Error ? problem.message : 'Could not reach the local editor.';
+      setFrameNotice(message); return message;
+    } finally { frameMutation.current = false; setFrameBusy(false); }
+  }
+  async function removeProject(project: HallProject): Promise<string | null> {
+    if (!canEditProjects) return 'This portfolio is view-only.';
+    if (frameMutation.current) return 'Wait for the current frame change to finish.';
+    frameMutation.current = true; setFrameBusy(true); setFrameNotice('');
+    try {
+      const index = projectsRef.current.findIndex(current => current.id === project.id);
+      const response = await fetch('/__nocturne/projects', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: project.id }) });
+      const result = await response.json() as { projects?: unknown; error?: string };
+      if (!response.ok) return result.error || 'Could not remove the frame. Please try again.';
+      const next = readHallProjects(JSON.stringify(result.projects));
+      updateProjectCollection(next);
+      chooseProject(next[Math.min(Math.max(index, 0), next.length - 1)]?.id ?? null);
+      return null;
+    } catch { return 'Could not reach the local editor. The frame has not been removed.'; }
+    finally { frameMutation.current = false; setFrameBusy(false); }
   }
   const [selectedProject, setSelectedProject] = useState<HallFrameId | null>(null);
   const selectedProjectRef = useRef<HallFrameId | null>(null);
   const projectSelection = useRef<(id: HallFrameId | null) => void>(() => {});
   function chooseProject(id: HallFrameId | null) {
+    if (id) tourControl.current?.stop();
     if (id) changeGalleryPage(Math.floor(projectsRef.current.findIndex(project => project.id === id) / HALL_PAGE_SIZE));
     selectedProjectRef.current = id;
     setSelectedProject(id);
@@ -205,9 +238,7 @@ export default function IslandViewer({
       const result = await response.json() as { error?: string; projects?: unknown };
       if (!response.ok) return result.error || 'Could not save the frame. Please try again.';
       const next = readHallProjects(JSON.stringify(result.projects));
-      projectsRef.current = next;
-      setProjects(next);
-      applyProjects.current(hallProjectPage(next, galleryPageRef.current));
+      updateProjectCollection(next);
       return null;
     } catch { return 'Could not reach the local editor. Keep the development server running and try again.'; }
   }
@@ -248,128 +279,86 @@ export default function IslandViewer({
   const [overview, setOverview] = useState(false);
   const [nearHouse, setNearHouse] = useState(false);
   const [destinationsOpen, setDestinationsOpen] = useState(false);
-  const [listening, setListening] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
   const [speechText, setSpeechText] = useState('');
+  const [narration, setNarration] = useState(() => {
+    try { return localStorage.getItem('nocturne-narration') !== 'off'; } catch { return true; }
+  });
+  useEffect(() => { setNarrationEnabled(narration); }, [narration]);
+  function toggleNarration() {
+    const enabled = !narration;
+    setNarration(enabled); setNarrationEnabled(enabled);
+    try { localStorage.setItem('nocturne-narration', enabled ? 'on' : 'off'); } catch {}
+  }
   const [journey, setJourney] = useState<{ name: string; moving: boolean; planning?: boolean } | null>(null);
   useEffect(() => {
     if (!journey || journey.moving) return;
-    const timer = window.setTimeout(() => setJourney(null), 5000);
+    const timer = window.setTimeout(() => setJourney(null), 2000);
     return () => window.clearTimeout(timer);
   }, [journey]);
   useEffect(() => {
-    if (!voiceNotice || listening) return;
+    if (!voiceNotice) return;
     const timer = window.setTimeout(() => setVoiceNotice(''), 6000);
     return () => window.clearTimeout(timer);
-  }, [voiceNotice, listening]);
+  }, [voiceNotice]);
   useEffect(() => { activeScene.current = active; if (!active) stopNavigation.current(); }, [active]);
   useEffect(() => {
     if (!ready || welcomeStarted.current) return;
     welcomeStarted.current = true;
+    if (guidedRef.current) { tourControl.current?.start(); return; }
     speakIsland('Welcome to the island, traveller. Follow the lanterns to Rakshith Manor.');
   }, [ready]);
-  useEffect(
-    () => () => {
-      stopIslandSpeech();
-      if (recognition.current) {
-        recognition.current.onresult = null;
-        recognition.current.onerror = null;
-        recognition.current.onend = null;
+  useEffect(() => () => stopIslandSpeech(), []);
+  function toggleVoice() { assistant.current?.startVoice(); }
+  function assistantAction(action: AssistantAction): string | void {
+    if (!ready) return 'The island is still loading. Please try again when it is ready.';
+    if (action.type === 'show') {
+      showContact(false); showSkills(false); chooseProject(null); tourControl.current?.stop();
+      if (action.target === 'skills') { showSkills(true); return 'Skills opened.'; }
+      if (action.target === 'projects') {
+        const first = projectsRef.current.find(project => project.url);
+        if (first) { chooseProject(first.id); return 'Projects opened. Use the gallery controls to browse the collection.'; }
+        return 'No projects have been published yet.';
       }
-      recognition.current?.abort();
-      recognition.current = null;
-    },
-    [],
-  );
-  function toggleVoice() {
-    if (listening) {
-      const previous = recognition.current;
-      recognition.current = null;
-      if (previous) {
-        previous.onresult = null;
-        previous.onerror = null;
-        previous.onend = null;
-        previous.abort();
-      }
-      setListening(false);
-      setVoiceNotice('Voice command cancelled.');
+      if (action.target === 'portfolio') { onPortfolio?.(); return 'Quick portfolio opened.'; }
+      showContact(true);
+      return action.target === 'resume' ? profileRef.current.resume ? 'About and contact opened. Select View résumé to open the PDF.' : 'No résumé has been published yet.' : 'About and contact opened.';
+    }
+    if (action.type === 'tour') {
+      if (action.target === 'start') { showContact(false); showSkills(false); chooseProject(null); tourControl.current?.start(); }
+      else if (action.target === 'pause') tourControl.current?.pause();
+      else if (action.target === 'stop') tourControl.current?.stop();
+      else if (!tourControl.current?.active) return 'Start a guided tour first.';
+      else if (action.target === 'next') tourControl.current?.next();
+      else tourControl.current?.replay();
       return;
     }
-    const browser = window as typeof window & {
-      SpeechRecognition?: new () => VoiceRecognition;
-      webkitSpeechRecognition?: new () => VoiceRecognition;
-    };
-    const Constructor =
-      browser.SpeechRecognition || browser.webkitSpeechRecognition;
-    if (!Constructor) {
-      setVoiceNotice(
-        'Voice commands are not available in this browser. Use the Places menu instead.',
-      );
-      return;
-    }
-    const recognizer = new Constructor();
-    stopIslandSpeech();
-    setVoiceNotice('Listening… Try “go to the manor” or “stop”.');
-    recognition.current = recognizer;
-    recognizer.lang = 'en-US';
-    recognizer.continuous = false;
-    recognizer.interimResults = false;
-    recognizer.onresult = (event) => {
-      if (recognition.current !== recognizer) return;
-      const transcript = event.results[0]?.[0]?.transcript ?? '';
-      const command = parseIslandCommand(transcript, 0);
-      setVoiceNotice(`Heard: “${transcript}”`);
-      if (command?.type === 'place') goToPlace.current(command.id);
-      else if (command?.type === 'action') {
-        if (command.action === 'stop') stopNavigation.current();
-        else if (command.action === 'overview') cameraCommand.current('overview');
-        else if (
-          command.action === 'board' ||
-          command.action === 'leaveBoat' ||
-          command.action === 'swim'
-        )
-          waterAction.current(command.action);
-        else performAvatarAction.current(command.action);
-      } else if (command?.type === 'stop') stopNavigation.current();
-      else if (command?.type === 'welcome') speakIsland('Welcome to the island. Follow the lanterns to Rakshith Manor.');
-      else if (command?.type === 'door' && command.open) {
+    if (action.type === 'mode') { changeMode(action.target); return; }
+    if (action.type === 'navigate') { tourControl.current?.stop(); goToPlace.current(action.target); return; }
+    if (action.type === 'animate') { tourControl.current?.stop(); performAvatarAction.current(action.target); return; }
+    if (action.type === 'control') {
+      if (action.target === 'stop') { stopIslandSpeech(); stopNavigation.current(); return; }
+      tourControl.current?.stop();
+      if (action.target === 'overview') cameraCommand.current('overview');
+      else if (action.target === 'enter') {
+        if (houseStatus) return 'You are already inside the manor.';
         if (nearHouse) requestHouse.current();
-        else goToPlace.current('manor');
+        else { goToPlace.current('manor'); return 'Follow the route to the manor, then ask to enter when you reach the door.'; }
+      } else if (action.target === 'exit') {
+        if (!houseStatus) return 'You are already outside the manor.';
+        houseReturn.current();
+      } else {
+        if (action.target === 'board' && !nearBoat) return 'Go to the boat landing before boarding.';
+        if (action.target === 'leaveBoat' && !boatMode) return 'You are not in the boat.';
+        waterAction.current(action.target);
       }
-      else
-        setVoiceNotice(
-            'Try saying go to The Last Watch, go to the boat, stop, jump, sit, wave, dance, or look around.',
-        );
-    };
-    recognizer.onerror = (event) => {
-      if (recognition.current !== recognizer) return;
-      setListening(false);
-      setVoiceNotice(event.error === 'not-allowed'
-        ? 'Microphone access was denied. You can still use Places and the walking controls.'
-        : event.error === 'aborted' ? 'Voice command cancelled.'
-        : 'No voice command received. Try again or choose a place.');
-    };
-    recognizer.onend = () => {
-      if (recognition.current !== recognizer) return;
-      recognition.current = null;
-      setListening(false);
-    };
-    setListening(true);
-    try {
-      recognizer.start();
-    } catch {
-      recognition.current = null;
-      setListening(false);
-      setVoiceNotice(
-        'The microphone could not start. Please allow microphone access, then try again.',
-      );
     }
   }
   useEffect(() => {
     const host = mount.current;
     if (!host) return;
     const mobile = matchMedia('(max-width:700px)').matches;
-    const motion = matchMedia('(prefers-reduced-motion:reduce)');
+    const motion = { matches: false, addEventListener: () => {}, removeEventListener: () => {} } as unknown as MediaQueryList; // Force animations on — OS reduced-motion is ignored for this 3D scene
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
@@ -435,26 +424,35 @@ export default function IslandViewer({
       destination.set(NaN, NaN, NaN);
       destinationStuckTime = 0;
       setDestinationsOpen(false);
-      setJourney({ name: `Finding a path to ${name}…`, moving: true, planning: true });
-      const route = await navigator.routeAsync(walker.position.clone(), point, .8, () => disposed || request !== navigationRequest);
+      if (name !== 'the selected spot') {
+        setJourney({ name: `Finding a path to ${name}…`, moving: true, planning: true });
+      }
+      const route = await navigator.routeAsync(walker.position.clone(), point, 1.8, () => disposed || request !== navigationRequest);
       if (disposed || request !== navigationRequest) return;
       if (!route?.length) {
-        setJourney({ name: 'No clear path. Choose a nearby spot.', moving: false });
+        setJourney(null);
         return;
       }
       journeyName = name;
       destination.copy(route[0]);
       destinationRoute.push(...route.slice(1));
-      setJourney({ name: `Running to ${name}`, moving: true });
+      if (name !== 'the selected spot') {
+        setJourney({ name: `Running to ${name}`, moving: true });
+      } else {
+        setJourney(null);
+      }
       if (narrate) guide.announce('departure', name);
     };
     goToPlace.current = (id) => {
+      tourControl.current?.stop();
       const place = islandPlaces.find((entry) => entry.id === id);
       if (!place) return;
       // The watchtower destination is its accessible upper platform.
       void navigateTo(id === 'tower' ? { x: -52, z: -31 } : place, place.name, true);
     };
-    const player = createIslandAvatar(resources, mobile);
+    const player = createIslandAvatar(resources, mobile, true);
+    let avatarReady = false;
+    void player.ready.then(() => { if (disposed) return; if (player.hasHuman) avatarReady = true; else { contextFailed = true; setFailed(true); } });
     const soundCues = createIslandSoundCues({
       step: (...args) => audio.current?.step(...args),
       gate: () => audio.current?.gate(),
@@ -485,6 +483,13 @@ export default function IslandViewer({
     controls.addEventListener('end', () => {
       cameraManualUntil = performance.now() + 500;
     });
+    // OrbitControls fires 'start'/'end' only for mouse-drag orbits — scroll-wheel
+    // zoom never triggers those events, so manualCamera() stays false and the
+    // viewDistance update inside house-exploration is never reached, making
+    // constrainCamera reset the camera distance every frame (zoom is invisible).
+    renderer.domElement.addEventListener('wheel', () => {
+      cameraManualUntil = Math.max(cameraManualUntil, performance.now() + 600);
+    }, { passive: true });
     cameraCommand.current = (action) => {
       if (action === 'overview') {
         overviewRef.current = !overviewRef.current;
@@ -569,12 +574,11 @@ export default function IslandViewer({
     );
     const apparition = createContactApparition(scene, resources, profileRef.current);
     const skillHolograms = createSkillHolograms(scene, resources);
-    skillHolograms.setSkills(skillsRef.current, skillsPageRef.current); applySkills.current = skillHolograms.setSkills;
+    skillHolograms.setSkills(skillsRef.current); applySkills.current = skillHolograms.setSkills;
     applyProfile.current = apparition.setProfile;
     const companions = createCoffinCompanions(scene, environment.coffins, resources, navigator, walker.canStand, setVoiceNotice);
-    let visualMode = modeRef.current, hallLightingActive = false;
+    let hallLightingActive = false;
     applyMode.current = (value) => {
-      visualMode = value;
       const day = value === 'day', winter = value === 'winter';
       ambientLight.color.setHex(winter ? 0xdcecf4 : day ? 0xc8e5ff : 0xbac9d5);
       ambientLight.groundColor.setHex(winter ? 0x8299ab : day ? 0x81735b : 0x171b1c);
@@ -611,13 +615,69 @@ export default function IslandViewer({
       destinationRoute.length = 0;
       destination.set(NaN, NaN, NaN);
     };
-    stopNavigation.current = () => { clearInput(); house.stop(); };
-    const house = createHouseExploration(scene, environment.manor, player, walker, camera, controls, mobile, status => { setHouseStatus(status); setEnteringHouse(!!status); }, () => audio.current?.gate(), () => performance.now() <= cameraManualUntil, id => chooseProject(id));
+    stopNavigation.current = () => { tourControl.current?.stop(); clearInput(); house.stop(); };
+    const house = createHouseExploration(scene, environment.manor, player, walker, camera, controls, mobile, status => { setHouseStatus(status); setEnteringHouse(!!status); }, () => audio.current?.gate(), () => performance.now() <= cameraManualUntil, id => chooseProject(id), () => companions.companions.filter(c => c.wanted && c.body.visible).map(c => c.body.position));
+    type TourTravel = { stop: TourStop; stage: 'island' | 'entering' | 'room'; elapsed: number; resolve: (value: boolean) => void };
+    let tourTravel: TourTravel | null = null;
+    const tourPathGeometry = new THREE.BufferGeometry(); resources.add(tourPathGeometry);
+    const tourPathMaterial = new THREE.LineDashedMaterial({ color: 0xffdf98, dashSize: .45, gapSize: .25, transparent: true, opacity: .85, depthWrite: false }); resources.add(tourPathMaterial);
+    const tourPath = new THREE.Line(tourPathGeometry, tourPathMaterial); tourPath.visible = false; scene.add(tourPath);
+    const stopTourTravel = () => { const pending = tourTravel; tourTravel = null; pending?.resolve(false); tourPath.visible = false; clearInput(); house.stop(); };
+    const tour = createPortfolioTour({
+      stops: () => portfolioStops(profileRef.current, skillsRef.current, projectsRef.current),
+      travel: stop => new Promise<boolean>(resolve => {
+        if (inBoat) { resolve(false); return; }
+        overviewRef.current = false; setOverview(false);
+        const task: TourTravel = { stop, stage: house.inside ? 'room' : house.active ? 'entering' : 'island', elapsed: 0, resolve };
+        tourTravel = task;
+        if (house.inside) { if (!house.walkTo(stop.point)) { tourTravel = null; resolve(false); } }
+        else if (!house.active) {
+          const place = islandPlaces.find(place => place.id === 'manor')!;
+          void navigateTo(place, 'About & contact').then(() => {
+            if (tourTravel !== task) return;
+            if (!Number.isFinite(destination.x)) { tourTravel = null; resolve(false); return; }
+            tourPathGeometry.dispose(); tourPathGeometry.deleteAttribute('position'); tourPathGeometry.setFromPoints([walker.position, destination, ...destinationRoute].map(p => new THREE.Vector3(p.x, walkingHeight(p.x, p.z) + .08, p.z)));
+            tourPath.computeLineDistances(); tourPath.visible = true;
+          });
+        }
+      }),
+      stopTravel: stopTourTravel,
+      speak: (text, done) => {
+        if (!('speechSynthesis' in window) || !chooseMaleVoice(window.speechSynthesis.getVoices())) return false;
+        return speakIsland(text, { rate: 1, onEnd: done });
+      },
+      silence: stopIslandSpeech,
+      report: setTourStatus,
+      present: stop => {
+        apparition.activate(stop?.section === 'About & contact');
+        if (stop?.section === 'Projects') { changeGalleryPage(stop.page ?? 0); house.selectProject(stop.id.startsWith('frame-') ? stop.id as HallFrameId : null); }
+        else house.selectProject(null);
+      },
+    });
+    tourControl.current = tour;
+    const updateTourTravel = (dt: number) => {
+      const task = tourTravel; if (!task) return;
+      task.elapsed += dt;
+      if (task.elapsed > 150) { tourTravel = null; clearInput(); house.stop(); task.resolve(false); return; }
+      if (task.stage === 'island' && walker.nearHouse) {
+        clearInput(); tourPath.visible = false;
+        if (house.enter()) task.stage = 'entering';
+      }
+      if (task.stage === 'entering' && house.inside) {
+        task.stage = 'room';
+        if (!house.walkTo(task.stop.point)) { tourTravel = null; task.resolve(false); return; }
+      }
+      if (task.stage === 'room' && house.inside && !house.travelling) {
+        tourTravel = null;
+        const p = house.position, goal = task.stop.point;
+        task.resolve(Math.hypot(p.x - goal.x, p.z - goal.z) < .7 && Math.abs(p.y - goal.y) < .2);
+      }
+    };
     applyMode.current(modeRef.current);
     houseInteract.current = () => house.interact();
-    houseReturn.current = () => { clearInput(); house.returnToDoor(); };
-    houseUpstairs.current = () => { clearInput(); house.walkTo({ x: 2, z: -5, y: 5 }); };
-    houseSkills.current = () => { clearInput(); house.walkTo({ x: -4.3, z: -3.4, y: 0 }); };
+    houseReturn.current = () => { tour.stop(); clearInput(); house.returnToDoor(); };
+    houseUpstairs.current = () => { tour.stop(); clearInput(); house.walkTo({ x: 2, z: -5, y: 5 }); };
+    houseSkills.current = () => { tour.stop(); clearInput(); house.walkTo({ x: 5.5, z: -4.4, y: 0 }); };
     applyHallSettings.current = settings => house.setHallSettings(settings);
     house.setHallSettings(hallSettingsRef.current);
     house.setProjects(hallProjectPage(projectsRef.current, galleryPageRef.current));
@@ -636,6 +696,7 @@ export default function IslandViewer({
     };
     touchMovement.current = (key, active) => {
       if (active && interactive) {
+        tour.stop();
         navigationRequest++;
         seaPath=[];
         guide.cancel();
@@ -647,7 +708,7 @@ export default function IslandViewer({
       } else touchKeys.delete(key);
     };
     const visibility = () => {
-      if (document.hidden) clearInput();
+      if (document.hidden) { if (tour.active) tour.pause(); clearInput(); }
     };
     const keydown = (event: KeyboardEvent) => {
       if (selectedProjectRef.current || contactOpenRef.current || skillsOpenRef.current) return;
@@ -659,6 +720,7 @@ export default function IslandViewer({
       )
         return;
       if (event.code === 'Escape') {
+        tour.stop();
         house.stop();
         setDestinationsOpen(false);
         clearInput();
@@ -667,6 +729,7 @@ export default function IslandViewer({
       if (!activeScene.current || !interactive || event.altKey || event.ctrlKey || event.metaKey)
         return;
       if (movementKeys.has(event.code)) {
+        tour.stop();
         navigationRequest++;
         seaPath=[];
         event.preventDefault();
@@ -697,7 +760,8 @@ export default function IslandViewer({
     };
     window.addEventListener('keydown', keydown);
     window.addEventListener('keyup', keyup);
-    window.addEventListener('blur', clearInput);
+    const blur = () => { if (tour.active) tour.pause(); clearInput(); };
+    window.addEventListener('blur', blur);
     document.addEventListener('visibilitychange', visibility);
     renderer.domElement.addEventListener('webglcontextlost', contextLost);
     const pointerDown = (event: PointerEvent) => {
@@ -723,10 +787,12 @@ export default function IslandViewer({
         ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
         -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
       );
+      tour.stop();
       clickRay.setFromCamera(clickPoint, camera);
-      if (house.skillsRoom) {
+      if (!inBoat) {
         const skillHit = skillHolograms.hit(clickRay);
-        if (skillHit && skillHit.distance < 12 && house.unoccluded(clickRay, skillHit.distance)) { showSkills(true, skillHit.object.userData.skillId as string | null); return; }
+        const obstacle = clickRay.intersectObjects([environment.manor, environment.ground], true)[0];
+        if (skillHit && skillHit.distance < 18 && (!obstacle || obstacle.distance >= skillHit.distance - .05) && house.unoccluded(clickRay, skillHit.distance)) { showSkills(true, skillHit.object.userData.skillId as string | null); return; }
       }
       const contactHit = apparition.hit(clickRay);
       if (house.inside && contactHit && contactHit.distance < 12 && house.unoccluded(clickRay, contactHit.distance)) {
@@ -739,8 +805,7 @@ export default function IslandViewer({
       }
       if (house.active) {
         if (house.inside) {
-          if (house.point(clickRay)) setVoiceNotice('');
-          else setVoiceNotice('Tap clear floor or a stair tread to walk there. Tap a door to open it.');
+          house.point(clickRay);
         }
         return;
       }
@@ -783,8 +848,10 @@ export default function IslandViewer({
       lastRendered = now;
       const dt = previous ? Math.min((now - previous) / 1000, 0.05) : 0;
       previous = now;
+      updateTourTravel(dt);
       guide.update(dt);
       simulationTime += dt;
+      if (!interactive) { environment.update(simulationTime, camera); renderer.render(scene, camera); if (avatarReady && !contextFailed) { interactive = true; setReady(true); } return; }
       const forward =
         Number(
           keys.has('KeyW') || touchKeys.has('KeyW') || keys.has('ArrowUp'),
@@ -799,29 +866,39 @@ export default function IslandViewer({
         Number(
           keys.has('KeyA') || touchKeys.has('KeyA') || keys.has('ArrowLeft'),
         );
+      previousPosition.copy(walker.position);
       if (house.update(dt, simulationTime, forward, side, keys.has('ShiftLeft') || keys.has('ShiftRight'), motion.matches)) {
         if (house.inside) {
           const settings = hallSettingsRef.current;
-          const value = settings.mode === 'day' ? 'day' : 'night';
-          if (visualMode !== value) applyMode.current(value);
+          // Apply indoor lighting values directly — never call applyMode() here.
+          // applyMode triggers a full scene rebuild (weather, water, fog, haunting)
+          // which freezes the frame whenever lights are toggled inside the house.
           const lighting = hallLighting(settings);
           ambientLight.intensity = lighting.ambient;
           moon.intensity = lighting.daylight;
           fill.intensity = settings.mode === 'day' ? .7 : .015;
           hallLightingActive = true;
+          // Disable OrbitControls damping inside the house — the collision
+          // constraint system (constrainCamera) is the sole authority on
+          // camera position indoors. Damping fights it every frame and causes
+          // visible shake when the user rotates the view.
+          controls.enableDamping = false;
         } else if (hallLightingActive) {
           applyMode.current(modeRef.current);
           hallLightingActive = false;
         }
+        soundCues.update(simulationTime, previousPosition.distanceTo(walker.position), keys.has('ShiftLeft') || keys.has('ShiftRight'), false, walker.position.x, walker.position.z, gateOpening(walker.position.x, walker.position.z));
         followOrbit.reset();
         environment.setSheltered(house.inside);
         environment.update(simulationTime, camera);
-        companions.update(dt, player.root.position, false, motion.matches);
+        companions.update(dt, walker.position, false, motion.matches);
         apparition.update(simulationTime, camera, motion.matches);
         skillHolograms.update(simulationTime, camera, motion.matches, hallSettingsRef.current.mode === 'dark');
         renderer.render(scene, camera);
         return;
       }
+      // Restore damping when back outside.
+      controls.enableDamping = true;
       house.updateOutside(dt);
       if (hallLightingActive) {
         applyMode.current(modeRef.current);
@@ -883,13 +960,16 @@ export default function IslandViewer({
       if (hasDestination && !guide.holdingDeparture) {
         if (moved < 0.0001) destinationStuckTime += dt;
         else destinationStuckTime = 0;
-        if (destinationStuckTime > 0.9) {
+        if (destinationStuckTime > 1.2 && destinationRoute.length > 0) {
+          destination.copy(destinationRoute.shift()!);
+          destinationStuckTime = 0;
+        } else if (destinationStuckTime > 2.5) {
           destinationRoute.length = 0;
           destination.set(NaN, NaN, NaN);
           destinationStuckTime = 0;
           guide.cancel();
           narratedJourney = false;
-          setJourney({ name: 'Path blocked. Choose another spot or walk around it.', moving: false });
+          setJourney(null);
         }
       }
       if (inBoat) {
@@ -1008,11 +1088,11 @@ export default function IslandViewer({
       if(closeBoat!==wasNearBoat){wasNearBoat=closeBoat;setNearBoat(closeBoat);}
       if(docked!==wasAtDock){wasAtDock=docked;setAtDock(docked);}
       environment.update(simulationTime, camera);
-      companions.update(dt, player.root.position, !inBoat, motion.matches);
+      companions.update(dt, walker.position, !inBoat, motion.matches);
       apparition.update(simulationTime, camera, motion.matches);
       skillHolograms.update(simulationTime, camera, motion.matches, hallSettingsRef.current.mode === 'dark');
       renderer.render(scene, camera);
-      if (!interactive && !contextFailed) {
+      if (!interactive && !contextFailed && avatarReady) {
         interactive = true;
         setReady(true);
       }
@@ -1026,7 +1106,7 @@ export default function IslandViewer({
       observer.disconnect();
       window.removeEventListener('keydown', keydown);
       window.removeEventListener('keyup', keyup);
-      window.removeEventListener('blur', clearInput);
+      window.removeEventListener('blur', blur);
       document.removeEventListener('visibilitychange', visibility);
       renderer.domElement.removeEventListener('webglcontextlost', contextLost);
       renderer.domElement.removeEventListener('pointercancel', pointerCancel);
@@ -1040,6 +1120,7 @@ export default function IslandViewer({
       cameraCommand.current = () => {};
       requestHouse.current = () => {};
       house.dispose();
+      tour.stop(); tourControl.current = null;
       companions.dispose(); apparition.dispose(); skillHolograms.dispose(); applySkills.current = () => {};
       contactInteraction.current = () => {}; applyProfile.current = () => {};
       houseInteract.current = () => {}; houseReturn.current = () => {};
@@ -1063,7 +1144,7 @@ export default function IslandViewer({
       <header className="island-header">
         <div>
           <span>NOCTURNE.</span>
-          <h1>{houseStatus ? houseStatus.room : 'Rakshith · The graveyard'}</h1>
+          <h1>{houseStatus ? houseStatus.room : profile.name}</h1>
         </div>
         <div className="island-toolbar">
           {houseStatus ? <fieldset className="island-modes" aria-label="House lighting mode">
@@ -1077,9 +1158,11 @@ export default function IslandViewer({
             </Button>)}
           </fieldset>}
           <div className="island-toolbar-actions">
-          {(nearHouse || houseStatus) && <Button className="island-portfolio-link" variant="ghost" onClick={() => showContact(true)}>About & contact</Button>}
-          {houseStatus && <Button className="island-portfolio-link" variant="ghost" aria-pressed={hallSettings.lights} aria-label="House lights" onClick={() => changeHallSettings({ lights: !hallSettings.lights })}><Lightbulb />Lights {hallSettings.lights ? 'on' : 'off'}</Button>}
-          {houseStatus && onPortfolio && <Button className="island-portfolio-link" variant="ghost" onClick={onPortfolio}>View my work</Button>}
+          <Button variant="ghost" size="icon" onClick={toggleNarration} aria-label={narration ? 'Mute narration' : 'Enable narration'} aria-pressed={narration} title="Speech only; ambience and footsteps stay on">{narration ? <Volume2 /> : <VolumeX />}</Button>
+          <Button className="island-portfolio-link" variant="ghost" onClick={() => showSkills(true)}>All skills ({skills.length})</Button>
+          {(nearHouse || houseStatus) && <Button className="island-portfolio-link" variant="ghost" onClick={() => showContact(true)}>Contact</Button>}
+          {houseStatus && <Button className="island-portfolio-link" variant="ghost" aria-pressed={hallSettings.lights} aria-label="House lights" onClick={() => changeHallSettings({ lights: !hallSettings.lights })}><Lightbulb /></Button>}
+          {houseStatus && onPortfolio && <Button className="island-portfolio-link" variant="ghost" onClick={onPortfolio}>Portfolio</Button>}
           {onExit && (
             <Button
               variant="ghost"
@@ -1094,12 +1177,11 @@ export default function IslandViewer({
             variant="ghost"
             size="icon"
             onClick={toggleVoice}
-            disabled={!ready || failed || !!houseStatus}
-            aria-label={listening ? 'Stop voice command' : 'Start voice command'}
-            aria-pressed={listening}
+            disabled={!ready || failed}
+            aria-label="Open AI voice mode"
             title="Voice command"
           >
-            {listening ? <Mic /> : <MicOff />}
+            <Mic />
           </Button>
           <Button
             variant="ghost"
@@ -1125,7 +1207,7 @@ export default function IslandViewer({
           </h2>
           <p>
             {failed
-              ? 'This browser could not start the 3D scene.'
+              ? 'The original traveller or 3D scene could not load. Please try again.'
               : 'Preparing your character, the path, and the storm.'}
           </p>
           {!failed && <span className="arrival-progress" aria-hidden="true" />}
@@ -1171,27 +1253,123 @@ export default function IslandViewer({
           </Button>
         )}
       </div>}
-      {houseStatus && <div className="walk-objective house-exploration-status" aria-live="polite">
-        {houseStatus.skillsRoom && <>
-          <Button variant="outline" onClick={() => showSkills(true, skills[0]?.id ?? null)}>{canEditProjects ? 'Edit floating skills' : 'Explore skills'}</Button>
-          {skills.length > SKILLS_PER_PAGE && <nav className="hall-collection-controls" aria-label="Skill card pages"><Button variant="ghost" disabled={skillsPage === 0} aria-label="Previous skill cards" onClick={() => changeSkillsPage(skillsPage - 1)}><ArrowLeft /></Button><output>Cards {skillsPage + 1} / {Math.ceil(skills.length / SKILLS_PER_PAGE)}</output><Button variant="ghost" disabled={skillsPage >= Math.ceil(skills.length / SKILLS_PER_PAGE) - 1} aria-label="Next skill cards" onClick={() => changeSkillsPage(skillsPage + 1)}><ArrowRight /></Button></nav>}
-        </>}
-        {!houseStatus.masterHall && <Button className="hall-contact-trigger" variant="outline" onClick={() => showContact(true)}>Activate hologram</Button>}
-        <p>{voiceNotice || houseStatus.detail}</p>
-        {houseStatus.door && <Button variant="outline" onClick={() => houseInteract.current()} disabled={houseStatus.open && houseStatus.door !== 'Front door'}><DoorOpen />{houseStatus.door === 'Front door' ? 'Walk outside' : houseStatus.open ? 'Door open - walk through' : `Open ${houseStatus.door.toLowerCase()}`}<kbd>E</kbd></Button>}
-        {houseStatus.travelling ? <Button variant="ghost" onClick={() => stopNavigation.current()}>Stop walking</Button> : <Button variant="ghost" onClick={() => houseReturn.current()}>Walk to the front door</Button>}
-        {!houseStatus.masterHall && !houseStatus.travelling && <Button variant="ghost" onClick={() => houseUpstairs.current()}>Walk to the master hall</Button>}
-        {!houseStatus.masterHall && !houseStatus.skillsRoom && !houseStatus.travelling && <Button variant="ghost" onClick={() => houseSkills.current()}>Walk to skills gallery</Button>}
-        {houseStatus.masterHall && <>
-          <Button variant="outline" onClick={() => chooseProject(hallProjectPage(projects, galleryPage)[0].id)}>{canEditProjects ? 'Edit glass frames' : 'Explore projects'}</Button>
-          {hallPageCount(projects) > 1 && <nav className="hall-collection-controls" aria-label="Hall collection pages">
-            <Button variant="ghost" aria-label="Previous hall collection" disabled={galleryPage === 0} onClick={() => changeGalleryPage(galleryPage - 1)}><ArrowLeft /></Button>
-            <output aria-live="polite">Collection {galleryPage + 1} / {hallPageCount(projects)}</output>
-            <Button variant="ghost" aria-label="Next hall collection" disabled={galleryPage >= hallPageCount(projects) - 1} onClick={() => changeGalleryPage(galleryPage + 1)}><ArrowRight /></Button>
-          </nav>}
-        </>}
+      {houseStatus && <div className="house-sidebar-nav" aria-label="Manor navigation">
+        <span className="house-sidebar-title">Manor Sections</span>
+        <div className="house-sidebar-buttons">
+          <Button
+            variant={houseStatus.masterHall ? 'secondary' : 'outline'}
+            className={`house-sidebar-btn ${houseStatus.masterHall ? 'is-active' : ''}`}
+            onClick={() => {
+              if (houseStatus.masterHall) {
+                chooseProject(hallProjectPage(projects, galleryPage)[0]?.id ?? null);
+              } else {
+                houseUpstairs.current();
+              }
+            }}
+          >
+            <FolderGit2 size={15} />
+            <span>{houseStatus.masterHall ? 'Open Projects' : 'Projects Section'}</span>
+          </Button>
+
+          <Button
+            variant={houseStatus.skillsRoom ? 'secondary' : 'outline'}
+            className={`house-sidebar-btn ${houseStatus.skillsRoom ? 'is-active' : ''}`}
+            onClick={() => {
+              if (houseStatus.skillsRoom) {
+                showSkills(true, skills[0]?.id ?? null);
+              } else {
+                houseSkills.current();
+              }
+            }}
+          >
+            <Sparkles size={15} />
+            <span>{houseStatus.skillsRoom ? 'Open Skills' : 'Skills Room'}</span>
+          </Button>
+
+          {houseStatus.room !== 'The entrance hall' && (
+            <Button
+              variant="outline"
+              className="house-sidebar-btn"
+              onClick={() => houseReturn.current()}
+            >
+              <Compass size={15} />
+              <span>Entrance Hall</span>
+            </Button>
+          )}
+
+          {houseStatus.room === 'The entrance hall' && (
+            <Button
+              variant="outline"
+              className="house-sidebar-btn hall-contact-trigger"
+              onClick={() => showContact(true)}
+            >
+              <User size={15} />
+              <span>Contact Hologram</span>
+            </Button>
+          )}
+
+          {houseStatus.door && (
+            <Button
+              variant="outline"
+              className="house-sidebar-btn"
+              onClick={() => houseInteract.current()}
+              disabled={houseStatus.open && houseStatus.door !== 'Front door'}
+            >
+              <DoorOpen size={15} />
+              <span>{houseStatus.door === 'Front door' ? 'Exit Manor' : houseStatus.open ? 'Walk Through' : `Open Door`}</span>
+              <kbd>E</kbd>
+            </Button>
+          )}
+
+          {houseStatus.travelling && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="house-sidebar-btn house-stop-btn"
+              onClick={() => stopNavigation.current()}
+            >
+              <Square size={13} />
+              <span>Stop walking</span>
+            </Button>
+          )}
+        </div>
+
+        {houseStatus.masterHall && canEditProjects && (
+          <Button
+            variant="outline"
+            className="house-sidebar-btn"
+            disabled={frameBusy}
+            onClick={() => void addProject()}
+          >
+            <span>{frameBusy ? 'Adding…' : '+ Add Frame'}</span>
+          </Button>
+        )}
+
+        {houseStatus.masterHall && hallPageCount(projects) > 1 && (
+          <nav className="hall-collection-controls" aria-label="Hall collection pages">
+            <Button variant="ghost" aria-label="Previous" disabled={galleryPage === 0} onClick={() => changeGalleryPage(galleryPage - 1)}><ArrowLeft /></Button>
+            <output>{galleryPage + 1}/{hallPageCount(projects)}</output>
+            <Button variant="ghost" aria-label="Next" disabled={galleryPage >= hallPageCount(projects) - 1} onClick={() => changeGalleryPage(galleryPage + 1)}><ArrowRight /></Button>
+          </nav>
+        )}
       </div>}
-      {selectedProject && <HallProjectDialog project={projects.find(project => project.id === selectedProject)!} projects={projects} canEdit={canEditProjects} onAdd={addProject} onSelect={chooseProject} onSave={saveProject} onImportDrafts={importProjectDrafts} onClose={() => chooseProject(null)} />}
+      {selectedProject && projects.some(project => project.id === selectedProject) && <HallProjectDialog project={projects.find(project => project.id === selectedProject)!} projects={projects} canEdit={canEditProjects} busy={frameBusy} onAdd={addProject} onRemove={removeProject} onSelect={chooseProject} onSave={saveProject} onImportDrafts={importProjectDrafts} onClose={() => chooseProject(null)} />}
+      {ready && !tourStatus && !houseStatus && <Button className="tour-start" variant="outline" onClick={() => { showContact(false); showSkills(false); chooseProject(null); tourControl.current?.start(); }}>Guided portfolio tour</Button>}
+      {tourStatus && <section className="portfolio-tour" aria-label="Guided portfolio tour">
+        <div className="tour-path-label">ABOUT &amp; CONTACT / SKILLS ROOM / PROJECTS ROOM</div>
+        <div className="eyebrow">{tourStatus.phase === 'travelling' ? 'ON THE WAY' : tourStatus.phase.toUpperCase()} · {tourStatus.index + 1} / {tourStatus.total}</div>
+        <h2>{tourStatus.stop.title}</h2>
+        <p aria-live="polite">{tourStatus.caption}</p>
+        <div className="tour-actions">
+          {tourStatus.phase !== 'complete' && <>
+            <Button variant="ghost" onClick={() => tourControl.current?.replay()}>{['paused', 'error'].includes(tourStatus.phase) ? 'Resume / retry' : 'Read again'}</Button>
+            {!['paused', 'error'].includes(tourStatus.phase) && <Button variant="ghost" onClick={() => tourControl.current?.pause()}>Pause</Button>}
+            <Button variant="outline" onClick={() => tourControl.current?.next()}>Next →</Button>
+          </>}
+          {onPortfolio && <Button variant="ghost" onClick={() => { tourControl.current?.stop(); onPortfolio(); }}>Quick portfolio</Button>}
+          <Button variant="ghost" onClick={() => tourControl.current?.stop()}>Explore freely</Button>
+        </div>
+      </section>}
       {contactOpen && <ContactApparitionDialog profile={profile} canEdit={canEditProjects} onSave={saveProfile} onClose={() => showContact(false)} />}
       {skillsOpen && <SkillGalleryDialog skills={skills} selected={selectedSkill} canEdit={canEditProjects} onSelect={selectSkill} onSave={saveSkill} onClose={() => showSkills(false)} />}
       {!houseStatus && <nav className="island-destinations" aria-label="Island destinations">
@@ -1224,12 +1402,6 @@ export default function IslandViewer({
         )}
       </nav>}
       <footer className="walk-controls">
-        <div className="walk-help">
-          <p>
-            <kbd>W A S D</kbd> or <kbd>↑ ← ↓ →</kbd> to {boatMode ? 'sail' : 'walk'}
-          </p>
-          <span>{houseStatus ? 'Tap the floor or stairs to walk. Tap a door or press E. Drag to look.' : boatMode ? 'Hold arrows or tap open water to row. Shift for stronger strokes.' : 'Tap the ground or choose a place. Drag to look. Shift to run.'}</span>
-        </div>
         <fieldset className="walk-pad" aria-label={boatMode ? "Sailing controls" : "Walking controls"}>
           {[
             { key: 'KeyW', label: 'Walk forward', style: 'walk-forward', Icon: ArrowUp },
@@ -1258,8 +1430,22 @@ export default function IslandViewer({
             ><Icon /></Button>
           ))}
         </fieldset>
-        <p className="walk-touch-hint">Hold arrows to {boatMode ? "sail" : "walk"}. Drag the scene to look around.</p>
       </footer>
+      <IslandChatWidget
+        ref={assistant}
+        active={active}
+        onAction={assistantAction}
+        onVoiceStart={() => { tourControl.current?.pause(); stopIslandSpeech(); }}
+        phone={profile.phone}
+        location={profile.location}
+        resume={profile.resume}
+        name={profile.name}
+        role={profile.role}
+        bio={profile.bio}
+        email={profile.email}
+        skills={skills.map(s => ({ title: s.title, description: s.description }))}
+        projects={projects.filter(p => p.title).map(p => ({ title: p.title, description: p.description || '', url: p.url || '' }))}
+      />
     </main>
   );
 }

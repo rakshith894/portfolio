@@ -23,23 +23,23 @@ export const HOUSE_FOYER = { x: 0, z: front / 2, width: 2.3, depth: -front };
 export const HOUSE_ROOMS = [
   {
     id: 'library',
-    name: 'The skills gallery',
+    name: 'The west staircase',
     x: -(mainHalf + 2.5) / 2,
     z: (front + back) / 2,
     width: mainHalf - 2.5,
     depth: front - back,
     accent: '#c69965',
-    detail: 'Floating skills, ideas and experience. Tap a colored card to explore. The stairs lead to the master hall.',
+    detail: 'Follow the timber staircase to the project collection upstairs.',
   },
   {
     id: 'dining',
-    name: 'The dining room',
+    name: 'Skills Room',
     x: (mainHalf + 2.5) / 2,
     z: (front + back) / 2,
     width: mainHalf - 2.5,
     depth: front - back,
     accent: '#c48b72',
-    detail: 'An open room filled with drifting golden light.',
+    detail: 'Floating skills and experience in a current of golden light. Tap a card to read, or tap the floor to walk.',
   },
   ...[-1, 1].map((side) => {
     const wing = MANOR_SOLIDS.find(
@@ -48,8 +48,8 @@ export const HOUSE_ROOMS = [
     const outer = Math.abs(wing.x) + wing.width / 2 - 0.25;
     const inner = Math.abs(wing.x) - wing.width / 2 + 0.05;
     return {
-      id: side < 0 ? 'study' : 'seance',
-      name: side < 0 ? 'The study' : 'The seance room',
+      id: side < 0 ? 'west-gallery' : 'seance',
+      name: side < 0 ? 'West skills gallery' : 'East skills gallery',
       x: (side * (outer + inner)) / 2,
       z: wing.z - MANOR_DOOR.z,
       width: outer - inner,
@@ -57,8 +57,8 @@ export const HOUSE_ROOMS = [
       accent: side < 0 ? '#9facc7' : '#9ab4a2',
       detail:
         side < 0
-          ? 'An unfinished letter waits in the west wing.'
-          : 'A circle of candles in the secluded east wing.',
+          ? 'More floating skills, surrounded by golden light.'
+          : 'Explore the collection in the east wing.',
     };
   }),
 ];
@@ -104,7 +104,7 @@ export const HOUSE_DOORS: HouseDoor[] = [
     width: DOOR_WIDTH,
     height: 2.8,
   })),
-  { ...HALL_GATE, id: 'master-hall', name: 'Master hall door', axis: 'z', swing: 1 },
+  { ...HALL_GATE, id: 'master-hall', name: 'Projects Room door', axis: 'z', swing: 1 },
 ];
 const wall = (
   x: number,
@@ -143,9 +143,15 @@ export const HOUSE_WALLS: HouseSolid[] = [
   ]),
 ];
 export const HOUSE_FURNITURE: HouseSolid[] = [
-  { x: -11.1, z: -8.5, width: 1.7, depth: 0.6, height: 0.9, kind: 'desk' },
-  { x: -11.1, z: -7.7, width: 0.6, depth: 0.6, height: 1.2, kind: 'chair' },
-  { x: 11.2, z: -8.5, width: 1.3, depth: 1, height: 0.85, kind: 'table' },
+];
+// Low projector, arch plinths, stair supports and door jambs are rendered solids too.
+export const HOUSE_FIXTURES: HouseSolid[] = [
+  { x: 0, z: -5.5, width: 1.44, depth: 1.44, height: .22, kind: 'table' },
+  ...[-2.35, 2.35].map(x => ({ x, z: -2.1, width: .4, depth: .4, height: 3.2, kind: 'wall' as const })),
+  ...[-7.7, -5.1].map(x => ({ x, z: -8.3, width: .18, depth: .18, height: 2.5, kind: 'wall' as const })),
+  ...HOUSE_DOORS.filter(door => door.axis === 'z').flatMap(door => [0, door.width].map(offset => ({
+    x: door.x, z: door.z + offset, y: door.y, width: .3, depth: .15, height: door.height, kind: 'wall' as const,
+  }))),
 ];
 export function doorSegment(door: HouseDoor, progress: number) {
   const angle =
@@ -184,9 +190,10 @@ export function createHouseWalker() {
   }));
   const side = (door: HouseDoor) =>
     Math.sign(door.axis === 'z' ? position.x - door.x : position.z - door.z);
-  const safeToClose = (door: HouseDoor) =>
-    Math.hypot(position.x - door.x, position.z - door.z) >
-    door.width + HOUSE_RADIUS + 0.2;
+  let occupants: HousePoint[] = [];
+  const safeToClose = (door: HouseDoor) => [position, ...occupants].every(point =>
+    Math.abs((point.y ?? 0) - (door.y ?? 0)) > door.height ||
+    Math.hypot(point.x - door.x, point.z - door.z) > door.width + HOUSE_RADIUS + .45);
   const canStand = (point: HousePoint, ignoreDoors = false) => {
     const height = houseSurface(point, point.y ?? position.y);
     if (height === null) return false;
@@ -200,7 +207,7 @@ export function createHouseWalker() {
     )
       return false;
     if (
-      [...HOUSE_WALLS, ...HOUSE_FURNITURE].some(
+      [...HOUSE_WALLS, ...HOUSE_FURNITURE, ...HOUSE_FIXTURES].some(
         (solid) =>
           height + 1.82 > (solid.y ?? 0) && height < (solid.y ?? 0) + solid.height &&
           Math.abs(point.x - solid.x) < solid.width / 2 + HOUSE_RADIUS &&
@@ -252,7 +259,8 @@ export function createHouseWalker() {
         .filter((item) => item.distance < 2.6)
         .sort((a, b) => a.distance - b.distance)[0]?.door;
     },
-    update(dt: number) {
+    update(dt: number, followers: HousePoint[] = []) {
+      occupants = followers;
       for (const door of doors) {
         door.hold = Math.max(0, door.hold - dt);
         if (door.target && side(door) !== door.side && side(door) !== 0)
@@ -291,7 +299,7 @@ export function createHouseWalker() {
     },
     room() {
       if (position.y >= UPPER_HALL.y - 0.01) return position.x > HALL_GATE.x ? MASTER_HALL : UPPER_HALL;
-      if (position.y > 0.2) return { ...UPPER_HALL, id: 'stairs', name: 'The west staircase', detail: 'Follow the stairs to the master hall’s side entrance.' };
+      if (position.y > 0.2) return { ...UPPER_HALL, id: 'stairs', name: 'The west staircase', detail: 'Follow the stairs to the Projects Room’s side entrance.' };
       return HOUSE_ROOMS.find(
         (room) =>
           Math.abs(position.x - room.x) < room.width / 2 &&

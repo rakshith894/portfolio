@@ -7,6 +7,7 @@ import { createRowingHands } from './island-rowing.ts';
 export function createIslandAvatar(
   resources: Set<{ dispose: () => void }>,
   mobile: boolean,
+  requireHuman = false,
 ) {
   const own = <T extends { dispose: () => void }>(value: T) => {
     resources.add(value);
@@ -29,9 +30,11 @@ export function createIslandAvatar(
   const box = own(new THREE.BoxGeometry(1, 1, 1));
   const root = new THREE.Group();
   // Keep the local articulated avatar usable while the detailed model streams.
-  root.visible = true;
+  root.visible = !requireHuman;
   let finishLoading!: () => void;
-  const ready = new Promise<void>(resolve => { finishLoading = resolve; });
+  let appearanceChosen = false;
+  let loadTimeout: ReturnType<typeof setTimeout> | undefined;
+  const ready = new Promise<void>(resolve => { finishLoading = () => { appearanceChosen = true; clearTimeout(loadTimeout); resolve(); }; });
   root.name = 'Rakshith — player';
   const body = new THREE.Group();
   root.add(body);
@@ -129,7 +132,7 @@ export function createIslandAvatar(
     });
     owned.forEach((item) => item.dispose());
   };
-  resources.add({ dispose: () => { disposed = true; mixer.stopAllAction(); mixer.uncacheRoot(root); } });
+  resources.add({ dispose: () => { disposed = true; finishLoading(); mixer.stopAllAction(); mixer.uncacheRoot(root); } });
   let modelReady = false;
   let modelChanged = false;
   let idleAction: THREE.AnimationAction | null = null;
@@ -147,11 +150,13 @@ export function createIslandAvatar(
   let runningGait = false;
   const modelLoader = new GLTFLoader();
   if (typeof window !== 'undefined') {
+    // Choose the fallback once on a stalled connection; never swap mid-walk.
+    loadTimeout = setTimeout(finishLoading, requireHuman ? 45000 : 12000);
     modelLoader.load(
       '/models/human-traveller.glb',
       (gltf) => {
       const model = gltf.scene;
-      if (disposed) { releaseModel(model); return; }
+      if (disposed || appearanceChosen) { releaseModel(model); return; }
       importedModel = model;
       model.name = 'Human traveller';
       // Rocketbox faces +Z; the island walker faces -Z.
@@ -210,7 +215,7 @@ export function createIslandAvatar(
       () => {
         if (disposed) return;
         modelReady = false;
-        root.visible = true;
+        root.visible = !requireHuman;
         finishLoading();
       },
     );
@@ -335,7 +340,7 @@ export function createIslandAvatar(
       : Math.abs(Math.sin(phase)) * 0.035 * stride;
     return blend > 0.001 || gesture !== null;
   }
-  return { root, ready, update, perform,
+  return { root, ready, get hasHuman() { return modelReady; }, update, perform,
     setRowingTargets(left?:THREE.Vector3,right?:THREE.Vector3){rowingTargets=left&&right?{left,right}:null;},
     setSeated(value: boolean) { seated=value; if(!value)rowingTargets=null; shadow.visible=!value && mobile; } };
 }

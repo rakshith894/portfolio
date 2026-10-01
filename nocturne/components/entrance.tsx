@@ -14,6 +14,7 @@ type Props = {
   onExplore: () => void;
   onPrepare: () => void;
   onPortfolio: () => void;
+  onTour: () => void;
   audioError: boolean;
 };
 
@@ -21,6 +22,7 @@ export function Entrance({
   onExplore,
   onPrepare,
   onPortfolio,
+  onTour,
   audioError,
 }: Props) {
   const [paused, setPaused] = useState(false);
@@ -127,11 +129,12 @@ export function Entrance({
             variant="ghost"
             onClick={onPortfolio}
           >
-            View my work <ArrowUpRight />
+            Quick portfolio <ArrowUpRight />
           </Button>
         </div>
+        <Button className="landing-tour" variant="ghost" onPointerEnter={onPrepare} onFocus={onPrepare} onClick={onTour}>Take the narrated tour →</Button>
         <p className="landing-note">
-          A portfolio you don’t just see. You explore.
+          Explore freely, follow the guide, or go straight to the work.
         </p>
       </section>
       <footer className="landing-colophon">

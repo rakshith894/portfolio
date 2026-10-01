@@ -31,6 +31,7 @@ export function createHallFrames(scene: THREE.Scene) {
     root.userData.projectFrame = definition.id;
     root.position.set(definition.x, definition.y, definition.z);
     root.rotation.y = definition.rotation;
+    root.visible = false;
     scene.add(root); roots.push(root);
     const w = definition.width, h = 1.7;
     const part = (parent: THREE.Object3D, material: THREE.Material, x: number, y: number, z: number, width: number, height: number, depth: number) => {
@@ -72,7 +73,9 @@ export function createHallFrames(scene: THREE.Scene) {
     setProjects(projects: HallProject[]) {
       for (const frame of frames) {
         const project = projects[frame.index];
+        frame.root.visible = !!project;
         frame.id = project?.id ?? null;
+        if (!project) frame.selected = false;
         frame.root.userData.projectFrame = frame.id;
         const coverKey = JSON.stringify(project ?? null);
         if (coverKey === frame.coverKey) continue;
@@ -92,7 +95,7 @@ export function createHallFrames(scene: THREE.Scene) {
     },
     select(id: HallFrameId | null) { for (const frame of frames) frame.selected = id !== null && frame.id === id; },
     hit(ray: THREE.Raycaster) {
-      return ray.intersectObjects(roots, true)[0] ?? null;
+      return ray.intersectObjects(roots.filter(root => root.visible), true)[0] ?? null;
     },
     update(dt: number, settings: HallSettings, reduced: boolean) {
       for (const frame of frames) {

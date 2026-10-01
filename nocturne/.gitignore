@@ -42,3 +42,6 @@ next-env.d.ts
 /content/.profile.tmp
 /content/.hall-projects.tmp
 /content/.skills.tmp
+
+!.env.example
+/.dev.log

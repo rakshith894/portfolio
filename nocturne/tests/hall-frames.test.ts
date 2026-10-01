@@ -23,9 +23,12 @@ void test('closed covers refresh for description and URL edits, preserve proport
   const scene = new THREE.Scene();
   try {
     const frames = createHallFrames(scene);
+    assert.equal(frames.roots.filter(root => root.visible).length, 0);
     const projects = emptyHallProjects();
-    projects[0] = { ...projects[0], title: 'Atlas', description: 'First edition', url: 'https://first.example/demo' };
+    projects[0] = { id: 'frame-3', title: 'Atlas', description: 'First edition', url: 'https://first.example/demo' };
     frames.setProjects(projects);
+    assert.equal(frames.roots.filter(root => root.visible).length, 1);
+    assert.equal(frames.roots[0].userData.projectFrame, 'frame-3');
     assert.ok(canvases[0].text.includes('Atlas'));
     assert.ok(canvases[0].text.includes('First edition'));
     assert.ok(canvases[0].text.includes('first.example'));
@@ -45,7 +48,8 @@ void test('closed covers refresh for description and URL edits, preserve proport
     });
     frames.setProjects(emptyHallProjects());
     assert.ok(!canvases[0].text.includes('Atlas'));
-    assert.ok(canvases[0].text.includes('COMING SOON'));
+    assert.equal(frames.roots.filter(root => root.visible).length, 0);
+    assert.equal(frames.hit(new THREE.Raycaster()), null, 'Hidden frames are not clickable');
     frames.setProjects([{ id: 'frame-11', title: 'Another collection', description: '', url: 'https://example.test/' }]);
     assert.equal(frames.roots[0].userData.projectFrame, 'frame-11', 'Clicks follow the displayed collection');
     assert.equal(frames.roots[1].userData.projectFrame, null, 'Unused cases cannot open the previous collection');

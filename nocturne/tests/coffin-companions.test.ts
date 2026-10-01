@@ -24,6 +24,7 @@ void test('each coffin wakes one articulated guardian, toggles independently, an
   try {
     controller.toggle(0, player); controller.toggle(1, player); tick(190); await setImmediate(); tick(240);
     assert.ok(controller.companions.every(c => c.phase === 'following' && c.body.visible));
+    assert.ok(controller.companions[0].body.position.distanceTo(controller.companions[1].body.position) >= .9, 'Simultaneous summons reserve separate standing positions');
     assert.ok(coffins.every(coffin => coffin.open && coffin.hinge.rotation.z > 1.5));
     assert.ok(controller.companions.every(c => c.body.getObjectByName('arm1') && c.body.getObjectByName('leg-1')));
     controller.toggle(0, player); tick(230);
@@ -33,6 +34,22 @@ void test('each coffin wakes one articulated guardian, toggles independently, an
     assert.ok(coffins[0].hinge.rotation.z < .05);
     assert.equal(controller.companions[1].phase, 'following');
     assert.equal(coffins[1].open, true);
+  } finally { dispose(); }
+});
+
+void test('multiple guardians stay separate while stopped, following a turn, and after a recall', async () => {
+  const { player, controller, tick, dispose } = setup();
+  try {
+    controller.toggle(0, player); controller.toggle(1, player); tick(190); await setImmediate(); tick(400);
+    for (let frame = 0; frame < 1000; frame++) {
+      if (frame < 250) player.x += .03;
+      else if (frame < 500) player.z -= .03;
+      tick(1);
+      const [a, b] = controller.companions;
+      assert.ok(a.body.position.distanceTo(b.body.position) >= .88, 'Bodies cannot merge at a turn or when the traveller stops');
+    }
+    controller.toggle(0, player); tick(230);
+    assert.equal(controller.companions[1].phase, 'following');
   } finally { dispose(); }
 });
 

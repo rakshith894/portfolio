@@ -36,6 +36,7 @@ export function createHouseExploration(
   creak: () => void,
   manualCamera: () => boolean = () => false,
   openProject: (id: HallFrameId) => void = () => {},
+  followers: () => THREE.Vector3[] = () => [],
 ) {
   const origin = MANOR_ORIGIN.clone().add(
     new THREE.Vector3(0, MANOR_DOOR.y, MANOR_DOOR.z),
@@ -75,7 +76,10 @@ export function createHouseExploration(
   marker.rotation.x = -Math.PI / 2;
   marker.visible = false;
   root.add(marker);
-  let viewDistance = 2.65, lastCameraDistance: number | null = null;
+  const pathGeometry = new THREE.BufferGeometry();
+  const pathMaterial = new THREE.LineDashedMaterial({ color: 0x9fffe0, transparent: true, opacity: .7, dashSize: .22, gapSize: .14, depthWrite: false });
+  const path = new THREE.Line(pathGeometry, pathMaterial); path.name = 'Guided indoor walking path'; path.visible = false; root.add(path);
+  let viewDistance = 2.65, smoothedConstrainDist: number | null = null;
   const target = new THREE.Vector3(),
     old = new THREE.Vector3(),
     change = new THREE.Vector3();
@@ -123,12 +127,12 @@ export function createHouseExploration(
               ? 'Walking through the doorway.'
               : phase === 'leaving'
                 ? 'Walking back outside.'
-                : (room?.detail ?? 'Meet the hologram in the center. The left door opens the floating skills gallery; upstairs you will find my projects.'),
+                : (room?.detail ?? 'Meet the hologram in the center. The right door opens the Skills Room; the west staircase leads to the Projects Room. Tap the floor or a stair tread to walk there.'),
       door: phase === 'inside' ? (nearby?.name ?? null) : null,
       open: !!nearby?.target,
       travelling: phase !== 'inside' || route.length > 0,
       masterHall: phase === 'inside' && room?.id === 'master-hall',
-      skillsRoom: phase === 'inside' && room?.id === 'library',
+      skillsRoom: phase === 'inside' && ['dining', 'west-gallery', 'seance'].includes(room?.id ?? ''),
     };
     const key = JSON.stringify(status);
     if (key !== lastStatus) {
@@ -152,6 +156,7 @@ export function createHouseExploration(
     exitAfterRoute = route.length > 0;
     arrivalDoor = null;
     marker.visible = false;
+    path.visible = false;
     routeBlocked = 0;
     emit();
   }
@@ -161,6 +166,7 @@ export function createHouseExploration(
     exitAfterRoute = false;
     arrivalDoor = null;
     marker.visible = false;
+    path.visible = false;
     routeBlocked = 0;
     travelDirection(0, 0, camera.position, walker.position);
     emit();
@@ -169,13 +175,15 @@ export function createHouseExploration(
     if (phase !== 'inside') return false;
     const candidates = [point];
     // A click on an edge can choose the adjacent safe floor, never another level.
-    for (const radius of [.2, .4, .6])
+    for (const radius of [.2, .4, .6, .85, 1.2, 1.6])
       for (let i = 0; i < 8; i++) candidates.push({ x: point.x + Math.cos(i * Math.PI / 4) * radius, z: point.z + Math.sin(i * Math.PI / 4) * radius, y: point.y });
     const goal = candidates.find(candidate => indoor.canStand(candidate, true));
     if (!goal) return false;
     const planned = houseRoute(indoor.position, goal, candidate => indoor.canStand(candidate, true));
     if (!planned?.length) return false;
     route = planned; exitAfterRoute = false; arrivalDoor = null; routeBlocked = 0;
+    pathGeometry.dispose(); pathGeometry.deleteAttribute('position'); pathGeometry.setFromPoints([indoor.position, ...planned].map(p => new THREE.Vector3(p.x, (p.y ?? 0) + .04, p.z)));
+    path.computeLineDistances(); path.visible = true;
     marker.position.set(goal.x, (goal.y ?? 0) + .025, goal.z);
     marker.visible = true;
     emit();
@@ -251,8 +259,10 @@ export function createHouseExploration(
     get masterHall() {
       return phase === 'inside' && indoor.room()?.id === 'master-hall';
     },
+    get travelling() { return phase !== 'inside' || route.length > 0; },
+    get position() { return { ...indoor.position }; },
     setHallSettings(settings: HallSettings) { hallSettings = { ...settings }; },
-    get skillsRoom() { return phase === 'inside' && indoor.room()?.id === 'library'; },
+    get skillsRoom() { return phase === 'inside' && ['dining', 'west-gallery', 'seance'].includes(indoor.room()?.id ?? ''); },
     unoccluded(ray: THREE.Raycaster, distance: number) {
       root.updateMatrixWorld(true);
       const hit = ray.intersectObjects(collisions, false)[0];
@@ -316,7 +326,7 @@ export function createHouseExploration(
       if (!hit.face || hit.face.normal.clone().transformDirection(hit.object.matrixWorld).y < .65) return false;
       const point = root.worldToLocal(hit.point.clone());
       const height = houseSurface(point, point.y);
-      if (height === null || Math.abs(height - point.y) > .04) return false;
+      if (height === null || Math.abs(height - point.y) > .22) return false;
       return walkTo({ x: point.x, z: point.z, y: height });
     },
     update(
@@ -357,7 +367,7 @@ export function createHouseExploration(
           phase = 'inside';
           controls.enabled = true;
           controls.maxDistance = 4.3;
-          lastCameraDistance = null;
+          smoothedConstrainDist = null;
           viewDistance = 2.65;
           indoor.position.x = walker.position.x - origin.x;
           indoor.position.z = walker.position.z - origin.z;
@@ -396,6 +406,7 @@ export function createHouseExploration(
         );
         if ((forward || side) && route.length) {
           route = []; exitAfterRoute = false; arrivalDoor = null; marker.visible = false; routeBlocked = 0;
+          path.visible = false;
         }
         const following = route.length > 0;
         const speed = following ? walkSpeed : running ? 3.1 : walkSpeed;
@@ -415,6 +426,7 @@ export function createHouseExploration(
             if (!route.length) {
               velocity.set(0, 0, 0);
               marker.visible = false;
+              path.visible = false;
               if (exitAfterRoute) startLeaving();
               else if (arrivalDoor) { indoor.open(arrivalDoor); creak(); arrivalDoor = null; }
             }
@@ -455,7 +467,11 @@ export function createHouseExploration(
           origin.y + indoor.position.y,
           origin.z + indoor.position.z,
         );
-        indoor.update(dt);
+        const companions = followers().map(point => ({ x: point.x - origin.x, y: point.y - origin.y, z: point.z - origin.z }));
+        for (const door of indoor.doors) {
+          if (!door.target && companions.some(point => Math.abs(point.y - (door.y ?? 0)) < .45 && Math.hypot(point.x - door.x, point.z - door.z) < door.width + .7)) indoor.open(door.id);
+        }
+        indoor.update(dt, companions);
         if (following && route.length) {
           routeBlocked = old.distanceToSquared(walker.position) < 1e-8 ? routeBlocked + dt : 0;
           // Let an opening door finish; cancel a genuinely unreachable route.
@@ -469,25 +485,43 @@ export function createHouseExploration(
           (door.progress * door.swing * Math.PI) / 2;
       animateAvatar(dt, reduced, old);
       if (phase === 'inside') {
-        const inputDistance = camera.position.distanceTo(controls.target);
-        if (manualCamera() && lastCameraDistance !== null && Math.abs(inputDistance - lastCameraDistance) > 0.05)
-          viewDistance = THREE.MathUtils.clamp(inputDistance, 0.8, 4.3);
         target.copy(player.root.position).add(new THREE.Vector3(0, 1.35, 0));
         camera.position.add(target.clone().sub(controls.target));
         controls.target.copy(target);
-        controls.update();
+        // Measure distance before update so we can detect zoom input precisely.
+        const preUpdateDist = camera.position.distanceTo(controls.target);
+        controls.update(); // applies scroll-wheel zoom and orbit rotation
+        const inputDistance = camera.position.distanceTo(controls.target);
+        // If controls.update() changed the radius, the user zoomed (scroll/pinch).
+        // Using a pre/post delta removes the need for manualCamera() here, which
+        // was unreliable because scroll-wheel never fires OrbitControls start/end.
+        const zoomDelta = inputDistance - preUpdateDist;
+        if (Math.abs(zoomDelta) > 0.01) {
+          const next = THREE.MathUtils.clamp(inputDistance, 0.8, 4.3);
+          if (Math.abs(next - viewDistance) > 0.04) smoothedConstrainDist = null;
+          viewDistance = next;
+        }
         if (Math.hypot(change.x, change.z) > 0.00001 && !manualCamera())
           followBehind(camera, controls.target, player.root.rotation.y, dt);
         cameraDirection.copy(camera.position).sub(controls.target);
-        const currentDistance = cameraDirection.length();
         const desiredDistance = viewDistance;
         cameraDirection.normalize();
         root.updateMatrixWorld(true);
         exteriorDoor.updateMatrixWorld(true);
-        constrainCamera(camera, controls.target, Math.min(desiredDistance,
-          THREE.MathUtils.lerp(currentDistance, desiredDistance, 1 - Math.exp(-dt * 6)),
-        ));
-        lastCameraDistance = camera.position.distanceTo(controls.target);
+        constrainCamera(camera, controls.target, desiredDistance);
+        const rawConstrained = camera.position.distanceTo(controls.target);
+        // Asymmetric smoothing: snap IN immediately when hitting geometry,
+        // expand OUT slowly to kill wall-edge flicker.
+        if (smoothedConstrainDist === null || rawConstrained <= smoothedConstrainDist) {
+          smoothedConstrainDist = rawConstrained;
+        } else {
+          smoothedConstrainDist = Math.min(desiredDistance,
+            THREE.MathUtils.damp(smoothedConstrainDist, rawConstrained, 8, dt));
+        }
+        if (rawConstrained > 0.001) {
+          cameraDirection.copy(camera.position).sub(controls.target).normalize();
+          camera.position.copy(controls.target).addScaledVector(cameraDirection, smoothedConstrainDist);
+        }
         camera.lookAt(controls.target);
       } else {
         const offset =
@@ -517,6 +551,7 @@ export function createHouseExploration(
       }
     },
     dispose() {
+      pathGeometry.dispose(); pathMaterial.dispose();
       markerGeometry.dispose(); markerMaterial.dispose();
       world.dispose();
       root.removeFromParent();

@@ -3,16 +3,18 @@ import assert from 'node:assert/strict';
 import { HALL_FRAMES, emptyHallProjects, projectUrl, readHallProjects } from '../lib/hall-projects.ts';
 import { HALL_GATE, MASTER_HALL } from '../lib/master-hall.ts';
 
-void test('glass frames start empty and safely restore browser-saved project details', () => {
+void test('no frames are created implicitly and saved frames restore without deleted placeholders', () => {
   const empty = emptyHallProjects();
-  assert.equal(empty.length, 10);
+  assert.equal(empty.length, 0);
   assert.ok(empty.every(project => !project.title && !project.description && !project.url));
   assert.deepEqual(readHallProjects(null), empty);
   assert.deepEqual(readHallProjects('not json'), empty);
   assert.deepEqual(readHallProjects('{}'), empty);
-  const saved = [...empty];
-  saved[0] = { ...saved[0], title: 'A live project', url: 'https://example.test/demo', description: 'Project details' };
+  const saved = [{ id: 'frame-3', title: 'A live project', url: 'https://example.test/demo', description: 'Project details' }];
   assert.deepEqual(readHallProjects(JSON.stringify(saved)), saved);
+  assert.deepEqual(readHallProjects('[]'), []);
+  const blank = { id: 'frame-4', title: '', description: '', url: '' };
+  assert.deepEqual(readHallProjects(JSON.stringify([blank])), [blank], 'Only explicitly created blank frames persist');
   assert.deepEqual(readHallProjects(JSON.stringify([{ id: 'frame-1', title: 'Bad', url: 'javascript:alert(1)', description: '' }])), empty);
   assert.deepEqual(readHallProjects(JSON.stringify([{ id: 'frame-1', title: 42, url: 'https://example.test', description: '' }])), empty);
 });

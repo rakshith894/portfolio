@@ -587,15 +587,16 @@ export function createHouseScene(scene: THREE.Scene, mobile: boolean) {
     ])
       box(scene, wood, room.x, 4.62, z, room.width - 0.2, 0.24, 0.24);
   }
+  const particleZones = [HOUSE_HALL, ...HOUSE_ROOMS, { x: 0, z: -5, width: 12, depth: 7 }];
   const dustGeometry = own(new THREE.BufferGeometry());
-  const dust = new Float32Array((mobile ? 140 : 300) * 3);
+  const dust = new Float32Array((mobile ? 360 : 850) * 3);
   const dustColors = new Float32Array(dust.length);
   const dustPalette = [0xffd98e, 0xffc572, 0x9ce7d5, 0xc6b4ff, 0xffb1c1].map(color => new THREE.Color(color));
   for (let i = 0; i < dust.length; i += 3) {
     dust[i] = Math.sin(i * 7.3) * 8.2;
     dust[i + 1] = (i % 41) / 10 + 0.2;
     dust[i + 2] = -5 + Math.cos(i * 4.7) * 3.7;
-    dustPalette[(i / 3) % dustPalette.length].toArray(dustColors, i);
+    dustPalette[(i / 3) % 5 < 3 ? 0 : (i / 3) % dustPalette.length].toArray(dustColors, i);
   }
   dustGeometry.setAttribute('position', new THREE.BufferAttribute(dust, 3));
   dustGeometry.setAttribute('color', new THREE.BufferAttribute(dustColors, 3));
@@ -605,14 +606,17 @@ export function createHouseScene(scene: THREE.Scene, mobile: boolean) {
       new THREE.PointsMaterial({
         color: 0xffffff,
         vertexColors: true,
-        size: 0.028,
+        size: 0.032,
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.85,
+        toneMapped: false,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
     ),
   );
+  particles.name = 'Living gold throughout the manor';
+  particles.frustumCulled = false;
   scene.add(particles);
   // Batch the many static furniture and masonry boxes without merging doors,
   // flames or apparitions. World-scaled UVs keep stone and flooring consistent.
@@ -693,8 +697,13 @@ export function createHouseScene(scene: THREE.Scene, mobile: boolean) {
       particles.position.y = reduced ? 0 : Math.sin(time * 0.15) * 0.12;
       if (!reduced) {
         for (let i = 0; i < dust.length; i += 3) {
-          dust[i] = Math.sin(i * 7.3) * 8.2 + Math.sin(time * .12 + i) * .1;
-          dust[i + 1] = .25 + (((i % 41) / 10 + time * (.025 + (i % 5) * .004)) % 4);
+          const n = i / 3;
+          const room = particleZones[n % particleZones.length];
+          const angle = n * 2.39996 + time * (.22 + (n % 7) * .025);
+          const radius = (room.width / 2 - .3) * (.15 + (n % 19) / 19 * .8);
+          dust[i] = room.x + Math.cos(angle) * radius;
+          dust[i + 2] = room.z + Math.sin(angle * .8 + Math.sin(time * .45 + n) * .3) * (room.depth / 2 - .35);
+          dust[i + 1] = (n % 6 === 5 ? 5 : 0) + .25 + (((i % 41) / 10 + time * (.22 + (i % 5) * .035)) % 4);
         }
         dustGeometry.attributes.position.needsUpdate = true;
       }

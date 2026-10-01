@@ -1,189 +1,74 @@
-'use client';
+"use client";
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import {
-  ArrowRight,
-  Code2,
-  FolderOpen,
-  Mail,
-  ScrollText,
-  UserRound,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { destinations, type Destination } from '@/lib/nocturne';
-const labels: Record<Destination, string> = {
-  about: 'About',
-  projects: 'Projects',
-  skills: 'Skills',
-  resume: 'Résumé',
-  contact: 'Contact',
-};
-const icons = {
-  about: UserRound,
-  projects: FolderOpen,
-  skills: Code2,
-  resume: ScrollText,
-  contact: Mail,
-};
-export default function Portfolio({
-  section,
-  onClose,
-  onEnter,
-}: {
-  section: Destination;
-  onClose: () => void;
-  onEnter: () => void;
-}) {
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="archive-dialog portfolio-dialog">
-        <div className="eyebrow">NOCTURNE / QUICK PORTFOLIO</div>
-        <DialogTitle className="dialog-heading">
-          Rakshith. Beyond the atmosphere.
-        </DialogTitle>
-        <DialogDescription>
-          A clear view of the person and the work. Explore at your own pace.
-        </DialogDescription>
-        <Tabs defaultValue={section}>
-          <TabsList
-            className="portfolio-tabs"
-            variant="line"
-            aria-label="Portfolio sections"
-          >
-            {destinations.map((d) => {
-              const Icon = icons[d];
-              return (
-                <TabsTrigger key={d} value={d}>
-                  <Icon size={14} />
-                  {labels[d]}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-          <TabsContent className="portfolio-content" value="about">
-            <span className="section-index">01 / THE PERSON</span>
-            <h3>Code with character.</h3>
-            <p>
-              I’m Rakshith, a creative developer exploring the space where
-              thoughtful interfaces meet immersive digital worlds.
-            </p>
-            <p>
-              Nocturne is an experiment in making a portfolio feel like a place:
-              something to explore, remember, and return to.
-            </p>
-            <div className="content-caption">
-              INTRODUCTION DRAFT · READY TO PERSONALIZE
-            </div>
-          </TabsContent>
-          <TabsContent className="portfolio-content" value="projects">
-            <span className="section-index">02 / SELECTED WORK</span>
-            <article className="project-preview">
-              <Image
-                unoptimized
-                width={320}
-                height={350}
-                src="/graveyard.webp"
-                alt="Moonlit graveyard and Gothic mansion from Nocturne"
-              />
-              <div>
-                <span className="project-status">IN DEVELOPMENT</span>
-                <h3>Nocturne</h3>
-                <p>
-                  A moonlit island with a walking guide, a boat to sail, and a
-                  haunted Gothic mansion with four rooms to explore.
-                </p>
-                <div className="technology-tags">
-                  <span>React</span>
-                  <span>TypeScript</span>
-                  <span>Three.js</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  className="project-link"
-                  onClick={onEnter}
-                >
-                  Explore the island <ArrowRight size={14} />
-                </Button>
-              </div>
-            </article>
-            <p className="content-caption">
-              MORE PROJECTS, LIVE DEMOS, AND GITHUB LINKS WILL BE ADDED WITH
-              RAKSHITH’S WORK.
-            </p>
-          </TabsContent>
-          <TabsContent className="portfolio-content" value="skills">
-            <span className="section-index">03 / THE CRAFT</span>
-            <h3>The technology behind Nocturne.</h3>
-            <p>
-              This project brings together React and TypeScript for the
-              interface, Three.js for the world, and responsive CSS for the
-              entrance and controls.
-            </p>
-            <div className="skill-rows">
-              <div>
-                <span>Interface</span>
-                <strong>React · TypeScript · CSS</strong>
-              </div>
-              <div>
-                <span>Immersion</span>
-                <strong>Three.js · WebGL · Animation</strong>
-              </div>
-              <div>
-                <span>Interaction</span>
-                <strong>Point & click · Guided navigation · Voice</strong>
-              </div>
-            </div>
-            <p className="content-caption">
-              THE ISLAND DEMONSTRATES CHARACTER ANIMATION AND INTERACTIVE
-              NAVIGATION. RAKSHITH’S VERIFIED SKILL PROFILE WILL BE ADDED LATER.
-            </p>
-          </TabsContent>
-          <TabsContent className="portfolio-content" value="resume">
-            <span className="section-index">04 / EXPERIENCE</span>
-            <h3>A story still being written.</h3>
-            <p>
-              Rakshith’s résumé will be available here once his experience,
-              education, and downloadable document have been added.
-            </p>
-            <div className="pending-content">
-              <ScrollText size={22} />
-              <div>
-                <strong>Résumé coming soon</strong>
-                <span>Professional details are awaiting personalization.</span>
-              </div>
-            </div>
-          </TabsContent>
-          <TabsContent className="portfolio-content" value="contact">
-            <span className="section-index">05 / START A CONVERSATION</span>
-            <h3>Good things begin with hello.</h3>
-            <p>
-              Contact details and social profiles will appear here once Rakshith
-              adds his preferred ways to connect.
-            </p>
-            <div className="pending-content">
-              <Mail size={22} />
-              <div>
-                <strong>Contact details coming soon</strong>
-                <span>
-                  Email, GitHub, and LinkedIn links are not connected yet.
-                </span>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-        <div className="portfolio-bottom">
-          <span>THE STORY IS OPTIONAL. THE WORK IS ALWAYS ACCESSIBLE.</span>
-          <Button variant="ghost" onClick={onClose}>
-            Back to Nocturne <ArrowRight size={14} />
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import type { Destination } from '@/lib/nocturne';
+import savedProfile from '@/content/profile.json';
+import savedSkills from '@/content/skills.json';
+import savedProjects from '@/content/hall-projects.json';
+import { readSkills, SKILL_COLORS } from '@/lib/skill-gallery';
+import { readHallProjects } from '@/lib/hall-projects';
+import { validateContactProfile, type ContactProfile } from '@/lib/contact-profile';
+import { ResumeActions } from '@/components/resume-actions';
+const sections = ['about', 'contact', 'skills', 'projects'] as const;
+const labels = { about: 'About', contact: 'Contact', skills: 'Skills', projects: 'Projects' };
+export default function Portfolio({ section, onClose, onEnter }: { section: Destination; onClose: () => void; onEnter: () => void }) {
+  const [current, setCurrent] = useState(section === 'resume' ? 'about' : section);
+  const [profile, setProfile] = useState<ContactProfile>(savedProfile);
+  const [skills, setSkills] = useState(() => readSkills(savedSkills));
+  const [projects, setProjects] = useState(() => readHallProjects(JSON.stringify(savedProjects)).filter(project => project.url));
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const controller = new AbortController();
+    void Promise.all(['profile', 'skills', 'projects'].map(async kind => {
+      const response = await fetch(`/__nocturne/${kind}`, { signal: controller.signal });
+      if (!response.ok) return;
+      const data = await response.json() as { profile?: unknown; skills?: unknown; projects?: unknown };
+      if (kind === 'profile') { const value = validateContactProfile(data.profile); if (value) setProfile(value); }
+      if (kind === 'skills') setSkills(readSkills(data.skills));
+      if (kind === 'projects') setProjects(readHallProjects(JSON.stringify(data.projects)).filter(project => project.url));
+    })).catch(() => {});
+    return () => controller.abort();
+  }, []);
+  const index = sections.indexOf(current as typeof sections[number]);
+  return <Dialog open onOpenChange={open => !open && onClose()}>
+    <DialogContent className="archive-dialog portfolio-dialog">
+      <div className="eyebrow">NOCTURNE / QUICK PORTFOLIO</div>
+      <DialogTitle className="dialog-heading">{profile.name}. The person and the work.</DialogTitle>
+      <DialogDescription>About & contact → Skills → Projects. Everything in one place.</DialogDescription>
+      <Tabs value={current} onValueChange={value => setCurrent(String(value) as typeof current)}>
+        <TabsList className="portfolio-tabs" variant="line" aria-label="Portfolio sections">{sections.map(id => <TabsTrigger key={id} value={id}>{labels[id]}</TabsTrigger>)}</TabsList>
+        <TabsContent className="portfolio-content" value="about">
+          <span className="section-index">01 / ABOUT</span>
+          {profile.photo && <Image unoptimized className="quick-portrait" src={profile.photo} width={100} height={100} alt={profile.name} />}
+          <h3>{profile.role}</h3><p className="preserve-copy">{profile.bio}</p>
+          <ResumeActions url={profile.resume} name={profile.name} />
+        </TabsContent>
+        <TabsContent className="portfolio-content" value="contact">
+          <span className="section-index">01 / CONTACT</span><h3>Start a conversation.</h3>
+          <div className="quick-contact">
+            {profile.email && <a href={'mailto:' + profile.email}>{profile.email}</a>}
+            {profile.phone && <a href={'tel:' + profile.phone}>{profile.phone}</a>}
+            {profile.location && <p>{profile.location}</p>}
+            {(['website', 'github', 'linkedin'] as const).map(key => profile[key] && <a key={key} href={profile[key]} target="_blank" rel="noopener noreferrer">{key} ↗</a>)}
+            {!profile.email && !profile.phone && !profile.location && !profile.website && !profile.github && !profile.linkedin && <p>Contact details have not been added yet.</p>}
+          </div>
+        </TabsContent>
+        <TabsContent className="portfolio-content" value="skills"><span className="section-index">02 / SKILLS</span><h3>Tools, ideas, and experience.</h3>
+          {skills.length ? skills.map(skill => <article className="quick-skill" key={skill.id} style={{ borderColor: SKILL_COLORS[skill.color] }}><h4>{skill.title}</h4><p className="preserve-copy">{skill.description}</p></article>) : <p>Skills have not been added yet.</p>}
+        </TabsContent>
+        <TabsContent className="portfolio-content" value="projects"><span className="section-index">03 / PROJECTS</span><h3>Selected work.</h3>
+          {projects.length ? projects.map(project => <article className="project-preview" key={project.id}>
+            {project.cover && <Image unoptimized src={project.cover} width={320} height={200} alt={project.title} />}
+            <div><h4>{project.title}</h4><p className="preserve-copy">{project.description}</p><a href={project.url} target="_blank" rel="noopener noreferrer">Open project ↗</a></div>
+          </article>) : <p>Projects have not been added yet.</p>}
+        </TabsContent>
+      </Tabs>
+      <div className="portfolio-bottom"><Button variant="ghost" onClick={onEnter}>Explore the island</Button>
+        {index < sections.length - 1 ? <Button variant="outline" onClick={() => setCurrent(sections[index + 1])}>Next: {labels[sections[index + 1]]} →</Button> : <Button variant="outline" onClick={onClose}>Back to Nocturne</Button>}
+      </div>
+    </DialogContent>
+  </Dialog>;
 }

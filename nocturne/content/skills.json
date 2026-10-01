@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "66b1376c-b803-41a2-b7f5-ab2fa3511d96",
+    "title": "python",
+    "description": "i am an python devoloper",
+    "color": "cyan"
+  },
+  {
+    "id": "718d3df1-2751-4151-b795-1b8662016460",
+    "title": "SQL",
+    "description": "also know about structured query language",
+    "color": "coral"
+  }
+]

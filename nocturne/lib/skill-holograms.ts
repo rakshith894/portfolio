@@ -1,67 +1,100 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { MANOR_ORIGIN } from './reference-layout.ts';
 import { MANOR_DOOR } from './manor-layout.ts';
-import { HOUSE_ROOMS } from './house-layout.ts';
-import { SKILL_COLORS, SKILLS_PER_PAGE, type GallerySkill } from './skill-gallery.ts';
+import { skillPlacement } from './skill-placement.ts';
+import { SKILL_COLORS, type GallerySkill } from './skill-gallery.ts';
+import { wrapSkillText } from './skill-card-layout.ts';
 
 export function createSkillHolograms(scene: THREE.Scene, resources: Set<{ dispose: () => void }>) {
   const own = <T extends { dispose: () => void }>(value: T) => { resources.add(value); return value; };
-  const room = HOUSE_ROOMS[0], root = new THREE.Group(); root.name = 'Floating skills in the west room';
-  root.position.copy(MANOR_ORIGIN).add(new THREE.Vector3(room.x, MANOR_DOOR.y, MANOR_DOOR.z + room.z)); scene.add(root);
-  const paperGeometry = own(new THREE.PlaneGeometry(1.05, 1.05, 12, 12));
-  const cards = Array.from({ length: SKILLS_PER_PAGE }, (_, index) => {
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 640;
-    const texture = own(new THREE.CanvasTexture(canvas)); texture.colorSpace = THREE.SRGBColorSpace;
-    const material = own(new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
-    const time = { value: 0 };
-    material.onBeforeCompile = shader => {
-      shader.uniforms.paperTime = time;
-      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float paperTime;').replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed.z+=sin(position.x*3.+paperTime*.6)*.035;');
-    };
-    const mesh = new THREE.Mesh(paperGeometry, material); mesh.name = 'Floating skill card';
-    // Two airy rows in the clear front of the room, away from the stair flights.
-    mesh.position.set(-7.1 + (index % 3) * 1.4 - room.x, 1.55 + Math.floor(index / 3) * 1.45, -2.3 - room.z);
-    mesh.userData.skillCard = true; root.add(mesh);
-    const outline = new THREE.LineSegments(own(new THREE.EdgesGeometry(paperGeometry)), own(new THREE.LineBasicMaterial({ color: 0xf0cb79, transparent: true, opacity: .7, depthWrite: false, blending: THREE.AdditiveBlending })));
-    mesh.add(outline);
-    return { mesh, canvas, texture, material, outline, base: mesh.position.clone(), time, id: null as string | null };
-  });
-  function setSkills(skills: GallerySkill[], page = 0) {
-    const visible = skills.slice(page * SKILLS_PER_PAGE, (page + 1) * SKILLS_PER_PAGE);
-    for (const [index, card] of cards.entries()) {
-      const skill = visible[index]; card.mesh.visible = !!skill || (!skills.length && index < 3); card.id = skill?.id ?? null;
-      if (!card.mesh.visible) continue;
-      const color = skill ? SKILL_COLORS[skill.color] : Object.values(SKILL_COLORS)[index];
-      card.outline.material.color.set(color); card.mesh.userData.skillId = card.id;
-      const c = card.canvas.getContext('2d'); if (!c) continue;
-      c.clearRect(0, 0, 640, 640);
-      const glow = c.createLinearGradient(0, 0, 640, 640); glow.addColorStop(0, color + '4a'); glow.addColorStop(1, '#071c2bd9'); c.fillStyle = glow; c.fillRect(0, 0, 640, 640);
-      c.strokeStyle = color + '88'; c.lineWidth = 2; c.strokeRect(18, 18, 604, 604);
-      c.fillStyle = color; c.font = '17px monospace'; c.fillText('KNOWLEDGE / IN MOTION', 44, 62);
-      c.font = '90px Georgia'; c.fillText(String(page * SKILLS_PER_PAGE + index + 1).padStart(2, '0'), 44, 166);
-      const writeLines = (text: string, y: number, size: number, limit: number) => {
-        c.font = `${size}px ${size > 30 ? 'Georgia' : 'Arial'}`;
-        const words = Array.from(text); let row = 0;
-        while (words.length && row < limit) { let n = 1; while (n < words.length && c.measureText(words.slice(0, n + 1).join('')).width < 548) n++; let line = words.splice(0, n).join(''); if (row === limit - 1 && words.length) line = line.slice(0, -2) + '…'; c.fillText(line, 44, y + row * size * 1.3); row++; }
-      };
-      c.fillStyle = '#effff9'; writeLines(skill?.title ?? ['Your skills, in the air.', 'Choose your color.', 'Tell your story.'][index], 255, 42, 3);
-      c.fillStyle = color; writeLines(skill?.description || (skill ? 'Tap to explore this skill.' : 'Add a skill with a name and an explanation. Your cards will float here.'), 423, 24, 4);
-      c.font = '16px monospace'; c.fillText(skill ? 'TOUCH TO DISCOVER  ↗' : 'YOUR NEXT CHAPTER', 44, 589);
-      card.texture.needsUpdate = true;
+  const root = new THREE.Group(); root.name = 'Permanent skills throughout the manor and backyard';
+  root.position.copy(MANOR_ORIGIN).add(new THREE.Vector3(0, MANOR_DOOR.y, MANOR_DOOR.z)); scene.add(root);
+  // Keep the writing on a flat surface; motion belongs to the card and its light.
+  const panelGeometry = own(new THREE.PlaneGeometry(1.12, 1.12));
+  const edgeGeometry = own(new THREE.EdgesGeometry(panelGeometry));
+  const haloGeometry = own(new THREE.PlaneGeometry(1.26, 1.26));
+  const haloEdges = own(new THREE.EdgesGeometry(haloGeometry));
+  const createCard = (index: number) => {
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
+    const texture = own(new THREE.CanvasTexture(canvas)); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
+    const material = own(new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: .98, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    const mesh = new THREE.Mesh(panelGeometry, material); mesh.name = 'Floating skill card';
+    const placement = skillPlacement(index);
+    mesh.position.set(placement.x, placement.y, placement.z);
+    mesh.userData.area = placement.area; mesh.userData.skillCard = true; root.add(mesh);
+    const edgeMaterial = own(new THREE.LineBasicMaterial({ color: 0xf0cb79, transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const edge = new THREE.LineSegments(edgeGeometry, edgeMaterial); mesh.add(edge);
+    const haloMaterial = own(new THREE.LineBasicMaterial({ color: 0xf0cb79, transparent: true, opacity: .12, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const halo = new THREE.LineSegments(haloEdges, haloMaterial); halo.position.z = -.025; mesh.add(halo);
+    return { mesh, canvas, texture, material, edgeMaterial, haloMaterial, halo, base: mesh.position.clone(), id: null as string | null };
+  };
+  const cards: ReturnType<typeof createCard>[] = [];
+  function drawCard(card: ReturnType<typeof createCard>, index: number, skill: GallerySkill | undefined) {
+    const color = skill ? SKILL_COLORS[skill.color] : Object.values(SKILL_COLORS)[index % 6];
+    card.edgeMaterial.color.set(color); card.haloMaterial.color.set(color); card.mesh.userData.skillId = card.id;
+    const c = card.canvas.getContext('2d'); if (!c) return;
+    c.clearRect(0, 0, 1024, 1024);
+    const surface = c.createLinearGradient(0, 0, 1024, 1024);
+    surface.addColorStop(0, '#132732'); surface.addColorStop(.5, '#0b1822'); surface.addColorStop(1, '#060e18');
+    c.fillStyle = surface; c.fillRect(0, 0, 1024, 1024);
+    // Light remains at the edge, clear of the text column.
+    const glow = c.createRadialGradient(980, 40, 0, 980, 40, 660);
+    glow.addColorStop(0, color + '42'); glow.addColorStop(1, color + '00');
+    c.fillStyle = glow; c.fillRect(0, 0, 1024, 1024);
+    c.fillStyle = color; c.fillRect(76, 64, 70, 5);
+    c.strokeStyle = color + '35'; c.lineWidth = 1; c.strokeRect(26, 26, 972, 972);
+    c.strokeStyle = color + 'bb'; c.lineWidth = 3;
+    for (const [x, y, sx, sy] of [[26,26,1,1],[998,26,-1,1],[26,998,1,-1],[998,998,-1,-1]]) {
+      c.beginPath(); c.moveTo(x + sx * 28, y); c.lineTo(x,y); c.lineTo(x,y + sy * 28); c.stroke();
     }
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+    c.font = '500 25px Arial, sans-serif'; c.fillStyle = '#d7e6eb'; c.fillText('NOCTURNE', 76, 122);
+    c.font = '22px Arial, sans-serif'; c.fillStyle = color; c.fillText('SKILL  /  ' + String(index + 1).padStart(2, '0'), 76, 167);
+    const title = skill?.title || ['Your next skill.', 'Make it yours.', 'Share your craft.'][index % 3];
+    let titleSize = 86;
+    let titleLines: ReturnType<typeof wrapSkillText>;
+    do {
+      c.font = '600 ' + titleSize + 'px Arial, sans-serif';
+      titleLines = wrapSkillText(title, text => c.measureText(text).width, 872, 3);
+      if (!titleLines.truncated || titleSize <= 54) break;
+      titleSize -= 4;
+    } while (titleSize >= 54);
+    c.fillStyle = '#f5fbff';
+    titleLines.lines.forEach((line, row) => c.fillText(line, 76, 325 + row * (titleSize * 1.15)));
+    c.fillStyle = color; c.fillRect(76, 585, 54, 3);
+    c.font = '36px Arial, sans-serif'; c.fillStyle = '#bdd0da';
+    const description = skill?.description || (skill ? 'Open this card to explore the skill.' : 'Add a skill and a short story about how you use it.');
+    wrapSkillText(description, text => c.measureText(text).width, 852, 3).lines.forEach((line, row) => c.fillText(line, 76, 660 + row * 51));
+    c.strokeStyle = '#ffffff16'; c.lineWidth = 1; c.beginPath(); c.moveTo(76, 865); c.lineTo(948, 865); c.stroke();
+    c.font = '500 24px Arial, sans-serif'; c.fillStyle = '#e5f0f4'; c.fillText(skill ? 'EXPLORE SKILL' : 'CREATE A SKILL', 76, 929);
+    c.font = '40px Arial, sans-serif'; c.fillStyle = color; c.fillText('↗', 905, 934);
+    card.texture.needsUpdate = true;
+  }
+  function setSkills(skills: GallerySkill[]) {
+    const required = skills.length || 3;
+    while (cards.length < required) cards.push(createCard(cards.length));
+    while (cards.length > required) {
+      const card = cards.pop()!; card.mesh.removeFromParent();
+      for (const resource of [card.texture, card.material, card.edgeMaterial, card.haloMaterial]) { resource.dispose(); resources.delete(resource); }
+    }
+    for (const [index, card] of cards.entries()) { const skill = skills[index]; card.id = skill?.id ?? null; drawCard(card, index, skill); }
   }
   setSkills([]);
   const direction = new THREE.Vector3();
   return {
     root, setSkills,
-    hit(ray: THREE.Raycaster) { return ray.intersectObjects(cards.filter(card => card.mesh.visible).map(card => card.mesh), false)[0] ?? null; },
+    hit(ray: THREE.Raycaster) { root.updateMatrixWorld(true); return ray.intersectObjects(cards.map(card => card.mesh), false)[0] ?? null; },
     update(time: number, camera: THREE.Camera, reduced: boolean, dark: boolean) {
       camera.getWorldPosition(direction); root.worldToLocal(direction);
       for (const [index, card] of cards.entries()) {
-        card.mesh.position.copy(card.base); card.mesh.position.y += reduced ? 0 : Math.sin(time * .55 + index * 1.4) * .13;
+        card.mesh.position.copy(card.base);
+        card.mesh.position.y += reduced ? 0 : Math.sin(time * .65 + index * 1.4) * .045;
         card.mesh.rotation.y = Math.atan2(direction.x - card.mesh.position.x, direction.z - card.mesh.position.z);
-        card.mesh.rotation.z = reduced ? 0 : Math.sin(time * .3 + index) * .045;
-        card.time.value = reduced ? 0 : time; card.material.opacity = dark ? .95 : .86;
+        card.mesh.rotation.z = reduced ? 0 : Math.sin(time * .25 + index) * .008;
+        card.edgeMaterial.opacity = reduced ? .5 : .5 + Math.sin(time * 1.15 + index) * .12;
+        card.haloMaterial.opacity = reduced ? .10 : .10 + Math.sin(time * 1.15 + index + 1) * .045;
+        card.halo.scale.setScalar(reduced ? 1 : 1 + Math.sin(time * .6 + index) * .008);
+        card.material.opacity = dark ? .98 : 1;
       }
     },
     dispose() { root.removeFromParent(); },

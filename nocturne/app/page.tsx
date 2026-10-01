@@ -24,6 +24,7 @@ const Portfolio = lazy(() => import('@/components/portfolio'));
 
 export default function Home() {
   const [scene, setScene] = useState<'entrance' | 'island'>('entrance');
+  const [guided, setGuided] = useState(false);
   const [section, setSection] = useState<Destination | null>(null);
   const [audioError, setAudioError] = useState(false);
   const audio = useRef<ReturnType<typeof createAmbience> | null>(null);
@@ -97,8 +98,9 @@ export default function Home() {
       {scene === 'entrance' ? (
         <Entrance
           onPrepare={prepareIsland}
-          onExplore={() => exploreIsland()}
-          onPortfolio={() => setSection('projects')}
+          onExplore={() => { setGuided(false); exploreIsland(); }}
+          onTour={() => { setGuided(true); exploreIsland(); }}
+          onPortfolio={() => setSection('about')}
           audioError={audioError}
         />
       ) : (
@@ -130,8 +132,9 @@ export default function Home() {
               ambience={audio}
               audioError={audioError}
               onExit={back}
-              onPortfolio={() => setSection('projects')}
+              onPortfolio={() => setSection('about')}
               active={!section}
+              guided={guided}
             />
           </Suspense>
         </SceneBoundary>
@@ -144,7 +147,7 @@ export default function Home() {
             onClose={() => setSection(null)}
             onEnter={() => {
               setSection(null);
-              exploreIsland();
+              setGuided(false); exploreIsland();
             }}
           />
         </Suspense>

@@ -51,19 +51,25 @@ void test('skills save, reload, update and delete locally while rejecting cross-
   } finally {assert.equal(dirname(resolve(root)),resolve(tmpdir()));assert.ok(root.startsWith(join(tmpdir(),'nocturne-skills-')));await rm(root,{recursive:true,force:true});}
 });
 
-void test('empty and partially filled skill galleries render safely and switch click targets', async () => {
+void test('all skill holograms remain visible when the collection grows past six', async () => {
   const THREE = await import('three');
   const { createSkillHolograms } = await import('../lib/skill-holograms.ts');
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
-  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement() { return { width: 0, height: 0, getContext: () => new Proxy({ measureText(text:string) { return { width:text.length*20 }; }, createLinearGradient() { return { addColorStop() {} }; } }, { get(target,key) { return Reflect.get(target,key) ?? (()=>{}); } }) }; } } });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement() { return { width: 0, height: 0, getContext: () => new Proxy({ measureText(text:string) { return { width:text.length*20 }; }, createLinearGradient() { return { addColorStop() {} }; }, createRadialGradient() { return { addColorStop() {} }; } }, { get(target,key) { return Reflect.get(target,key) ?? (()=>{}); } }) }; } } });
   const scene = new THREE.Scene(), resources = new Set<{dispose:()=>void}>();
   try {
     const gallery=createSkillHolograms(scene,resources);
     assert.equal(gallery.root.children.filter(card=>card.visible).length,3);
     const skills=Array.from({length:8},(_,i)=>validateSkill({...skill,id:'skill-'+i})!);
-    gallery.setSkills(skills,1);
-    assert.equal(gallery.root.children.filter(card=>card.visible).length,2);
-    assert.equal(gallery.root.children[0].userData.skillId,'skill-6');
+    gallery.setSkills(skills);
+    assert.equal(gallery.root.children.filter(card=>card.visible).length,8);
+    assert.equal(gallery.root.children[0].userData.skillId,'skill-0');
+    assert.equal(gallery.root.children[7].userData.skillId, 'skill-7');
+    const firstPosition = gallery.root.children[0].position.clone();
+    gallery.setSkills(Array.from({ length: 90 }, (_, i) => validateSkill({ ...skill, id: 'skill-' + i })!));
+    assert.equal(gallery.root.children.length, 90);
+    assert.ok(gallery.root.children[0].position.equals(firstPosition));
+    assert.equal(gallery.root.children[18].userData.area, 'Backyard skills garden');
     gallery.update(10,new THREE.PerspectiveCamera(),false,true);
     gallery.root.children.forEach(card=>assert.ok(card.position.toArray().every(Number.isFinite)));
     gallery.setSkills([]);assert.equal(gallery.root.children.filter(card=>card.visible).length,3);

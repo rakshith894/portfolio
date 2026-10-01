@@ -371,6 +371,7 @@ void test('the same avatar walks through an actual open portal, explores, and wa
         exploration.setHallSettings({ mode: 'dark', lights: true });
         exploration.update(1 / 60, 142, 0, 0, false, false);
         assert.ok(lamps.every(lamp => lamp.intensity > 0), 'Lamps can be switched on independently of dark mode');
+        exploration.setProjects(HALL_FRAMES.map(frame => ({ id: frame.id, title: '', description: '', url: '' })));
         for (const frame of HALL_FRAMES) {
           const center = new THREE.Vector3(frame.x, frame.y, frame.z).add(origin);
           const normal = new THREE.Vector3(Math.sin(frame.rotation), 0, Math.cos(frame.rotation));
@@ -406,4 +407,24 @@ void test('the same avatar walks through an actual open portal, explores, and wa
     exploration.dispose();
     resources.forEach((resource) => resource.dispose());
   }
+});
+
+void test('guardian occupancy holds a room door open until the last follower clears it', () => {
+  const walker = createHouseWalker(); walker.position.z = -4.8;
+  walker.open('dining'); tick(walker);
+  const door = walker.doors.find(door => door.id === 'dining')!;
+  walker.position.x = 5.3;
+  for (let i = 0; i < 180; i++) walker.update(1 / 60, [{ x: 2.6, z: -4.8, y: 0 }]);
+  assert.equal(door.progress, 1);
+  tick(walker); assert.equal(door.progress, 0);
+});
+
+void test('the study is replaced by an empty skills gallery and long moves cannot tunnel through fixtures', () => {
+  assert.ok(HOUSE_ROOMS.every(room => room.id !== 'study' && !room.name.toLowerCase().includes('study')));
+  assert.ok(HOUSE_FURNITURE.every(item => item.kind !== 'desk' && item.kind !== 'chair'));
+  const walker = createHouseWalker();
+  walker.move(0, -8);
+  assert.ok(walker.position.z > -4.6, 'Projector blocks a long frame');
+  walker.position.x = 0; walker.position.z = -2.8; walker.move(8, 0);
+  assert.ok(walker.position.x < 2.2, 'Room partition blocks a long frame');
 });

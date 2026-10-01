@@ -19,6 +19,6 @@ void test('large or malformed identifiers cannot allocate giant collections or e
   const entry = { title: 'Project', description: '', url: 'https://example.test/' };
   for (const id of ['frame-0', 'frame--1', 'frame-1.5', '../file', 'frame-999999999999999999']) assert.equal(validatedProject({ ...entry, id }), null);
   const sparse = readHallProjects(JSON.stringify([{ ...entry, id: 'frame-99999999' }]));
-  assert.equal(sparse.length, 11);
-  assert.equal(hallPageCount(sparse), 2);
+  assert.equal(sparse.length, 1);
+  assert.equal(hallPageCount(sparse), 1);
 });

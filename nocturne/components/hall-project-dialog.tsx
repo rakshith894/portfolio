@@ -2,7 +2,7 @@
 
 import { useState, type SubmitEvent } from 'react';
 import Image from 'next/image';
-import { ArrowUpRight, Pencil, Save, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpRight, Pencil, Save, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { projectUrl, hallProjectPage, hallPageCount, HALL_PAGE_SIZE, type HallFrameId, type HallProject } from '@/lib/hall-projects';
@@ -11,11 +11,13 @@ type Props = {
   project: HallProject;
   projects: HallProject[];
   canEdit: boolean;
+  busy: boolean;
+  onRemove: (project: HallProject) => Promise<string | null>;
   onSelect: (id: HallFrameId) => void;
   onSave: (project: HallProject) => Promise<string | null>;
   onImportDrafts: () => Promise<string | null>;
   onClose: () => void;
-  onAdd: () => void;
+  onAdd: () => Promise<string | null>;
 };
 export function HallProjectDialog(props: Props) {
   const [importing, setImporting] = useState(false);
@@ -26,19 +28,19 @@ export function HallProjectDialog(props: Props) {
     <DialogContent className="hall-project-dialog">
       <div className="hall-project-heading">
         <span className="hall-project-eyebrow">NOCTURNE / THE MASTER HALL</span>
-        <DialogTitle>{props.project.title || 'An empty glass frame'}</DialogTitle>
+        <DialogTitle>{props.project.title || 'Your new frame'}</DialogTitle>
         <DialogDescription>Live projects, behind the glass.</DialogDescription>
       </div>
       <nav className="hall-frame-tabs" aria-label="Project frames">
         {hallProjectPage(props.projects, page).map((project, index) => <Button key={project.id} variant="ghost" aria-pressed={project.id === props.project.id} onClick={() => props.onSelect(project.id)}>
-          <span>{String(page * HALL_PAGE_SIZE + index + 1).padStart(2, '0')}</span>{project.title || 'Coming soon'}
+          <span>{String(page * HALL_PAGE_SIZE + index + 1).padStart(2, '0')}</span>{project.title || 'Empty frame'}
         </Button>)}
       </nav>
       <div className="hall-collection-controls">
         <Button variant="ghost" aria-label="Previous collection page" disabled={page === 0} onClick={() => props.onSelect(props.projects[(page - 1) * HALL_PAGE_SIZE].id)}><ChevronLeft /></Button>
         <output aria-live="polite">Collection {page + 1} / {pages}</output>
         <Button variant="ghost" aria-label="Next collection page" disabled={page >= pages - 1} onClick={() => props.onSelect(props.projects[(page + 1) * HALL_PAGE_SIZE].id)}><ChevronRight /></Button>
-        {props.canEdit && <Button variant="outline" onClick={props.onAdd}><Plus />Add project</Button>}
+        {props.canEdit && <Button variant="outline" disabled={props.busy} onClick={async () => setImportMessage(await props.onAdd() ?? '')}><Plus />{props.busy ? 'Updating…' : 'Add frame'}</Button>}
       </div>
       {props.canEdit && <div className="hall-local-editor-note"><p>Local editor · Save here, then publish to update your shared portfolio.</p><Button variant="ghost" disabled={importing} onClick={async () => {
         setImporting(true);
@@ -46,9 +48,21 @@ export function HallProjectDialog(props: Props) {
         setImportMessage(problem || 'Browser drafts imported into your local project files. Publish when ready.');
         setImporting(false);
       }}>{importing ? 'Importing…' : 'Import browser drafts'}</Button>{importMessage && <output>{importMessage}</output>}</div>}
+      {props.canEdit && <FrameRemoval key={props.project.id} project={props.project} onRemove={props.onRemove} busy={props.busy} />}
       <FrameContent key={`${props.project.id}:${props.project.url}`} {...props} />
     </DialogContent>
   </Dialog>;
+}
+
+function FrameRemoval({ project, onRemove, busy }: Pick<Props, 'project' | 'onRemove' | 'busy'>) {
+  const [confirming, setConfirming] = useState(false), [error, setError] = useState('');
+  return <div className="hall-frame-removal">
+    {confirming ? <>
+      <p>Remove {project.title ? '“' + project.title + '”' : 'this empty frame'} from the gallery? Its saved project details will be removed too.</p>
+      <div><Button variant="destructive" disabled={busy} onClick={async () => { const problem = await onRemove(project); setError(problem ?? ''); }}><Trash2 />{busy ? 'Removing…' : 'Remove frame'}</Button><Button variant="ghost" disabled={busy} onClick={() => { setConfirming(false); setError(''); }}>Keep frame</Button></div>
+    </> : <Button variant="ghost" disabled={busy} onClick={() => setConfirming(true)}><Trash2 />Remove this frame</Button>}
+    {error && <p role="alert">{error}</p>}
+  </div>;
 }
 
 function FrameContent({ project, onSave, canEdit }: Props) {
@@ -93,13 +107,7 @@ function FrameContent({ project, onSave, canEdit }: Props) {
     <label>About the project<textarea name="description" value={description} maxLength={600} rows={3} onChange={event => setDescription(event.target.value)} placeholder="What you built, how it works, and what makes it special." /></label>
     <div className="hall-cover-upload">{cover && <Image src={cover} alt="Project cover preview" width={150} height={100} unoptimized />}<label>Cover image / screenshot<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void upload(event.target.files?.[0])} /></label>{cover && <Button type="button" variant="ghost" onClick={() => setCover('')}>Remove cover</Button>}</div>
     {error && <p className="hall-project-error" role="alert">{error}</p>}
-    <div className="hall-project-editor-actions"><Button type="submit"><Save />{saving ? 'Saving…' : 'Save to frame'}</Button>{project.url && <><Button type="button" variant="ghost" onClick={() => { setTitle(project.title); setUrl(project.url); setDescription(project.description); setCover(project.cover ?? ''); setError(''); setEditing(false); }}>Cancel</Button><Button type="button" variant="ghost" onClick={async () => {
-      setSaving(true);
-      const problem = await onSave({ id: project.id, title: '', url: '', description: '' });
-      setSaving(false);
-      if (problem) { setError(problem); return; }
-      setTitle(''); setUrl(''); setDescription(''); setCover(''); setError('');
-    }}>Clear frame</Button></>}</div>
+    <div className="hall-project-editor-actions"><Button type="submit"><Save />{saving ? 'Saving…' : 'Save to frame'}</Button>{project.url && <><Button type="button" variant="ghost" onClick={() => { setTitle(project.title); setUrl(project.url); setDescription(project.description); setCover(project.cover ?? ''); setError(''); setEditing(false); }}>Cancel</Button></>}</div>
     <p className="hall-storage-note">Saved to your local portfolio files. Visitors see these changes after you publish.</p>
     </fieldset>
   </form>;

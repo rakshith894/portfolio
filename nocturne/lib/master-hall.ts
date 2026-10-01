@@ -2,7 +2,7 @@ export type HallMode = 'day' | 'dark';
 export type HallSettings = { mode: HallMode; lights: boolean };
 
 export const MASTER_HALL = {
-  id: 'master-hall', name: 'The master hall',
+  id: 'master-hall', name: 'Projects Room',
   detail: 'Tap a frame to explore a project. Switch collections to see more work. The contact hologram waits in the entrance hall.',
   x: 2.05, z: -5.325, width: 13.1, depth: 7.45, y: 5, height: 4.7,
 };

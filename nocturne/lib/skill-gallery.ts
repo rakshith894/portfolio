@@ -1,4 +1,23 @@
-﻿export const SKILL_COLORS = { gold: '#f0cb79', mint: '#89ebcf', blue: '#93c8ff', violet: '#c6acff', rose: '#ffacc8', amber: '#ffb378' } as const;
+export const SKILL_COLORS = {
+  // ── Light / vivid ──────────────────────────────────────────────────────
+  gold:    '#f0cb79',
+  mint:    '#89ebcf',
+  blue:    '#93c8ff',
+  violet:  '#c6acff',
+  rose:    '#ffacc8',
+  amber:   '#ffb378',
+  cyan:    '#67e8f9',
+  lime:    '#a3e635',
+  coral:   '#fb7185',
+  sky:     '#7dd3fc',
+  // ── Dark / deep ────────────────────────────────────────────────────────
+  obsidian:'#4b5563',
+  navy:    '#1e3a5f',
+  forest:  '#14532d',
+  crimson: '#7f1d1d',
+  plum:    '#4a044e',
+  slate:   '#1e293b',
+} as const;
 export type SkillColor = keyof typeof SKILL_COLORS;
 export type GallerySkill = { id: string; title: string; description: string; color: SkillColor };
 export const SKILLS_PER_PAGE = 6;

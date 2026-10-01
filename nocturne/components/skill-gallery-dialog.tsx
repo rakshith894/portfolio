@@ -3,6 +3,8 @@ import { useState, type SubmitEvent } from 'react';
 import { Plus, Pencil, Trash2, Save, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { speakIsland } from '@/lib/island-commands';
+import { skillPlacement } from '@/lib/skill-placement';
 import { SKILL_COLORS, type GallerySkill } from '@/lib/skill-gallery';
 type Props = { skills: GallerySkill[]; selected: string | null; canEdit: boolean; onSelect: (id: string | null) => void; onSave: (skill: GallerySkill, remove?: boolean) => Promise<string | null>; onClose: () => void };
 export function SkillGalleryDialog(props: Props) {
@@ -11,7 +13,8 @@ export function SkillGalleryDialog(props: Props) {
     <span className="hall-project-eyebrow">NOCTURNE / THE SKILLS GALLERY</span>
     <DialogTitle>Ideas in the air.</DialogTitle><DialogDescription>A constellation of what I know, and how I use it.</DialogDescription>
     <nav className="skill-gallery-tabs" aria-label="Skills">{props.skills.map(skill => <Button key={skill.id} variant="ghost" aria-pressed={skill.id === selected?.id} style={{ '--skill-accent': SKILL_COLORS[skill.color] } as React.CSSProperties} onClick={() => props.onSelect(skill.id)}><Sparkles />{skill.title}</Button>)}{props.canEdit && <Button variant="outline" onClick={() => props.onSelect(null)}><Plus />Add skill</Button>}</nav>
-    <SkillContent key={selected?.id ?? 'new'} {...props} skill={selected} />
+    {!props.canEdit && <div className="skill-reading-list">{props.skills.map((skill, index) => <article key={skill.id} style={{ '--skill-accent': SKILL_COLORS[skill.color] } as React.CSSProperties}><span>{skillPlacement(index).area}</span><h3>{skill.title}</h3><p>{skill.description || 'More about this skill is coming soon.'}</p><Button variant="ghost" onClick={() => speakIsland(`${skill.title}. ${skill.description}`, { rate: 1 })}>Read aloud</Button></article>)}</div>}
+    {props.canEdit && <SkillContent key={selected?.id ?? 'new'} {...props} skill={selected} />}
   </DialogContent></Dialog>;
 }
 function SkillContent({ skill, canEdit, onSave }: Props & { skill?: GallerySkill }) {
