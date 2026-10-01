@@ -259,32 +259,90 @@ export function IslandChatWidget({
     try {
       let result = local;
       if (!result) {
-        const controller = new AbortController();
-        request.current = controller;
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.any([
-            controller.signal,
-            AbortSignal.timeout(35000),
-          ]),
-          body: JSON.stringify({ messages: chatHistory(next) }),
-        });
-        const data: unknown = await response.json();
-        if (!response.ok)
-          throw new Error(
+        const lower = text.toLowerCase().trim();
+        if (/^(hi|hello|hey|greetings|howdy|good (morning|afternoon|evening))[.!?]*$/i.test(lower)) {
+          result = {
+            reply: `Hello! I'm the Nocturne AI guide. I know all about ${content.name}'s work, skills, and this 3D island world. What would you like to explore?`,
+            actions: [],
+          };
+        } else if (/^(who are you|what can you do|help)[.!?]*$/i.test(lower)) {
+          result = {
+            reply: `I am the Nocturne AI assistant for ${content.name}'s portfolio. Ask about skills, projects, contact details, or request a tour!`,
+            actions: [],
+          };
+        }
+      }
+      if (!result) {
+        try {
+          const controller = new AbortController();
+          request.current = controller;
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(35000),
+            ]),
+            body: JSON.stringify({ messages: chatHistory(next) }),
+          });
+          const rawText = await response.text();
+          let data: unknown = null;
+          try {
+            data = JSON.parse(rawText);
+          } catch {
+            // Not valid JSON (e.g. 404 HTML from static deployment)
+          }
+          if (response.ok && data) {
+            result = validateAssistantReply(data);
+          } else if (
             data &&
-              typeof data === 'object' &&
-              'error' in data &&
-              typeof data.error === 'string'
-              ? data.error
-              : 'The AI could not answer. Try again.',
-          );
-        result = validateAssistantReply(data);
-        if (!result)
-          throw new Error(
-            'The AI returned an invalid response. No actions were performed.',
-          );
+            typeof data === 'object' &&
+            'error' in data &&
+            typeof data.error === 'string'
+          ) {
+            throw new Error(data.error);
+          }
+        } catch (fetchErr) {
+          if (fetchErr instanceof Error && fetchErr.message && !fetchErr.message.includes('fetch')) {
+            throw fetchErr;
+          }
+        }
+      }
+      if (!result) {
+        const lower = text.toLowerCase();
+        if (lower.includes('skill') || lower.includes('stack') || lower.includes('technolog')) {
+          const skillList = content.skills.map((s) => s.title).join(', ');
+          result = {
+            reply: `${content.name} specializes in: ${skillList}. You can explore the interactive skill cards in the Manor's Skills Room!`,
+            actions: [{ type: 'show', target: 'skills' }],
+          };
+        } else if (lower.includes('project') || lower.includes('work') || lower.includes('portfolio')) {
+          const projectList = content.projects.map((p) => p.title).join(', ');
+          result = {
+            reply: `${content.name}'s featured projects include: ${projectList}. You can inspect each frame in the Gallery!`,
+            actions: [{ type: 'show', target: 'projects' }],
+          };
+        } else if (lower.includes('contact') || lower.includes('email') || lower.includes('phone') || lower.includes('hire') || lower.includes('reach')) {
+          result = {
+            reply: `You can reach ${content.name} at ${content.email}${content.phone ? ' or phone ' + content.phone : ''}. Opening contact details now!`,
+            actions: [{ type: 'show', target: 'about' }],
+          };
+        } else if (lower.includes('about') || lower.includes('who is') || lower.includes('bio') || lower.includes('college') || lower.includes('education')) {
+          result = {
+            reply: `${content.name} is a ${content.role}. ${content.bio}`,
+            actions: [{ type: 'show', target: 'about' }],
+          };
+        } else if (lower.includes('tour') || lower.includes('walk') || lower.includes('guide')) {
+          result = {
+            reply: `Starting the guided tour across Nocturne island! Follow the lights.`,
+            actions: [{ type: 'tour', target: 'start' }],
+          };
+        } else {
+          result = {
+            reply: `I heard you! You can ask about ${content.name}'s skills, projects, contact info, or click any of the shortcut buttons above.`,
+            actions: [],
+          };
+        }
       }
       if (token !== version.current) return;
       setLoading(false);
