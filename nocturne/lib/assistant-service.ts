@@ -98,7 +98,7 @@ export async function handleAssistantRequest(
         },
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(30000)]),
         body: JSON.stringify({
-          model: options.model || 'openai/gpt-oss-120b',
+          model: options.model || 'openai/gpt-oss-20b',
           max_completion_tokens: 4096,
           temperature: 0.3,
           response_format: { type: 'json_object' },

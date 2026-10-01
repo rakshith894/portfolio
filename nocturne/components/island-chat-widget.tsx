@@ -281,31 +281,73 @@ export function IslandChatWidget({
             headers: { 'Content-Type': 'application/json' },
             signal: AbortSignal.any([
               controller.signal,
-              AbortSignal.timeout(35000),
+              AbortSignal.timeout(10000),
             ]),
             body: JSON.stringify({ messages: chatHistory(next) }),
           });
-          const rawText = await response.text();
-          let data: unknown = null;
-          try {
-            data = JSON.parse(rawText);
-          } catch {
-            // Not valid JSON (e.g. 404 HTML from static deployment)
-          }
-          if (response.ok && data) {
+          if (response.ok) {
+            const data: unknown = await response.json();
             result = validateAssistantReply(data);
-          } else if (
-            data &&
-            typeof data === 'object' &&
-            'error' in data &&
-            typeof data.error === 'string'
-          ) {
-            throw new Error(data.error);
           }
-        } catch (fetchErr) {
-          if (fetchErr instanceof Error && fetchErr.message && !fetchErr.message.includes('fetch')) {
-            throw fetchErr;
+        } catch {
+          // /api/chat unreachable on static hosting, proceeding to direct Groq call
+        }
+      }
+      if (!result) {
+        try {
+          const groqKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+          if (groqKey) {
+            const prompt = [
+              `You are Nocturne, the intelligent AI guide for ${content.name}'s interactive 3D portfolio world.`,
+              `About ${content.name}: ${content.role}. ${content.bio}`,
+              `Contact: Email: ${content.email}, Phone: ${content.phone || 'N/A'}, Location: ${content.location || 'N/A'}, Resume: ${content.resume || 'available'}.`,
+              `Skills: ${content.skills.map((s) => s.title + ': ' + s.description).join('; ')}`,
+              `Projects: ${content.projects.map((p) => p.title + ': ' + p.description).join('; ')}`,
+              `World: A Gothic island with an interactive manor house, Skills Room (floating holograms), Gallery of project frames, apparition contact projector, rowing boat, and weather effects.`,
+              `Be helpful, natural, friendly, and concise. Keep answers under 3-4 sentences.`,
+              `Available actions: show (targets: 'about', 'skills', 'projects', 'resume'), tour (target: 'start'), control (targets: 'stop', 'enter', 'exit').`,
+              `If the user wants to see skills, include {"type":"show","target":"skills"}. If projects, {"type":"show","target":"projects"}. If contact/bio, {"type":"show","target":"about"}. If tour, {"type":"tour","target":"start"}.`,
+              `Return strictly a JSON object: {"reply": "your answer here", "actions": []}`,
+            ].join('\n');
+
+            const controller = new AbortController();
+            request.current = controller;
+            const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + groqKey,
+                'Content-Type': 'application/json',
+              },
+              signal: AbortSignal.any([
+                controller.signal,
+                AbortSignal.timeout(20000),
+              ]),
+              body: JSON.stringify({
+                model: 'openai/gpt-oss-20b',
+                messages: [
+                  { role: 'system', content: prompt },
+                  ...chatHistory(next).map((m) => ({ role: m.role, content: m.content })),
+                ],
+                temperature: 0.6,
+                max_tokens: 600,
+                response_format: { type: 'json_object' },
+              }),
+            });
+
+            if (groqRes.ok) {
+              const groqData = await groqRes.json();
+              const rawContent = groqData.choices?.[0]?.message?.content;
+              if (rawContent) {
+                const parsed = JSON.parse(rawContent);
+                result = validateAssistantReply(parsed) || {
+                  reply: parsed.reply || rawContent,
+                  actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+                };
+              }
+            }
           }
+        } catch {
+          // Direct Groq call fallback
         }
       }
       if (!result) {
