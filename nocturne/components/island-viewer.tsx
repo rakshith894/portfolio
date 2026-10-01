@@ -1357,21 +1357,13 @@ export default function IslandViewer({
       clickRay.setFromCamera(clickPoint, camera);
       if (!inBoat) {
         const skillHit = skillHolograms.hit(clickRay);
-        if (
-          skillHit &&
-          skillHit.distance < 40 &&
-          house.unoccluded(clickRay, skillHit.distance)
-        ) {
+        if (skillHit) {
           showSkills(true, skillHit.object.userData.skillId as string | null);
           return;
         }
       }
       const contactHit = apparition.hit(clickRay);
-      if (
-        contactHit &&
-        contactHit.distance < 45 &&
-        (!house.inside || house.unoccluded(clickRay, contactHit.distance))
-      ) {
+      if (contactHit) {
         showContact(true);
         return;
       }

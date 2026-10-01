@@ -45,7 +45,7 @@ export function ContactApparitionDialog({
     'linkedin',
   ] as const;
   const total = fields.reduce(
-    (sum, key) => sum + Array.from(profile[key]).length,
+    (sum, key) => sum + Array.from(profile[key] || '').length,
     0,
   );
   useEffect(() => {
@@ -68,8 +68,8 @@ export function ContactApparitionDialog({
   function typed(key: (typeof fields)[number]) {
     const offset = fields
       .slice(0, fields.indexOf(key))
-      .reduce((sum, field) => sum + Array.from(profile[field]).length, 0);
-    const characters = Array.from(profile[key]);
+      .reduce((sum, field) => sum + Array.from(profile[field] || '').length, 0);
+    const characters = Array.from(profile[key] || '');
     const count = Math.max(0, revealed - offset);
     return (
       <>

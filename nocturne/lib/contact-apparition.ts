@@ -346,8 +346,9 @@ export function createContactApparition(
       own(new THREE.CylinderGeometry(1.6, 1.6, 4.0, 16)),
       own(
         new THREE.MeshBasicMaterial({
-          visible: false,
-          wireframe: false,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
         }),
       ),
     ),

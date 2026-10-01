@@ -797,20 +797,12 @@ body:has(.contact-apparition-dialog) [data-slot='dialog-overlay'] {
 /* ── Hologram dialog container: Absolute Center ────────────────────────── */
 
 .contact-apparition-dialog[data-slot='dialog-content'] {
-  position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  translate: none !important;
-  margin: 0 !important;
-  inset: auto !important;
   width: min(540px, calc(100vw - 28px)) !important;
   max-width: 540px !important;
-  height: auto !important;
-  max-height: min(84dvh, 700px) !important;
+  max-height: min(84dvh, 680px) !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
-  padding: 44px 28px 24px !important;
+  padding: 42px 28px 24px !important;
   box-sizing: border-box !important;
   pointer-events: auto !important;
   z-index: 9999 !important;
