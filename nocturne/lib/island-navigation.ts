@@ -37,22 +37,14 @@ export function createIslandNavigator(canStand: Walkable, canTraverse?: (ax: num
     if (![start.x,start.z,target.x,target.z].every(Number.isFinite)) return null;
     if (clear(start,target)) return [new THREE.Vector3(target.x,0,target.z)];
 
-    // Adaptive starting cells
-    let startCells = nearby(start, 0.9).filter(i=>clear(start,point(i)));
-    if (!startCells.length) startCells = nearby(start, 1.8).filter(i=>clear(start,point(i)));
-    if (!startCells.length) startCells = nearby(start, 3.2);
-    if (!startCells.length) startCells = nearby(start, 6.0);
-    if (!startCells.length) return null;
+    const starts = nearby(start, 0.9).filter(i=>clear(start,point(i)));
+    if (!starts.length) {
+      const fallback = nearby(start, 1.8).filter(i=>clear(start,point(i)));
+      if (fallback.length) starts.push(...fallback);
+    }
+    const goals = new Set(nearby(target, snap));
+    if (!starts.length || !goals.size) return null;
 
-    // Adaptive goal cells - expands outward if clicking near stones/fences/objects
-    let goalCells = nearby(target, Math.max(snap, 1.8));
-    if (!goalCells.length) goalCells = nearby(target, 3.6);
-    if (!goalCells.length) goalCells = nearby(target, 7.5);
-    if (!goalCells.length) goalCells = nearby(target, 14.0);
-    if (!goalCells.length) return null;
-
-    const starts = startCells;
-    const goals = new Set(goalCells);
     const costs = new Float64Array(width*height).fill(Infinity), parent=new Int32Array(width*height).fill(-1);
     const heap: { i:number; cost:number }[]=[];
     const push=(i:number,cost:number)=> {heap.push({i,cost}); let k=heap.length-1;while(k>0){const p=(k-1)>>1;if(heap[p].cost<=cost)break;[heap[k],heap[p]]=[heap[p],heap[k]];k=p;}};
@@ -60,22 +52,12 @@ export function createIslandNavigator(canStand: Walkable, canTraverse?: (ax: num
     const estimate=(i:number)=>{const p=point(i);return Math.max(0,Math.hypot(p.x-target.x,p.z-target.z)-snap);};
     for(const i of starts){const p=point(i);costs[i]=Math.hypot(p.x-start.x,p.z-start.z);push(i,costs[i]+estimate(i));}
     let found=-1;
-    let closest=-1;
-    let closestDist=Infinity;
-    let iterations = 0;
-    const maxIterations = 8000;
 
-    while(heap.length && iterations < maxIterations){
-      iterations++;
+    while(heap.length){
       const {i,cost}=pop();
       if(cost>costs[i]+estimate(i)+1e-7)continue;
       yield;
       const p=point(i);
-      const d = Math.hypot(p.x - target.x, p.z - target.z);
-      if (d < closestDist) {
-        closestDist = d;
-        closest = i;
-      }
       if(goals.has(i)){found=i;break;}
       const x=i%width,z=Math.floor(i/width);
       for(const [direction,[dx,dz]] of directions.entries()){
@@ -91,11 +73,10 @@ export function createIslandNavigator(canStand: Walkable, canTraverse?: (ax: num
       }
     }
 
-    const targetNode = found >= 0 ? found : closest;
-    if(targetNode < 0) return null;
+    if(found < 0) return null;
 
-    const chain: Point[]=[];for(let i=targetNode;i>=0;i=parent[i])chain.push(point(i));chain.reverse();
-    if(found >= 0 && clear(chain[chain.length-1],target))chain.push(target);
+    const chain: Point[]=[];for(let i=found;i>=0;i=parent[i])chain.push(point(i));chain.reverse();
+    if(clear(chain[chain.length-1],target))chain.push(target);
     const result: THREE.Vector3[]=[];let anchor:Point=start;
     for(let i=0;i<chain.length;){let end=i;while(end+1<chain.length&&clear(anchor,chain[end+1])){end++;yield;}anchor=chain[end];result.push(new THREE.Vector3(anchor.x,0,anchor.z));i=end+1;yield;}
     if(!result.length && chain.length) {
