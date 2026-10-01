@@ -81,8 +81,8 @@ export function groundHeight(x: number, z: number) {
     25 * plateau;
   const shore = sampleStairRoute(SHORE_ROUTE, x, z, 2.1);
   if (shore) {
-    const blend = 1-THREE.MathUtils.smoothstep(shore.distance, 1.1, 2.1);
-    h = THREE.MathUtils.lerp(h, Math.min(h, shore.height-.3), blend);
+    const blend = 1 - THREE.MathUtils.smoothstep(shore.distance, 1.1, 2.1);
+    h = THREE.MathUtils.lerp(h, Math.min(h, shore.height - 0.3), blend);
   }
   return h;
 }
@@ -115,7 +115,12 @@ export const cemeteryFences: [number, number][][] = [
     [28, -12],
   ],
   // A three-metre opening leads around the right side of the manor.
-  [[27, -15], [26, -18], [26, -25.3], [24.6, -25.3]],
+  [
+    [27, -15],
+    [26, -18],
+    [26, -25.3],
+    [24.6, -25.3],
+  ],
   [
     [-13, 20],
     [-17, 6],
@@ -130,14 +135,30 @@ export const cemeteryFences: [number, number][][] = [
   ],
 ];
 export const HOUSE_SIDE_PASSAGE = { x: 27.5, z: -13.5 };
-export const bridgeParapets = [-1,1].map(side => ({
-  ax: side < 0 ? -44.8 : -47.1, az: -31+side*1.48, bx: side < 0 ? -17.2 : -16.1, bz: -31+side*1.48,
-  floor: 25.4, thickness: .34,
+export const bridgeParapets = [-1, 1].map((side) => ({
+  ax: side < 0 ? -44.8 : -47.1,
+  az: -31 + side * 1.48,
+  bx: side < 0 ? -17.2 : -16.1,
+  bz: -31 + side * 1.48,
+  floor: 25.4,
+  thickness: 0.34,
 }));
-export function distanceToSegment(x:number,z:number,ax:number,az:number,bx:number,bz:number) {
-  const dx=bx-ax,dz=bz-az;
-  const t=THREE.MathUtils.clamp(((x-ax)*dx+(z-az)*dz)/Math.max(1e-12,dx*dx+dz*dz),0,1);
-  return Math.hypot(x-ax-dx*t,z-az-dz*t);
+export function distanceToSegment(
+  x: number,
+  z: number,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+) {
+  const dx = bx - ax,
+    dz = bz - az;
+  const t = THREE.MathUtils.clamp(
+    ((x - ax) * dx + (z - az) * dz) / Math.max(1e-12, dx * dx + dz * dz),
+    0,
+    1,
+  );
+  return Math.hypot(x - ax - dx * t, z - az - dz * t);
 }
 export const cemeteryTrees: [number, number, number][] = [
   [-10, 10, 12],
@@ -171,12 +192,24 @@ export function perimeterFenceSegments() {
       midpointX = (ax + bx) / 2,
       midpointZ = (az + bz) / 2;
     if (
-      cemeteryFences.some(points => points.slice(1).some(([x,z],j) => distanceToSegment(midpointX,midpointZ,points[j][0],points[j][1],x,z)<1.8)) ||
+      cemeteryFences.some((points) =>
+        points
+          .slice(1)
+          .some(
+            ([x, z], j) =>
+              distanceToSegment(
+                midpointX,
+                midpointZ,
+                points[j][0],
+                points[j][1],
+                x,
+                z,
+              ) < 1.8,
+          ),
+      ) ||
       Math.hypot(midpointX - gatePoint.x, midpointZ - gatePoint.z) < 4.8 ||
       pathDistance(midpointX, midpointZ) < 14 ||
-      (midpointX < -10 &&
-        midpointX > -50 &&
-        Math.abs(midpointZ + 31) < 8) ||
+      (midpointX < -10 && midpointX > -50 && Math.abs(midpointZ + 31) < 8) ||
       ([az, bz].some((z) => Math.abs(z + 31) < 8) &&
         [ax, bx].some((x) => x < -10 && x > -50))
     )
@@ -209,8 +242,18 @@ export function cemeteryRocks() {
     const turn = random() * 6,
       radius = Math.max(sx, sz) * 1.28;
     if (!onIsland(x, z, 1) || pathDistance(x, z) < 2.6 + radius) continue;
-    if(distanceToSegment(x,z,23,-13.5,32,-13.5)<radius+1.1)continue;
-    if(cemeteryFences.some(points=>points.slice(1).some(([bx,bz],j)=>distanceToSegment(x,z,...points[j],bx,bz)<radius+.5)))continue;
+    if (distanceToSegment(x, z, 23, -13.5, 32, -13.5) < radius + 1.1) continue;
+    if (
+      cemeteryFences.some((points) =>
+        points
+          .slice(1)
+          .some(
+            ([bx, bz], j) =>
+              distanceToSegment(x, z, ...points[j], bx, bz) < radius + 0.5,
+          ),
+      )
+    )
+      continue;
     rocks.push({ x, z, sx, sy, sz, turn, radius });
   }
   return rocks;

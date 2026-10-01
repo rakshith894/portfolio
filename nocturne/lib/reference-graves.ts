@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { groundHeight, onIsland, pathDistance, cemeteryFences, distanceToSegment } from './reference-layout.ts';
+import {
+  groundHeight,
+  onIsland,
+  pathDistance,
+  cemeteryFences,
+  distanceToSegment,
+} from './reference-layout.ts';
 
 type Disposable = { dispose: () => void };
 export type GraveKind = 'cross' | 'lancet' | 'chest' | 'obelisk' | 'broken';
@@ -57,9 +63,19 @@ export function cemeteryLayout(mobile: boolean): GravePlacement[] {
       (random() - 0.5) * 0.5,
     );
   }
-  return graves.filter(({x,z,scale,kind}) =>
-    distanceToSegment(x,z,23,-13.5,32,-13.5)>=1.1+2.4*scale &&
-    !cemeteryFences.some(points=>points.slice(1).some(([bx,bz],i)=>distanceToSegment(x,z,...points[i],bx,bz)<1+scale*(kind==='chest'?2.4:1))));
+  return graves.filter(
+    ({ x, z, scale, kind }) =>
+      distanceToSegment(x, z, 23, -13.5, 32, -13.5) >= 1.1 + 2.4 * scale &&
+      !cemeteryFences.some((points) =>
+        points
+          .slice(1)
+          .some(
+            ([bx, bz], i) =>
+              distanceToSegment(x, z, ...points[i], bx, bz) <
+              1 + scale * (kind === 'chest' ? 2.4 : 1),
+          ),
+      ),
+  );
 }
 
 /** Sculpted tombs, not image billboards; silhouettes and carvings survive a full orbit. */
@@ -215,7 +231,7 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
     'broken',
   ] as GraveKind[]) {
     current = [];
-    if (kind === 'chest') slab(1.2, .18, .35, 0, .09, -.38);
+    if (kind === 'chest') slab(1.2, 0.18, 0.35, 0, 0.09, -0.38);
     else plinth(kind === 'cross' ? 1.42 : 1.2);
     if (kind === 'cross') {
       const cross = new THREE.Shape([
@@ -293,7 +309,21 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
         [0.43, 0.13, 1.08],
       ] as const) {
         const outline = coffin.clone();
-        if (y === .04) outline.holes.push(new THREE.Path(coffin.getPoints().map(point => new THREE.Vector2(point.x * .78, .95 + (point.y - .95) * .85)).reverse()));
+        if (y === 0.04)
+          outline.holes.push(
+            new THREE.Path(
+              coffin
+                .getPoints()
+                .map(
+                  (point) =>
+                    new THREE.Vector2(
+                      point.x * 0.78,
+                      0.95 + (point.y - 0.95) * 0.85,
+                    ),
+                )
+                .reverse(),
+            ),
+          );
         const g = new THREE.ExtrudeGeometry(outline, {
           depth,
           bevelEnabled: true,
@@ -308,8 +338,14 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
         g.userData.terrainFoundation = y === 0.04;
         g.userData.coffinLid = y === 0.43;
       }
-      const floor = new THREE.ExtrudeGeometry(coffin, { depth: .12, bevelEnabled: false });
-      floor.rotateX(Math.PI / 2); floor.translate(0, .16, -.95); floor.scale(.99, 1, .99); floor.translate(0, 0, .95);
+      const floor = new THREE.ExtrudeGeometry(coffin, {
+        depth: 0.12,
+        bevelEnabled: false,
+      });
+      floor.rotateX(Math.PI / 2);
+      floor.translate(0, 0.16, -0.95);
+      floor.scale(0.99, 1, 0.99);
+      floor.translate(0, 0, 0.95);
       floor.userData.terrainFoundation = true;
       part(floor, 0, 0, 0, carving);
       slab(0.11, 0.035, 1.2, 0, 0.625, 1.05, carving);
@@ -320,29 +356,46 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
     templates.set(kind, current);
   }
   const placements = cemeteryLayout(mobile);
-  const coffins: { id: number; hinge: THREE.Group; root: THREE.Group; grave: GravePlacement; open: boolean }[] = [];
+  const coffins: {
+    id: number;
+    hinge: THREE.Group;
+    root: THREE.Group;
+    grave: GravePlacement;
+    open: boolean;
+  }[] = [];
   const transform = new THREE.Matrix4(),
     rotation = new THREE.Quaternion();
   placements.forEach((grave, index) => {
     let animated: (typeof coffins)[number] | undefined;
     if (grave.kind === 'chest') {
-      const tomb = new THREE.Group(), hinge = new THREE.Group();
+      const tomb = new THREE.Group(),
+        hinge = new THREE.Group();
       tomb.position.set(grave.x, groundHeight(grave.x, grave.z), grave.z);
       tomb.rotation.y = grave.turn;
       tomb.scale.setScalar(grave.scale);
       hinge.position.set(-0.57, 0.43, 0);
-      tomb.add(hinge); root.add(tomb);
+      tomb.add(hinge);
+      root.add(tomb);
       animated = { id: coffins.length, root: tomb, hinge, grave, open: false };
       tomb.userData.coffin = animated.id;
       coffins.push(animated);
-      const hit = new THREE.Mesh(own(new THREE.BoxGeometry(1.3, 1.2, 2.8)), own(new THREE.MeshBasicMaterial({ visible: false })));
-      hit.position.set(0, 0.6, 1); hit.userData.coffin = animated.id; tomb.add(hit);
+      const hit = new THREE.Mesh(
+        own(new THREE.BoxGeometry(1.3, 1.2, 2.8)),
+        own(new THREE.MeshBasicMaterial({ visible: false })),
+      );
+      hit.position.set(0, 0.6, 1);
+      hit.userData.coffin = animated.id;
+      tomb.add(hit);
     }
     rotation.setFromEuler(
       new THREE.Euler(
         0,
         grave.turn,
-        grave.kind === 'chest' ? 0 : grave.kind === 'broken' ? -0.065 : Math.sin(index * 7.3) * 0.015,
+        grave.kind === 'chest'
+          ? 0
+          : grave.kind === 'broken'
+            ? -0.065
+            : Math.sin(index * 7.3) * 0.015,
       ),
     );
     transform.compose(
@@ -371,8 +424,10 @@ diffuseColor.rgb*=.73+graveNoise(mossCoord*.6)*.38;`,
       if (animated && geometry.userData.coffinLid) {
         g.translate(0.57, -0.43, 0);
         const lid = new THREE.Mesh(own(g), material);
-        lid.castShadow = !mobile; lid.receiveShadow = true;
-        lid.userData.coffin = animated.id; animated.hinge.add(lid);
+        lid.castShadow = !mobile;
+        lid.receiveShadow = true;
+        lid.userData.coffin = animated.id;
+        animated.hinge.add(lid);
         continue;
       }
       g.applyMatrix4(transform);

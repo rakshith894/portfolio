@@ -1,5 +1,12 @@
 import { MANOR_ROUTE, stairTreads } from './island-stairs.ts';
-import { MANOR_SOLIDS, MANOR_TOWERS, MANOR_DOOR, MANOR_ENTRY_ARCHES, MANOR_ARCH_DEPTH, MANOR_ARCH_BEVEL } from './manor-layout.ts';
+import {
+  MANOR_SOLIDS,
+  MANOR_TOWERS,
+  MANOR_DOOR,
+  MANOR_ENTRY_ARCHES,
+  MANOR_ARCH_DEPTH,
+  MANOR_ARCH_BEVEL,
+} from './manor-layout.ts';
 import * as THREE from 'three';
 import { projectSurfaceUV } from './surface-uv.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -185,18 +192,45 @@ export function createReferenceManor(
       // A real opening continues through the facade and its foundation.
       const halfOpening = 1.2;
       const sideWidth = solid.width / 2 - halfOpening;
-      for (const side of [-1, 1]) box(materials[solid.material], side * (halfOpening + sideWidth / 2), solid.y, solid.z, sideWidth, solid.height, solid.depth);
+      for (const side of [-1, 1])
+        box(
+          materials[solid.material],
+          side * (halfOpening + sideWidth / 2),
+          solid.y,
+          solid.z,
+          sideWidth,
+          solid.height,
+          solid.depth,
+        );
       if (solid.name === 'Main walls') {
-        const top = solid.y + solid.height / 2, lintel = MANOR_DOOR.y + MANOR_DOOR.height;
-        box(materials[solid.material], 0, (top + lintel) / 2, solid.z, halfOpening * 2, top - lintel, solid.depth);
+        const top = solid.y + solid.height / 2,
+          lintel = MANOR_DOOR.y + MANOR_DOOR.height;
+        box(
+          materials[solid.material],
+          0,
+          (top + lintel) / 2,
+          solid.z,
+          halfOpening * 2,
+          top - lintel,
+          solid.depth,
+        );
       }
-    } else box(materials[solid.material], solid.x, solid.y, solid.z, solid.width, solid.height, solid.depth);
+    } else
+      box(
+        materials[solid.material],
+        solid.x,
+        solid.y,
+        solid.z,
+        solid.width,
+        solid.height,
+        solid.depth,
+      );
   }
   for (const y of [base + 0.9, base + 4.4, base + 8.05, base + 11.25]) {
     if (y < MANOR_DOOR.y + MANOR_DOOR.height) {
       for (const side of [-1, 1]) {
-        box(edge, side * 5.225, y, MZ, 8.05, .2, 8.5);
-        box(darkStone, side * 5.1625, y - .15, front + .13, 7.925, .15, .4);
+        box(edge, side * 5.225, y, MZ, 8.05, 0.2, 8.5);
+        box(darkStone, side * 5.1625, y - 0.15, front + 0.13, 7.925, 0.15, 0.4);
       }
     } else {
       box(edge, 0, y, MZ, 18.5, 0.2, 8.5);
@@ -279,7 +313,8 @@ export function createReferenceManor(
       );
     }
   }
-  for (const item of MANOR_TOWERS) tower(item.x, item.z, item.radius, item.height);
+  for (const item of MANOR_TOWERS)
+    tower(item.x, item.z, item.radius, item.height);
   // Tall front-facing gables define the reference's silhouette above the lancets.
   function gable(
     x: number,
@@ -425,23 +460,47 @@ export function createReferenceManor(
   box(edge, 3.7, base + 1.13, -26, 0.25, 0.15, 3.8);
   // Central entrance projects forward, with a vaulted stone portico.
   const portalZ = front + 1.32;
-  const portalShape = new THREE.ShapeGeometry(pointedShape(MANOR_DOOR.width, MANOR_DOOR.height), 16);
+  const portalShape = new THREE.ShapeGeometry(
+    pointedShape(MANOR_DOOR.width, MANOR_DOOR.height),
+    16,
+  );
   const door = new THREE.Group();
-  door.name = 'Manor door'; door.userData.door = true;
+  door.name = 'Manor door';
+  door.userData.door = true;
   door.position.set(MANOR_DOOR.x, MANOR_DOOR.y, MANOR_DOOR.z);
-  const doorMaterial = own(wood.clone()); doorMaterial.side = THREE.DoubleSide;
+  const doorMaterial = own(wood.clone());
+  doorMaterial.side = THREE.DoubleSide;
   const leaf = new THREE.Mesh(own(portalShape), doorMaterial);
-  leaf.position.x = MANOR_DOOR.width / 2; leaf.castShadow = !mobile; leaf.userData.door = true;
-  door.add(leaf); root.add(door);
+  leaf.position.x = MANOR_DOOR.width / 2;
+  leaf.castShadow = !mobile;
+  leaf.userData.door = true;
+  door.add(leaf);
+  root.add(door);
   root.userData.door = door;
   // A dark recess behind the swinging door gives the portal visible depth.
-  const latch = new THREE.Mesh(own(new THREE.SphereGeometry(0.065, 8, 6)), amber);
-  latch.position.set(1.88, 1.4, 0.1); door.add(latch);
+  const latch = new THREE.Mesh(
+    own(new THREE.SphereGeometry(0.065, 8, 6)),
+    amber,
+  );
+  latch.position.set(1.88, 1.4, 0.1);
+  door.add(latch);
   for (const frame of MANOR_ENTRY_ARCHES)
-    arch(materials[frame.material], 0, frame.y, frame.z, frame.width, frame.height, frame.thickness);
+    arch(
+      materials[frame.material],
+      0,
+      frame.y,
+      frame.z,
+      frame.width,
+      frame.height,
+      frame.thickness,
+    );
   for (const y of [0.45, 2.1]) {
-    const strap = new THREE.Mesh(own(new THREE.BoxGeometry(2, 0.07, 0.055)), iron);
-    strap.position.set(1.1, y, 0.06); door.add(strap);
+    const strap = new THREE.Mesh(
+      own(new THREE.BoxGeometry(2, 0.07, 0.055)),
+      iron,
+    );
+    strap.position.set(1.1, y, 0.06);
+    door.add(strap);
   }
   pane(0, base + 5.2, portalZ + 0.025, 1.3, 3, true);
   tapered(edge, 0, base + 13.2, front + 0.6, 0.04, 1.1, 3, 4);
@@ -465,9 +524,27 @@ export function createReferenceManor(
   }
   // Broad staircase and a terrace with balustrades.
   for (const step of stairTreads(MANOR_ROUTE)) {
-    const height=step.y-25;
-    box(stone,step.x-10,height/2,step.z+10,step.width,height,step.depth,step.angle);
-    box(edge,step.x-10,height-.035,step.z+10,step.width-.08,.07,Math.min(step.depth,.08),step.angle);
+    const height = step.y - 25;
+    box(
+      stone,
+      step.x - 10,
+      height / 2,
+      step.z + 10,
+      step.width,
+      height,
+      step.depth,
+      step.angle,
+    );
+    box(
+      edge,
+      step.x - 10,
+      height - 0.035,
+      step.z + 10,
+      step.width - 0.08,
+      0.07,
+      Math.min(step.depth, 0.08),
+      step.angle,
+    );
   }
   for (const x of [-12.2, 12.2]) {
     box(edge, x, base + 0.63, MZ + 4.7, 4.8, 0.12, 0.36);

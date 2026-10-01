@@ -1,12 +1,7 @@
 ﻿'use client';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Pause,
-  Play,
-} from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EntranceAtmosphere } from '@/components/entrance-atmosphere';
 
@@ -132,7 +127,15 @@ export function Entrance({
             Quick portfolio <ArrowUpRight />
           </Button>
         </div>
-        <Button className="landing-tour" variant="ghost" onPointerEnter={onPrepare} onFocus={onPrepare} onClick={onTour}>Take the narrated tour →</Button>
+        <Button
+          className="landing-tour"
+          variant="ghost"
+          onPointerEnter={onPrepare}
+          onFocus={onPrepare}
+          onClick={onTour}
+        >
+          Take the narrated tour →
+        </Button>
         <p className="landing-note">
           Explore freely, follow the guide, or go straight to the work.
         </p>

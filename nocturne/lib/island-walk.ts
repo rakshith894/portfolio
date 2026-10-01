@@ -12,8 +12,22 @@ import {
   bridgeParapets,
   MANOR_ORIGIN,
 } from './reference-layout.ts';
-import { stairHeight, stairRails, SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE, DOCK_HEIGHT } from './island-stairs.ts';
-import { MANOR_SOLIDS, MANOR_TOWERS, MANOR_DOOR, MANOR_ENTRY_ARCHES, MANOR_ARCH_DEPTH, MANOR_ARCH_BEVEL } from './manor-layout.ts';
+import {
+  stairHeight,
+  stairRails,
+  SHORE_ROUTE,
+  TOWER_ROUTE,
+  BRIDGE_ROUTE,
+  DOCK_HEIGHT,
+} from './island-stairs.ts';
+import {
+  MANOR_SOLIDS,
+  MANOR_TOWERS,
+  MANOR_DOOR,
+  MANOR_ENTRY_ARCHES,
+  MANOR_ARCH_DEPTH,
+  MANOR_ARCH_BEVEL,
+} from './manor-layout.ts';
 import { islandLamps } from './island-lamps.ts';
 import { coastalRocks, stairSupports } from './coastal-layout.ts';
 import { clearedSceneryHeight } from './stair-clearance.ts';
@@ -38,32 +52,74 @@ const TOWER_TOP = {
   height: 36.04,
 } as const;
 const PERIMETER_FENCES = perimeterFenceSegments();
-const HANDRAILS = [SHORE_ROUTE,TOWER_ROUTE,BRIDGE_ROUTE].flatMap(stairRails);
+const HANDRAILS = [SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE].flatMap(stairRails);
 const COASTAL_ROCKS = coastalRocks();
-const MANOR_BOUNDS = MANOR_SOLIDS.map(solid => new THREE.Box3(
-  new THREE.Vector3(solid.x-solid.width/2,solid.y-solid.height/2,solid.z-solid.depth/2).add(MANOR_ORIGIN),
-  new THREE.Vector3(solid.x+solid.width/2,solid.y+solid.height/2,solid.z+solid.depth/2).add(MANOR_ORIGIN),
-));
+const MANOR_BOUNDS = MANOR_SOLIDS.map(
+  (solid) =>
+    new THREE.Box3(
+      new THREE.Vector3(
+        solid.x - solid.width / 2,
+        solid.y - solid.height / 2,
+        solid.z - solid.depth / 2,
+      ).add(MANOR_ORIGIN),
+      new THREE.Vector3(
+        solid.x + solid.width / 2,
+        solid.y + solid.height / 2,
+        solid.z + solid.depth / 2,
+      ).add(MANOR_ORIGIN),
+    ),
+);
 // The closed exterior door is a boundary; entering opens the separate house scene.
-MANOR_BOUNDS.push(new THREE.Box3(
-  new THREE.Vector3(MANOR_DOOR.x,MANOR_DOOR.y,MANOR_DOOR.z-.04).add(MANOR_ORIGIN),
-  new THREE.Vector3(MANOR_DOOR.x+MANOR_DOOR.width,MANOR_DOOR.y+MANOR_DOOR.height,MANOR_DOOR.z+.04).add(MANOR_ORIGIN),
-));
+MANOR_BOUNDS.push(
+  new THREE.Box3(
+    new THREE.Vector3(MANOR_DOOR.x, MANOR_DOOR.y, MANOR_DOOR.z - 0.04).add(
+      MANOR_ORIGIN,
+    ),
+    new THREE.Vector3(
+      MANOR_DOOR.x + MANOR_DOOR.width,
+      MANOR_DOOR.y + MANOR_DOOR.height,
+      MANOR_DOOR.z + 0.04,
+    ).add(MANOR_ORIGIN),
+  ),
+);
 // Include the projecting jambs and raised sill of the closed entrance.
-for (const frame of MANOR_ENTRY_ARCHES) MANOR_BOUNDS.push(new THREE.Box3(
-  new THREE.Vector3(-frame.width/2-MANOR_ARCH_BEVEL,frame.y-MANOR_ARCH_BEVEL,frame.z-MANOR_ARCH_BEVEL).add(MANOR_ORIGIN),
-  new THREE.Vector3(frame.width/2+MANOR_ARCH_BEVEL,frame.y+frame.height+MANOR_ARCH_BEVEL,frame.z+MANOR_ARCH_DEPTH+MANOR_ARCH_BEVEL).add(MANOR_ORIGIN),
-));
+for (const frame of MANOR_ENTRY_ARCHES)
+  MANOR_BOUNDS.push(
+    new THREE.Box3(
+      new THREE.Vector3(
+        -frame.width / 2 - MANOR_ARCH_BEVEL,
+        frame.y - MANOR_ARCH_BEVEL,
+        frame.z - MANOR_ARCH_BEVEL,
+      ).add(MANOR_ORIGIN),
+      new THREE.Vector3(
+        frame.width / 2 + MANOR_ARCH_BEVEL,
+        frame.y + frame.height + MANOR_ARCH_BEVEL,
+        frame.z + MANOR_ARCH_DEPTH + MANOR_ARCH_BEVEL,
+      ).add(MANOR_ORIGIN),
+    ),
+  );
 type Segment = [number, number, number, number];
 
 export function gateOpening(x: number, z: number) {
-  return THREE.MathUtils.clamp(1-Math.hypot(x-gatePoint.x,z-gatePoint.z)/5,0,1);
+  return THREE.MathUtils.clamp(
+    1 - Math.hypot(x - gatePoint.x, z - gatePoint.z) / 5,
+    0,
+    1,
+  );
 }
 export function gateLeafSegments(opening: number): Segment[] {
-  return [-1,1].map(side => {
-    const angle = -side*opening*Math.PI*.42, dx=-side*1.3, dz=-2.12;
-    const x=gatePoint.x+side*3, z=gatePoint.z;
-    return [x,z,x+dx*Math.cos(angle)+dz*Math.sin(angle),z-dx*Math.sin(angle)+dz*Math.cos(angle)];
+  return [-1, 1].map((side) => {
+    const angle = -side * opening * Math.PI * 0.42,
+      dx = -side * 1.3,
+      dz = -2.12;
+    const x = gatePoint.x + side * 3,
+      z = gatePoint.z;
+    return [
+      x,
+      z,
+      x + dx * Math.cos(angle) + dz * Math.sin(angle),
+      z - dx * Math.sin(angle) + dz * Math.cos(angle),
+    ];
   });
 }
 
@@ -109,23 +165,20 @@ export function onWalkingSurface(x: number, z: number) {
     z <= WATER_ZONE.maxZ
   )
     return true;
-  if (
-    x >= -55.2 &&
-    x <= -48.8 &&
-    z >= -34.2 &&
-    z <= -27.8
-  )
+  if (x >= -55.2 && x <= -48.8 && z >= -34.2 && z <= -27.8)
     return (
-      (x >= TOWER_TOP.minX &&
-        x <= TOWER_TOP.maxX &&
-        z >= TOWER_TOP.minZ &&
-        z <= TOWER_TOP.maxZ)
+      x >= TOWER_TOP.minX &&
+      x <= TOWER_TOP.maxX &&
+      z >= TOWER_TOP.minZ &&
+      z <= TOWER_TOP.maxZ
     );
   if (PERIMETER_FENCES.some((segment) => segmentDistance(x, z, segment) < 0.6))
     return false;
-  return onIsland(x, z, PLAYER_RADIUS + 0.35) ||
+  return (
+    onIsland(x, z, PLAYER_RADIUS + 0.35) ||
     (x > -49.1 && x < -12.3 && Math.abs(z + 31) < 1.08) ||
-    Math.hypot(x + 52, (z + 31) / 1.15) < 8.2;
+    Math.hypot(x + 52, (z + 31) / 1.15) < 8.2
+  );
 }
 
 /** Collision bounds use the same cemetery placements as the rendered scene. */
@@ -148,11 +201,12 @@ export function createIslandWalker(
   for (const [ax, az, bx, bz] of fences) {
     const steps = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.32);
     for (let i = 0; i <= steps; i++)
-      if(i % 16 === 0 || i === steps) obstacles.push({
-        x: THREE.MathUtils.lerp(ax, bx, i / steps),
-        z: THREE.MathUtils.lerp(az, bz, i / steps),
-        radius: 0.44,
-      });
+      if (i % 16 === 0 || i === steps)
+        obstacles.push({
+          x: THREE.MathUtils.lerp(ax, bx, i / steps),
+          z: THREE.MathUtils.lerp(az, bz, i / steps),
+          radius: 0.44,
+        });
   }
   for (const side of [-1, 1]) {
     const x = gatePoint.x + side * 3,
@@ -176,29 +230,54 @@ export function createIslandWalker(
   // Query only nearby obstacles during walking and route searches.
   for (const rock of cemeteryRocks())
     obstacles.push({ x: rock.x, z: rock.z, radius: rock.radius });
-  function indexNearby<T extends { x: number; z: number }>(items: T[], radius: (item: T) => number) {
+  function indexNearby<T extends { x: number; z: number }>(
+    items: T[],
+    radius: (item: T) => number,
+  ) {
     const cells = new Map<string, T[]>();
     for (const item of items) {
       const r = radius(item) + PLAYER_RADIUS;
-      for (let x = Math.floor((item.x - r) / 4); x <= Math.floor((item.x + r) / 4); x++)
-        for (let z = Math.floor((item.z - r) / 4); z <= Math.floor((item.z + r) / 4); z++) {
+      for (
+        let x = Math.floor((item.x - r) / 4);
+        x <= Math.floor((item.x + r) / 4);
+        x++
+      )
+        for (
+          let z = Math.floor((item.z - r) / 4);
+          z <= Math.floor((item.z + r) / 4);
+          z++
+        ) {
           const key = `${x},${z}`;
           const cell = cells.get(key) ?? [];
-          cell.push(item); cells.set(key, cell);
+          cell.push(item);
+          cells.set(key, cell);
         }
     }
-    return (x: number, z: number) => cells.get(`${Math.floor(x / 4)},${Math.floor(z / 4)}`) ?? [];
+    return (x: number, z: number) =>
+      cells.get(`${Math.floor(x / 4)},${Math.floor(z / 4)}`) ?? [];
   }
-  const nearbyObstacles = indexNearby(obstacles, obstacle => obstacle.radius);
-  const nearbyGraves = indexNearby(graves, grave => Math.hypot(.95, grave.kind === 'chest' ? 2.4 : .65) * grave.scale);
+  const nearbyObstacles = indexNearby(obstacles, (obstacle) => obstacle.radius);
+  const nearbyGraves = indexNearby(
+    graves,
+    (grave) =>
+      Math.hypot(0.95, grave.kind === 'chest' ? 2.4 : 0.65) * grave.scale,
+  );
   const cameraBounds: THREE.Box3[] = [];
   cameraBounds.push(...MANOR_BOUNDS);
   for (const tower of MANOR_TOWERS) {
-    const radius=tower.radius*1.08;
-    cameraBounds.push(new THREE.Box3(
-      new THREE.Vector3(tower.x-radius,0,tower.z-radius).add(MANOR_ORIGIN),
-      new THREE.Vector3(tower.x+radius,tower.height+2.22,tower.z+radius).add(MANOR_ORIGIN),
-    ));
+    const radius = tower.radius * 1.08;
+    cameraBounds.push(
+      new THREE.Box3(
+        new THREE.Vector3(tower.x - radius, 0, tower.z - radius).add(
+          MANOR_ORIGIN,
+        ),
+        new THREE.Vector3(
+          tower.x + radius,
+          tower.height + 2.22,
+          tower.z + radius,
+        ).add(MANOR_ORIGIN),
+      ),
+    );
   }
   const cameraBox = (
     x: number,
@@ -232,14 +311,30 @@ export function createIslandWalker(
   for (const rock of cemeteryRocks())
     cameraBox(rock.x, rock.z, rock.radius, rock.radius, rock.sy * 1.28);
   cameraBox(-52, -31, 3.3, 3.15, 16);
-  const coastalCameraBounds = COASTAL_ROCKS.map(rock => new THREE.Box3(
-    new THREE.Vector3(rock.x-rock.radius,rock.y-rock.sy*1.28,rock.z-rock.radius),
-    new THREE.Vector3(rock.x+rock.radius,rock.y+rock.sy*1.28,rock.z+rock.radius),
-  ));
-  for (const support of [SHORE_ROUTE,TOWER_ROUTE,BRIDGE_ROUTE].flatMap(stairSupports)) cameraBounds.push(new THREE.Box3(
-    new THREE.Vector3(support.x-.17,-1,support.z-.17),
-    new THREE.Vector3(support.x+.17,support.y,support.z+.17),
-  ));
+  const coastalCameraBounds = COASTAL_ROCKS.map(
+    (rock) =>
+      new THREE.Box3(
+        new THREE.Vector3(
+          rock.x - rock.radius,
+          rock.y - rock.sy * 1.28,
+          rock.z - rock.radius,
+        ),
+        new THREE.Vector3(
+          rock.x + rock.radius,
+          rock.y + rock.sy * 1.28,
+          rock.z + rock.radius,
+        ),
+      ),
+  );
+  for (const support of [SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE].flatMap(
+    stairSupports,
+  ))
+    cameraBounds.push(
+      new THREE.Box3(
+        new THREE.Vector3(support.x - 0.17, -1, support.z - 0.17),
+        new THREE.Vector3(support.x + 0.17, support.y, support.z + 0.17),
+      ),
+    );
   const cameraRay = new THREE.Ray(),
     intersection = new THREE.Vector3();
   function constrainCamera(position: THREE.Vector3, target: THREE.Vector3) {
@@ -257,24 +352,34 @@ export function createIslandWalker(
     }
     for (const box of coastalCameraBounds) {
       if (!cameraRay.intersectBox(box, intersection)) continue;
-      const entry = box.containsPoint(target) ? 0 : target.distanceTo(intersection);
-      for (let distance = entry; distance < visibleDistance; distance += .12) {
+      const entry = box.containsPoint(target)
+        ? 0
+        : target.distanceTo(intersection);
+      for (let distance = entry; distance < visibleDistance; distance += 0.12) {
         cameraRay.at(distance, intersection);
         if (!box.containsPoint(intersection)) break;
-        if (intersection.y > clearedSceneryHeight(intersection.x, intersection.z, Infinity)) continue;
-        visibleDistance = Math.max(.15, distance - .22);
+        if (
+          intersection.y >
+          clearedSceneryHeight(intersection.x, intersection.z, Infinity)
+        )
+          continue;
+        visibleDistance = Math.max(0.15, distance - 0.22);
         break;
       }
     }
     // Shorten along the sight line at cliffs, rather than lifting the camera
     // suddenly onto the terrain above a carved stair corridor.
-    for (let distance = .2; distance < visibleDistance; distance += .15) {
+    for (let distance = 0.2; distance < visibleDistance; distance += 0.15) {
       cameraRay.at(distance, intersection);
       const floor = onIsland(intersection.x, intersection.z)
-        ? clearedSceneryHeight(intersection.x, intersection.z, groundHeight(intersection.x, intersection.z)) + .3
+        ? clearedSceneryHeight(
+            intersection.x,
+            intersection.z,
+            groundHeight(intersection.x, intersection.z),
+          ) + 0.3
         : 1.2;
       if (intersection.y >= floor) continue;
-      visibleDistance = Math.max(.15, distance - .2);
+      visibleDistance = Math.max(0.15, distance - 0.2);
       break;
     }
     if (visibleDistance < length)
@@ -282,59 +387,104 @@ export function createIslandWalker(
         .copy(target)
         .addScaledVector(cameraRay.direction, visibleDistance);
   }
-  const standCache = new Map<string,boolean>();
+  const standCache = new Map<string, boolean>();
   function canStand(x: number, z: number) {
     if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
-    const key=`${x.toFixed(5)},${z.toFixed(5)}`;
-    const cached=standCache.get(key);
+    const key = `${x.toFixed(5)},${z.toFixed(5)}`;
+    const cached = standCache.get(key);
     if (cached !== undefined) return cached;
-    const result=canStandUncached(x,z);
+    const result = canStandUncached(x, z);
     if (standCache.size > 200000) standCache.clear();
-    standCache.set(key,result);
+    standCache.set(key, result);
     return result;
   }
   function canStandUncached(x: number, z: number) {
     // The house is entered at the steps; the raised interior has its own scene.
     if (!onWalkingSurface(x, z)) return false;
-    const y = walkingHeight(x,z);
-    if (y < clearedSceneryHeight(x,z,Infinity) && COASTAL_ROCKS.some(rock =>
-      y < rock.y+rock.sy*1.28 && y+1.8 > rock.y-rock.sy*1.28 &&
-      Math.hypot(x-rock.x,z-rock.z) < rock.radius+PLAYER_RADIUS)) return false;
-    if (bridgeParapets.some(rail => Math.abs(y-rail.floor)<1.5 && segmentDistance(x,z,[rail.ax,rail.az,rail.bx,rail.bz])<PLAYER_RADIUS+rail.thickness/2)) return false;
-    for (const {a,b} of HANDRAILS) {
-      const dx=b[0]-a[0], dz=b[2]-a[2];
-      const t=THREE.MathUtils.clamp(((x-a[0])*dx+(z-a[2])*dz)/(dx*dx+dz*dz),0,1);
-      const railY=THREE.MathUtils.lerp(a[1],b[1],t);
-      if (y < railY+.1 && y+1.8 > railY-1 && segmentDistance(x,z,[a[0],a[2],b[0],b[2]]) < PLAYER_RADIUS+.065) return false;
+    const y = walkingHeight(x, z);
+    if (
+      y < clearedSceneryHeight(x, z, Infinity) &&
+      COASTAL_ROCKS.some(
+        (rock) =>
+          y < rock.y + rock.sy * 1.28 &&
+          y + 1.8 > rock.y - rock.sy * 1.28 &&
+          Math.hypot(x - rock.x, z - rock.z) < rock.radius + PLAYER_RADIUS,
+      )
+    )
+      return false;
+    if (
+      bridgeParapets.some(
+        (rail) =>
+          Math.abs(y - rail.floor) < 1.5 &&
+          segmentDistance(x, z, [rail.ax, rail.az, rail.bx, rail.bz]) <
+            PLAYER_RADIUS + rail.thickness / 2,
+      )
+    )
+      return false;
+    for (const { a, b } of HANDRAILS) {
+      const dx = b[0] - a[0],
+        dz = b[2] - a[2];
+      const t = THREE.MathUtils.clamp(
+        ((x - a[0]) * dx + (z - a[2]) * dz) / (dx * dx + dz * dz),
+        0,
+        1,
+      );
+      const railY = THREE.MathUtils.lerp(a[1], b[1], t);
+      if (
+        y < railY + 0.1 &&
+        y + 1.8 > railY - 1 &&
+        segmentDistance(x, z, [a[0], a[2], b[0], b[2]]) < PLAYER_RADIUS + 0.065
+      )
+        return false;
     }
-    if (islandLamps.some(lamp => Math.abs(y-lamp.y)<2 && Math.hypot(x-lamp.x,z-lamp.z)<PLAYER_RADIUS+.13)) return false;
+    if (
+      islandLamps.some(
+        (lamp) =>
+          Math.abs(y - lamp.y) < 2 &&
+          Math.hypot(x - lamp.x, z - lamp.z) < PLAYER_RADIUS + 0.13,
+      )
+    )
+      return false;
     for (const bounds of MANOR_BOUNDS) {
-      if (y >= bounds.max.y || y+1.8 <= bounds.min.y) continue;
-      const dx=Math.max(bounds.min.x-x,0,x-bounds.max.x);
-      const dz=Math.max(bounds.min.z-z,0,z-bounds.max.z);
-      if (dx*dx+dz*dz < PLAYER_RADIUS*PLAYER_RADIUS) return false;
+      if (y >= bounds.max.y || y + 1.8 <= bounds.min.y) continue;
+      const dx = Math.max(bounds.min.x - x, 0, x - bounds.max.x);
+      const dz = Math.max(bounds.min.z - z, 0, z - bounds.max.z);
+      if (dx * dx + dz * dz < PLAYER_RADIUS * PLAYER_RADIUS) return false;
     }
     for (const tower of MANOR_TOWERS) {
-      if (y < MANOR_ORIGIN.y+tower.height+2.22 && y+1.8 > MANOR_ORIGIN.y &&
-        Math.hypot(x-MANOR_ORIGIN.x-tower.x,z-MANOR_ORIGIN.z-tower.z) < tower.radius*1.08+PLAYER_RADIUS) return false;
+      if (
+        y < MANOR_ORIGIN.y + tower.height + 2.22 &&
+        y + 1.8 > MANOR_ORIGIN.y &&
+        Math.hypot(x - MANOR_ORIGIN.x - tower.x, z - MANOR_ORIGIN.z - tower.z) <
+          tower.radius * 1.08 + PLAYER_RADIUS
+      )
+        return false;
     }
-    if (gateLeafSegments(gateOpening(x,z)).some(segment => segmentDistance(x,z,segment)<PLAYER_RADIUS+.055)) return false;
+    if (
+      gateLeafSegments(gateOpening(x, z)).some(
+        (segment) => segmentDistance(x, z, segment) < PLAYER_RADIUS + 0.055,
+      )
+    )
+      return false;
     if (
       fences.some(
-        (segment) => Math.abs(y-groundHeight(x,z))<2.8 && segmentDistance(x, z, segment) < PLAYER_RADIUS + 0.09,
+        (segment) =>
+          Math.abs(y - groundHeight(x, z)) < 2.8 &&
+          segmentDistance(x, z, segment) < PLAYER_RADIUS + 0.09,
       )
     )
       return false;
     if (
       nearbyObstacles(x, z).some(
         (obstacle) =>
-          Math.abs(y-groundHeight(obstacle.x,obstacle.z))<3 && Math.hypot(x - obstacle.x, z - obstacle.z) <
-          obstacle.radius + PLAYER_RADIUS,
+          Math.abs(y - groundHeight(obstacle.x, obstacle.z)) < 3 &&
+          Math.hypot(x - obstacle.x, z - obstacle.z) <
+            obstacle.radius + PLAYER_RADIUS,
       )
     )
       return false;
     for (const grave of nearbyGraves(x, z)) {
-      if (Math.abs(y-groundHeight(grave.x,grave.z))>3.5) continue;
+      if (Math.abs(y - groundHeight(grave.x, grave.z)) > 3.5) continue;
       const dx = x - grave.x,
         dz = z - grave.z;
       const localX = dx * Math.cos(grave.turn) - dz * Math.sin(grave.turn);
@@ -348,28 +498,29 @@ export function createIslandWalker(
     }
     return true;
   }
-  const heightCache = new Map<string,number>();
-  function cachedHeight(x: number,z: number) {
-    const key=`${x.toFixed(5)},${z.toFixed(5)}`;
-    let height=heightCache.get(key);
-    if(height===undefined) {
-      height=walkingHeight(x,z);
-      if(heightCache.size>80000)heightCache.clear();
-      heightCache.set(key,height);
+  const heightCache = new Map<string, number>();
+  function cachedHeight(x: number, z: number) {
+    const key = `${x.toFixed(5)},${z.toFixed(5)}`;
+    let height = heightCache.get(key);
+    if (height === undefined) {
+      height = walkingHeight(x, z);
+      if (heightCache.size > 80000) heightCache.clear();
+      heightCache.set(key, height);
     }
     return height;
   }
   function canTraverse(ax: number, az: number, bx: number, bz: number) {
-    if (![ax,az,bx,bz].every(Number.isFinite)) return false;
+    if (![ax, az, bx, bz].every(Number.isFinite)) return false;
     // Sweep long queries too: route shortcuts must never jump through thin barriers.
-    const steps=Math.max(1,Math.ceil(Math.hypot(bx-ax,bz-az)/.08));
-    let previousHeight=cachedHeight(ax,az);
-    for(let i=1;i<=steps;i++) {
-      const x=THREE.MathUtils.lerp(ax,bx,i/steps), z=THREE.MathUtils.lerp(az,bz,i/steps);
-      if (!(freeRoam ? onWalkingSurface(x,z) : canStand(x,z))) return false;
-      const height=cachedHeight(x,z);
-      if(Math.abs(height-previousHeight)>MAX_STEP_HEIGHT) return false;
-      previousHeight=height;
+    const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 0.08));
+    let previousHeight = cachedHeight(ax, az);
+    for (let i = 1; i <= steps; i++) {
+      const x = THREE.MathUtils.lerp(ax, bx, i / steps),
+        z = THREE.MathUtils.lerp(az, bz, i / steps);
+      if (!(freeRoam ? onWalkingSurface(x, z) : canStand(x, z))) return false;
+      const height = cachedHeight(x, z);
+      if (Math.abs(height - previousHeight) > MAX_STEP_HEIGHT) return false;
+      previousHeight = height;
     }
     return true;
   }
@@ -386,7 +537,13 @@ export function createIslandWalker(
     speedMultiplier = 1,
   ) {
     const length = Math.hypot(direction.x, direction.z);
-    if (![length,delta,speedMultiplier].every(Number.isFinite) || length < 1e-5 || delta <= 0 || speedMultiplier <= 0) return 0;
+    if (
+      ![length, delta, speedMultiplier].every(Number.isFinite) ||
+      length < 1e-5 ||
+      delta <= 0 ||
+      speedMultiplier <= 0
+    )
+      return 0;
     const travel =
       Math.min(delta, 0.05) *
       (running ? RUN_SPEED : WALK_SPEED) *

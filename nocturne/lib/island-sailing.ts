@@ -15,7 +15,10 @@ export function canSail(x: number, z: number) {
     !onIsland(x, z, -3) &&
     Math.hypot(x + 52, (z + 31) / 1.12) > 12 &&
     !(x > -48 && x < -14 && Math.abs(z + 31) < 4) &&
-    !SEA_OBSTACLES.some(obstacle => Math.hypot(x-obstacle.x,z-obstacle.z) < obstacle.radius + 3.2)
+    !SEA_OBSTACLES.some(
+      (obstacle) =>
+        Math.hypot(x - obstacle.x, z - obstacle.z) < obstacle.radius + 3.2,
+    )
   );
 }
 export function clearSea(a: SeaPoint, b: SeaPoint) {
@@ -129,7 +132,8 @@ export function createSailingController(start: SeaPoint = BOAT_MOORING) {
         .clampLength(0, 1)
         .multiplyScalar(fast ? FAST_SAIL_SPEED : SAIL_SPEED);
       velocity.lerp(desired, 1 - Math.exp(-dt * 3));
-      if(desired.lengthSq()===0 && velocity.lengthSq()<.0025)velocity.set(0,0,0);
+      if (desired.lengthSq() === 0 && velocity.lengthSq() < 0.0025)
+        velocity.set(0, 0, 0);
       const displacement = velocity.clone().multiplyScalar(dt),
         steps = Math.max(1, Math.ceil(displacement.length() / 0.15));
       const before = position.clone();

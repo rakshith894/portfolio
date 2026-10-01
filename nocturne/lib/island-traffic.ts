@@ -28,7 +28,13 @@ export function createOceanTraffic(
     lantern.position.set(1.8, 0.95, 0);
     root.add(lantern);
     scene.add(root);
-    return { root, passenger, rowing:bindRowboatOars(root), heading: index * 1.7, initialized: false };
+    return {
+      root,
+      passenger,
+      rowing: bindRowboatOars(root),
+      heading: index * 1.7,
+      initialized: false,
+    };
   });
   let previous = 0;
   return {
@@ -90,8 +96,12 @@ export function createOceanTraffic(
           -entry.heading,
           -Math.atan2(wave.normal.x, wave.normal.y) * 0.35,
         );
-        entry.rowing.update(dt,clear);
-        if(entry.rowing.available)passenger.setRowingTargets(entry.rowing.leftHand,entry.rowing.rightHand);
+        entry.rowing.update(dt, clear);
+        if (entry.rowing.available)
+          passenger.setRowingTargets(
+            entry.rowing.leftHand,
+            entry.rowing.rightHand,
+          );
         passenger.update(0, false, dt, false);
       });
     },

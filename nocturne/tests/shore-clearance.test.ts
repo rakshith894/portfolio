@@ -62,7 +62,12 @@ for (const mobile of [false, true]) {
       const ray = new THREE.Raycaster();
       const failures: string[] = [];
       let checked = 0;
-      for (const route of [BRIDGE_ROUTE, SHORE_ROUTE, TOWER_ROUTE, VIADUCT_ROUTE]) {
+      for (const route of [
+        BRIDGE_ROUTE,
+        SHORE_ROUTE,
+        TOWER_ROUTE,
+        VIADUCT_ROUTE,
+      ]) {
         for (let i = 1; i < route.length; i++) {
           const a = route[i - 1],
             b = route[i],
@@ -93,19 +98,26 @@ for (const mobile of [false, true]) {
       }
       assert.ok(checked > 400);
       // Regression for the sea-visible strips beside the bridge approach.
-      for (let x=-14.3;x<=-8;x+=.3) for (const z of [-32.32,-29.68]) {
-        const y=sampleStairRoute(BRIDGE_ROUTE,x,z,1.6)!.height;
-        ray.set(new THREE.Vector3(x,y+.2,z),new THREE.Vector3(0,-1,0));
-        ray.far=.6;
-        assert.ok(ray.intersectObjects(solids,false).length,`Open sea gap beside bridge at ${x},${z}`);
-      }
+      for (let x = -14.3; x <= -8; x += 0.3)
+        for (const z of [-32.32, -29.68]) {
+          const y = sampleStairRoute(BRIDGE_ROUTE, x, z, 1.6)!.height;
+          ray.set(
+            new THREE.Vector3(x, y + 0.2, z),
+            new THREE.Vector3(0, -1, 0),
+          );
+          ray.far = 0.6;
+          assert.ok(
+            ray.intersectObjects(solids, false).length,
+            `Open sea gap beside bridge at ${x},${z}`,
+          );
+        }
       assert.equal(
         failures.length,
         0,
         `Visible geometry intersects traveller: ${failures.slice(0, 12).join('; ')}`,
       );
       ray.set(
-        new THREE.Vector3(BOAT_DOCK.x, DOCK_HEIGHT+.3, BOAT_DOCK.z),
+        new THREE.Vector3(BOAT_DOCK.x, DOCK_HEIGHT + 0.3, BOAT_DOCK.z),
         new THREE.Vector3(0, 1, 0),
       );
       assert.equal(
@@ -118,27 +130,47 @@ for (const mobile of [false, true]) {
       const walker = createIslandWalker(mobile);
       const obstructionFailures: string[] = [];
       for (let i = 1; i < SHORE_ROUTE.length; i++) {
-        const a = SHORE_ROUTE[i - 1], b = SHORE_ROUTE[i];
-        for (const progress of [.1, .5, .9]) for (let heading = 0; heading < 8; heading++) {
-          const x = THREE.MathUtils.lerp(a[0], b[0], progress);
-          const z = THREE.MathUtils.lerp(a[2], b[2], progress);
-          const target = new THREE.Vector3(x, walkingHeight(x, z) + 1.65, z);
-          const camera = target.clone().add(new THREE.Vector3(
-            Math.sin(heading * Math.PI / 4) * 9, 4, Math.cos(heading * Math.PI / 4) * 9,
-          ));
-          walker.constrainCamera(camera, target);
-          const originalDirection = camera.clone().sub(target).normalize();
-          environment.constrainShoreCamera(camera, target);
-          assert.ok(camera.clone().sub(target).normalize().distanceTo(originalDirection) < 1e-8,
-            'Wall avoidance must not lift or swing the camera away from the traveller');
-          ray.set(target, originalDirection);
-          ray.near = .001;
-          ray.far = camera.distanceTo(target) - .05;
-          if (ray.intersectObjects(solids, false).length)
-            obstructionFailures.push(`segment ${i}, progress ${progress}, heading ${heading}`);
-        }
+        const a = SHORE_ROUTE[i - 1],
+          b = SHORE_ROUTE[i];
+        for (const progress of [0.1, 0.5, 0.9])
+          for (let heading = 0; heading < 8; heading++) {
+            const x = THREE.MathUtils.lerp(a[0], b[0], progress);
+            const z = THREE.MathUtils.lerp(a[2], b[2], progress);
+            const target = new THREE.Vector3(x, walkingHeight(x, z) + 1.65, z);
+            const camera = target
+              .clone()
+              .add(
+                new THREE.Vector3(
+                  Math.sin((heading * Math.PI) / 4) * 9,
+                  4,
+                  Math.cos((heading * Math.PI) / 4) * 9,
+                ),
+              );
+            walker.constrainCamera(camera, target);
+            const originalDirection = camera.clone().sub(target).normalize();
+            environment.constrainShoreCamera(camera, target);
+            assert.ok(
+              camera
+                .clone()
+                .sub(target)
+                .normalize()
+                .distanceTo(originalDirection) < 1e-8,
+              'Wall avoidance must not lift or swing the camera away from the traveller',
+            );
+            ray.set(target, originalDirection);
+            ray.near = 0.001;
+            ray.far = camera.distanceTo(target) - 0.05;
+            if (ray.intersectObjects(solids, false).length)
+              obstructionFailures.push(
+                `segment ${i}, progress ${progress}, heading ${heading}`,
+              );
+          }
       }
-      assert.deepEqual(obstructionFailures, [], 'Boat stair walls must never stand between camera and traveller');
+      assert.deepEqual(
+        obstructionFailures,
+        [],
+        'Boat stair walls must never stand between camera and traveller',
+      );
     } finally {
       environment.dispose();
       resources.forEach((resource) => resource.dispose());

@@ -8,9 +8,19 @@ export function localContentUpdates(): Plugin {
     hotUpdate: {
       order: 'pre',
       handler({ file, modules, timestamp }) {
-        if (!/\/content\/(skills|profile|hall-projects)\.json$/.test(file.replaceAll('\\', '/'))) return;
-        const invalidated = new Set<typeof modules[number]>();
-        for (const node of modules) this.environment.moduleGraph.invalidateModule(node, invalidated, timestamp);
+        if (
+          !/\/content\/(skills|profile|hall-projects)\.json$/.test(
+            file.replaceAll('\\', '/'),
+          )
+        )
+          return;
+        const invalidated = new Set<(typeof modules)[number]>();
+        for (const node of modules)
+          this.environment.moduleGraph.invalidateModule(
+            node,
+            invalidated,
+            timestamp,
+          );
         // Refreshing the page still reads the latest JSON, without interrupting an edit.
         return [];
       },

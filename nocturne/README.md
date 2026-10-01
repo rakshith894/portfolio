@@ -104,7 +104,6 @@ Press the glowing projector at the center of the entrance hall, press E while ne
 
 Add frame creates exactly one new, saved frame and opens its editor. Remove this frame asks you to confirm removal of that frame and its saved project details. Removing the last frame leaves a clean gallery with an Add frame control; deleted frames do not return after a reload. Unused wall positions are hidden and cannot be clicked. Previous/next collection controls show up to ten frames per page, with no ten-project storage limit. Creation and removal are serialized by the local editor, so concurrent Add frame requests receive different IDs. Existing project IDs and content are preserved; the nine original unused placeholders have been removed. Publish after local changes to share the collection.
 
-
 ### Floating skills and covers
 
 The left ground-floor room is the skills gallery. Use Edit floating skills to add a name, explanation and color, edit or remove an existing skill. Skills save to content/skills.json through the local-only editor. Every saved skill keeps a visible card. High-resolution canvas labels use measured word wrapping, adaptive heading sizes, a high-contrast text column, and clipped description previews. Soft edge lighting and a slow float keep the hologram alive without distorting its text. Open a card to read its full explanation. The first six occupy the Skills Room, the next twelve occupy the wing galleries, and further cards fill the backyard in fixed rows and tiers. All skills also provides a single scrollable reading view with every explanation; visitors never need to switch collection pages. Both former library and dining-room furniture and their collision boxes are removed. Day/dark mode and Lights on/off work throughout the house; gold and colored particles drift through both rooms.
@@ -116,7 +115,6 @@ Project frames support uploaded PNG/JPEG/WebP screenshots (up to 5 MB) and rende
 Published visitors can explore and read all portfolio content. Editing skills, projects, profile, images and resume stays available only through the local development server on this computer. Published builds omit all write middleware, and production PUT requests to the three content endpoints return 404. There is no browser password or storage flag that grants editing. After local saves, commit and publish the updated source to update public content.
 
 Narration has an independent speaker control; footsteps and island ambience continue. Voice commands work indoors as well as outdoors. All skills shows every description together and offers Read aloud. The study furniture is removed; its wing is an extension of the skills gallery. Gold particles fill the entrance hall, both side rooms, both wings and the upper project hall. The contact hologram stays illuminated when idle. Guardian occupancy holds doors open, and blocked follower queues dissolve back onto a safe recorded trail.
-
 
 ## AI assistant and voice mode
 

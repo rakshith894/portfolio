@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {
-  approach,
-  groundHeight,
-} from '../lib/reference-layout.ts';
+import { approach, groundHeight } from '../lib/reference-layout.ts';
 import { cemeteryLayout } from '../lib/reference-graves.ts';
 import {
   createIslandWalker,
@@ -143,9 +140,16 @@ void test('walking follows the camera heading and returning from the house keeps
 
 void test('the boat landing route and disembark point are walkable', () => {
   const walker = createIslandWalker(false);
-  const route = [...SHORE_ROUTE.map(([x,,z]) => [x,z]), [BOAT_DOCK.x,BOAT_DOCK.z]];
+  const route = [
+    ...SHORE_ROUTE.map(([x, , z]) => [x, z]),
+    [BOAT_DOCK.x, BOAT_DOCK.z],
+  ];
   for (const [x, z] of route)
-    assert.equal(walker.canStand(x, z), true, `Blocked boat route point ${x}, ${z}`);
+    assert.equal(
+      walker.canStand(x, z),
+      true,
+      `Blocked boat route point ${x}, ${z}`,
+    );
 });
 
 void test('voice welcome is distinct from waving', () => {
@@ -185,53 +189,77 @@ void test('the following camera shortens its orbit when a monument blocks the pl
   const originalDistance = camera.distanceTo(target);
   walker.constrainCamera(camera, target);
   assert.ok(camera.distanceTo(target) < originalDistance - 1);
-  assert.ok(camera.distanceTo(target) >= .15 - 1e-8);
+  assert.ok(camera.distanceTo(target) >= 0.15 - 1e-8);
 });
 
 void test('sprinting cannot cross any cemetery fence segment, even after a long frame', () => {
-  for (const mobile of [false,true]) {
-    const walker=createIslandWalker(mobile);
-    let checked=0;
-    for (const fence of cemeteryFences) for(let i=1;i<fence.length;i++) {
-      const [ax,az]=fence[i-1], [bx,bz]=fence[i];
-      const length=Math.hypot(bx-ax,bz-az), nx=-(bz-az)/length, nz=(bx-ax)/length;
-      for(const side of [-1,1]) {
-        const x=(ax+bx)/2,z=(az+bz)/2,sx=x+nx*side,sz=z+nz*side;
-        if(!walker.canStand(sx,sz))continue;
-        checked++;
-        walker.position.set(sx,walkingHeight(sx,sz),sz);
-        for(let frame=0;frame<40;frame++)walker.move(new THREE.Vector3(-nx*side,0,-nz*side),1,true);
-        assert.ok((walker.position.x-x)*nx*side+(walker.position.z-z)*nz*side>=PLAYER_RADIUS);
-        assert.equal(walker.canTraverse(sx,sz,x-nx*side,z-nz*side),false);
+  for (const mobile of [false, true]) {
+    const walker = createIslandWalker(mobile);
+    let checked = 0;
+    for (const fence of cemeteryFences)
+      for (let i = 1; i < fence.length; i++) {
+        const [ax, az] = fence[i - 1],
+          [bx, bz] = fence[i];
+        const length = Math.hypot(bx - ax, bz - az),
+          nx = -(bz - az) / length,
+          nz = (bx - ax) / length;
+        for (const side of [-1, 1]) {
+          const x = (ax + bx) / 2,
+            z = (az + bz) / 2,
+            sx = x + nx * side,
+            sz = z + nz * side;
+          if (!walker.canStand(sx, sz)) continue;
+          checked++;
+          walker.position.set(sx, walkingHeight(sx, sz), sz);
+          for (let frame = 0; frame < 40; frame++)
+            walker.move(new THREE.Vector3(-nx * side, 0, -nz * side), 1, true);
+          assert.ok(
+            (walker.position.x - x) * nx * side +
+              (walker.position.z - z) * nz * side >=
+              PLAYER_RADIUS,
+          );
+          assert.equal(
+            walker.canTraverse(sx, sz, x - nx * side, z - nz * side),
+            false,
+          );
+        }
       }
-    }
-    assert.ok(checked>=8);
+    assert.ok(checked >= 8);
   }
 });
 
 void test('handrails stop sideways travel and additional lamps have solid posts', () => {
-  const walker=createIslandWalker(false);
-  walker.position.set(-22,walkingHeight(-22,-34),-34);
-  for(let frame=0;frame<60;frame++)walker.move(new THREE.Vector3(0,0,1),.05,true);
-  assert.ok(walker.position.z<=-34+1.05-PLAYER_RADIUS);
-  for(const lamp of islandLamps) {
-    if(Math.abs(walkingHeight(lamp.x,lamp.z)-lamp.y)<2)
-      assert.equal(walker.canStand(lamp.x,lamp.z),false,`Walked through lamp ${lamp.x},${lamp.z}`);
+  const walker = createIslandWalker(false);
+  walker.position.set(-22, walkingHeight(-22, -34), -34);
+  for (let frame = 0; frame < 60; frame++)
+    walker.move(new THREE.Vector3(0, 0, 1), 0.05, true);
+  assert.ok(walker.position.z <= -34 + 1.05 - PLAYER_RADIUS);
+  for (const lamp of islandLamps) {
+    if (Math.abs(walkingHeight(lamp.x, lamp.z) - lamp.y) < 2)
+      assert.equal(
+        walker.canStand(lamp.x, lamp.z),
+        false,
+        `Walked through lamp ${lamp.x},${lamp.z}`,
+      );
   }
-  const closed=gateLeafSegments(0),opened=gateLeafSegments(1);
-  assert.ok(opened[0][2]<closed[0][2] && opened[1][2]>closed[1][2],'Gates must swing away from the path');
-  assert.equal(gateOpening(17,7),1);
+  const closed = gateLeafSegments(0),
+    opened = gateLeafSegments(1);
+  assert.ok(
+    opened[0][2] < closed[0][2] && opened[1][2] > closed[1][2],
+    'Gates must swing away from the path',
+  );
+  assert.equal(gateOpening(17, 7), 1);
 });
 
 void test('faster traversal remains frame-rate independent and rejects invalid input', () => {
-  assert.ok(WALK_SPEED>=2.5 && RUN_SPEED>=5);
-  const walker=createIslandWalker(false);
-  walker.position.set(18,walkingHeight(18,14),14);
-  const start=walker.position.clone();
-  assert.equal(walker.move(new THREE.Vector3(NaN,0,0),.05),0);
-  assert.equal(walker.move(new THREE.Vector3(1,0,0),.05,false,-1),0);
+  assert.ok(WALK_SPEED >= 2.5 && RUN_SPEED >= 5);
+  const walker = createIslandWalker(false);
+  walker.position.set(18, walkingHeight(18, 14), 14);
+  const start = walker.position.clone();
+  assert.equal(walker.move(new THREE.Vector3(NaN, 0, 0), 0.05), 0);
+  assert.equal(walker.move(new THREE.Vector3(1, 0, 0), 0.05, false, -1), 0);
   assert.ok(walker.position.equals(start));
-  assert.equal(walker.canTraverse(0,0,Infinity,0),false);
-  const moved=walker.move(new THREE.Vector3(0,0,-1),1/60,true);
-  assert.ok(Math.abs(moved-RUN_SPEED/60)<1e-8);
+  assert.equal(walker.canTraverse(0, 0, Infinity, 0), false);
+  const moved = walker.move(new THREE.Vector3(0, 0, -1), 1 / 60, true);
+  assert.ok(Math.abs(moved - RUN_SPEED / 60) < 1e-8);
 });

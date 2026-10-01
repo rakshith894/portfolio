@@ -75,7 +75,7 @@ void test('day mode clears rain and lightning and returns to the same night weat
     assert.equal(weather.rain.visible, true);
     assert.ok(weather.lightning.intensity > 1.7);
   } finally {
-    resources.forEach(resource => resource.dispose());
+    resources.forEach((resource) => resource.dispose());
   }
 });
 
@@ -129,14 +129,31 @@ void test('day, night and winter switch distinct effects without new resources a
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(500, 35, -400);
     try {
-      for (const mode of ['winter', 'day', 'night', 'winter', 'night'] as const) {
-        weather.setMode(mode); weather.update(33.35, camera);
+      for (const mode of [
+        'winter',
+        'day',
+        'night',
+        'winter',
+        'night',
+      ] as const) {
+        weather.setMode(mode);
+        weather.update(33.35, camera);
         assert.equal(weather.rain.visible, mode === 'night');
         assert.equal(weather.particles.visible, mode !== 'night');
-        assert.equal(weather.sky.material.uniforms.winter.value, mode === 'winter');
-        assert.equal(weather.sky.material.uniforms.daylight.value, mode === 'day');
+        assert.equal(
+          weather.sky.material.uniforms.winter.value,
+          mode === 'winter',
+        );
+        assert.equal(
+          weather.sky.material.uniforms.daylight.value,
+          mode === 'day',
+        );
         assert.equal(weather.lightning.intensity > 0, mode === 'night');
-        assert.ok(weather.particles.material.uniforms.center.value.equals(camera.position));
+        assert.ok(
+          weather.particles.material.uniforms.center.value.equals(
+            camera.position,
+          ),
+        );
         weather.setSheltered(true);
         assert.equal(weather.rain.visible, false);
         assert.equal(weather.particles.visible, false);
@@ -146,8 +163,13 @@ void test('day, night and winter switch distinct effects without new resources a
         assert.equal(weather.particles.visible, mode !== 'night');
         assert.equal(resources.size, count);
       }
-      assert.equal(weather.particles.geometry.getAttribute('position').count, mobile ? 650 : 1800);
-    } finally { resources.forEach(resource => resource.dispose()); }
+      assert.equal(
+        weather.particles.geometry.getAttribute('position').count,
+        mobile ? 650 : 1800,
+      );
+    } finally {
+      resources.forEach((resource) => resource.dispose());
+    }
   }
 });
 

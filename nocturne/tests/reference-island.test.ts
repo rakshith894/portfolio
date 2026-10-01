@@ -13,7 +13,11 @@ import {
   onIsland,
   referenceCameraPose,
 } from '../lib/reference-layout.ts';
-import { createIslandWalker, walkingHeight, PLAYER_RADIUS } from '../lib/island-walk.ts';
+import {
+  createIslandWalker,
+  walkingHeight,
+  PLAYER_RADIUS,
+} from '../lib/island-walk.ts';
 
 function manorFixture() {
   const material = new THREE.MeshStandardMaterial();
@@ -46,24 +50,43 @@ void test('visible manor foundations and rear terrace block the traveller on bot
       const walker = createIslandWalker(mobile);
       let checked = 0;
       // Cast across the actual rendered foundations, including the backyard.
-      for (let z = -38; z < -25; z += .4) {
+      for (let z = -38; z < -25; z += 0.4) {
         for (const side of [-1, 1]) {
-          const ray = new THREE.Raycaster(new THREE.Vector3(10 + side * 22, 25.5, z), new THREE.Vector3(-side, 0, 0));
+          const ray = new THREE.Raycaster(
+            new THREE.Vector3(10 + side * 22, 25.5, z),
+            new THREE.Vector3(-side, 0, 0),
+          );
           const hit = ray.intersectObject(fixture.manor, true)[0];
           if (!hit) continue;
-          const x = hit.point.x + side * (PLAYER_RADIUS - .06);
+          const x = hit.point.x + side * (PLAYER_RADIUS - 0.06);
           if (walkingHeight(x, z) > 25.5) continue;
           checked++;
-          assert.equal(walker.canStand(x, z), false, `Rendered wall overlap at ${x}, ${z}`);
+          assert.equal(
+            walker.canStand(x, z),
+            false,
+            `Rendered wall overlap at ${x}, ${z}`,
+          );
         }
       }
       assert.ok(checked > 30);
-      assert.equal(walker.canStand(10, -37.6), false, 'Rear terrace must be solid');
-      assert.equal(walker.canStand(10, -26.5), false, 'Stairs must not bypass the front wall');
+      assert.equal(
+        walker.canStand(10, -37.6),
+        false,
+        'Rear terrace must be solid',
+      );
+      assert.equal(
+        walker.canStand(10, -26.5),
+        false,
+        'Stairs must not bypass the front wall',
+      );
       assert.equal(walker.canTraverse(10, -40, 10, -34), false);
       walker.position.set(10, walkingHeight(10, -40), -40);
-      for (let frame = 0; frame < 100; frame++) walker.move(new THREE.Vector3(0, 0, 1), .05, true);
-      assert.ok(walker.position.z <= -37.9 - PLAYER_RADIUS, 'Running from the backyard entered the terrace');
+      for (let frame = 0; frame < 100; frame++)
+        walker.move(new THREE.Vector3(0, 0, 1), 0.05, true);
+      assert.ok(
+        walker.position.z <= -37.9 - PLAYER_RADIUS,
+        'Running from the backyard entered the terrace',
+      );
     }
   } finally {
     fixture.dispose();
@@ -74,14 +97,33 @@ void test('the manor door stops walking while the house approach remains accessi
   for (const mobile of [false, true]) {
     const walker = createIslandWalker(mobile, true);
     walker.position.set(10, walkingHeight(10, -20.8), -20.8);
-    for (let frame = 0; frame < 150; frame++) walker.move(new THREE.Vector3(0, 0, -1), .05, true);
-    assert.ok(walker.position.z > -24.25, 'Walked through the closed front door');
-    assert.ok(walker.position.z < -23.5, 'Stairway was blocked before reaching the doorway');
+    for (let frame = 0; frame < 150; frame++)
+      walker.move(new THREE.Vector3(0, 0, -1), 0.05, true);
+    assert.ok(
+      walker.position.z > -24.25,
+      'Walked through the closed front door',
+    );
+    assert.ok(
+      walker.position.z < -23.5,
+      'Stairway was blocked before reaching the doorway',
+    );
     assert.equal(walker.canStand(walker.position.x, walker.position.z), true);
-    assert.equal(walker.nearHouse, true, 'Enter the house must remain available at the door');
+    assert.equal(
+      walker.nearHouse,
+      true,
+      'Enter the house must remain available at the door',
+    );
     assert.equal(walker.canTraverse(10, -23, 10, -26), false);
-    assert.equal(walker.canStand(8.5, -23.885), false, 'Front arch jamb must be solid');
-    assert.equal(walker.canStand(10, -23.985), false, 'Raised door sill must be solid');
+    assert.equal(
+      walker.canStand(8.5, -23.885),
+      false,
+      'Front arch jamb must be solid',
+    );
+    assert.equal(
+      walker.canStand(10, -23.985),
+      false,
+      'Raised door sill must be solid',
+    );
   }
 });
 

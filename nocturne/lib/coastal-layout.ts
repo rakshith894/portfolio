@@ -46,8 +46,13 @@ export function coastalRocks(mobile = false) {
     const radius = (Math.max(sx, sz) + sy * Math.abs(Math.sin(tilt))) * 1.28;
     if (mobile && !offshore && i >= 65) continue;
     if (offshore && Math.hypot(point.x + 52, point.y + 31) < 13) continue;
-    if (!offshore && (pathDistance(point.x, point.y) < radius + 3 ||
-      distanceToSegment(point.x, point.y, 23, -13.5, 32, -13.5) < radius + 1.1)) continue;
+    if (
+      !offshore &&
+      (pathDistance(point.x, point.y) < radius + 3 ||
+        distanceToSegment(point.x, point.y, 23, -13.5, 32, -13.5) <
+          radius + 1.1)
+    )
+      continue;
     // Keep an unobstructed departure channel beyond the landing.
     if (
       distanceToSegment(

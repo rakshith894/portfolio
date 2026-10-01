@@ -71,12 +71,20 @@ export default function Home() {
       if (!audio.current) {
         audio.current = createAmbience();
         let mode = islandMode(null);
-        try { mode = islandMode(localStorage.getItem('nocturne-mode') ?? localStorage.getItem('nocturne-daylight')); } catch {}
+        try {
+          mode = islandMode(
+            localStorage.getItem('nocturne-mode') ??
+              localStorage.getItem('nocturne-daylight'),
+          );
+        } catch {}
         audio.current.setMode(mode);
       }
       // Resume in the original click/key event, before lazy loading the scene.
       // Further gestures also recover audio interrupted by the browser.
-      void audio.current.resume().then(() => setAudioError(false), () => setAudioError(true));
+      void audio.current.resume().then(
+        () => setAudioError(false),
+        () => setAudioError(true),
+      );
     } catch {
       setAudioError(true);
     }
@@ -98,8 +106,14 @@ export default function Home() {
       {scene === 'entrance' ? (
         <Entrance
           onPrepare={prepareIsland}
-          onExplore={() => { setGuided(false); exploreIsland(); }}
-          onTour={() => { setGuided(true); exploreIsland(); }}
+          onExplore={() => {
+            setGuided(false);
+            exploreIsland();
+          }}
+          onTour={() => {
+            setGuided(true);
+            exploreIsland();
+          }}
           onPortfolio={() => setSection('about')}
           audioError={audioError}
         />
@@ -147,7 +161,8 @@ export default function Home() {
             onClose={() => setSection(null)}
             onEnter={() => {
               setSection(null);
-              setGuided(false); exploreIsland();
+              setGuided(false);
+              exploreIsland();
             }}
           />
         </Suspense>

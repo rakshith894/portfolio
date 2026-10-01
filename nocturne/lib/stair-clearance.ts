@@ -13,7 +13,12 @@ import {
 // Carve scenery away from the full stair width and square turn landings.
 // These are rendering clearances: stairs, rails and their supports stay intact.
 const halfWidth = STAIR_WIDTH / 2 + 0.45;
-const corridors = [SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE, VIADUCT_ROUTE].flatMap((route) =>
+const corridors = [
+  SHORE_ROUTE,
+  TOWER_ROUTE,
+  BRIDGE_ROUTE,
+  VIADUCT_ROUTE,
+].flatMap((route) =>
   route.slice(1).map((b, i) => {
     const a = route[i];
     return new THREE.Box3(
@@ -32,7 +37,7 @@ const corridors = [SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE, VIADUCT_ROUTE].flatMa
 );
 corridors.push(
   new THREE.Box3(
-    new THREE.Vector3(BOAT_DOCK.x - 2.8, DOCK_HEIGHT-.4, BOAT_DOCK.z - 1.7),
+    new THREE.Vector3(BOAT_DOCK.x - 2.8, DOCK_HEIGHT - 0.4, BOAT_DOCK.z - 1.7),
     new THREE.Vector3(BOAT_DOCK.x + 2.8, 200, BOAT_DOCK.z + 1.7),
   ),
 );
@@ -71,7 +76,10 @@ function halfSpace(
 /** Remove corridor intersections, including triangles whose vertices lie outside.
  * Geometry is already in world coordinates; normals and UVs interpolate at cuts.
  */
-export function clearStairScenery(geometry: THREE.BufferGeometry, sealTerrain = false) {
+export function clearStairScenery(
+  geometry: THREE.BufferGeometry,
+  sealTerrain = false,
+) {
   geometry.computeBoundingBox();
   const relevant = corridors.filter((box) =>
     box.intersectsBox(geometry.boundingBox!),
@@ -124,13 +132,23 @@ export function clearStairScenery(geometry: THREE.BufferGeometry, sealTerrain = 
         // Terrain is a shell: deleting its top exposes the ocean below it.
         // Retain a recessed floor and close each cut edge with a retaining face.
         if (sealTerrain && inside.length >= 3) {
-          const floor = inside.map(point => { const copy = [...point]; copy[1] = box.min.y; return copy; });
+          const floor = inside.map((point) => {
+            const copy = [...point];
+            copy[1] = box.min.y;
+            return copy;
+          });
           next.push(floor);
           for (let edge = 0; edge < inside.length; edge++) {
             const j = (edge + 1) % inside.length;
-            const a = inside[edge], b = inside[j];
-            const boundary = [0, 2].some(axis => [box.min, box.max].some(side =>
-              Math.abs(a[axis]-side.getComponent(axis))<1e-5 && Math.abs(b[axis]-side.getComponent(axis))<1e-5));
+            const a = inside[edge],
+              b = inside[j];
+            const boundary = [0, 2].some((axis) =>
+              [box.min, box.max].some(
+                (side) =>
+                  Math.abs(a[axis] - side.getComponent(axis)) < 1e-5 &&
+                  Math.abs(b[axis] - side.getComponent(axis)) < 1e-5,
+              ),
+            );
             // Face the excavated corridor, not the solid terrain behind it.
             if (boundary) next.push([b, floor[j], floor[edge], a]);
           }

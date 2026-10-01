@@ -34,7 +34,13 @@ export function createIslandAvatar(
   let finishLoading!: () => void;
   let appearanceChosen = false;
   let loadTimeout: ReturnType<typeof setTimeout> | undefined;
-  const ready = new Promise<void>(resolve => { finishLoading = () => { appearanceChosen = true; clearTimeout(loadTimeout); resolve(); }; });
+  const ready = new Promise<void>((resolve) => {
+    finishLoading = () => {
+      appearanceChosen = true;
+      clearTimeout(loadTimeout);
+      resolve();
+    };
+  });
   root.name = 'Rakshith — player';
   const body = new THREE.Group();
   root.add(body);
@@ -124,15 +130,25 @@ export function createIslandAvatar(
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       owned.add(object.geometry);
-      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      for (const material of Array.isArray(object.material)
+        ? object.material
+        : [object.material]) {
         owned.add(material);
-        for (const value of Object.values(material)) if (value instanceof THREE.Texture) owned.add(value);
+        for (const value of Object.values(material))
+          if (value instanceof THREE.Texture) owned.add(value);
       }
       if (object instanceof THREE.SkinnedMesh) owned.add(object.skeleton);
     });
     owned.forEach((item) => item.dispose());
   };
-  resources.add({ dispose: () => { disposed = true; finishLoading(); mixer.stopAllAction(); mixer.uncacheRoot(root); } });
+  resources.add({
+    dispose: () => {
+      disposed = true;
+      finishLoading();
+      mixer.stopAllAction();
+      mixer.uncacheRoot(root);
+    },
+  });
   let modelReady = false;
   let modelChanged = false;
   let idleAction: THREE.AnimationAction | null = null;
@@ -140,7 +156,8 @@ export function createIslandAvatar(
   let runAction: THREE.AnimationAction | null = null;
   let placeFeet: ReturnType<typeof createFootPlacement> | null = null;
   let rowingHands: ReturnType<typeof createRowingHands> | null = null;
-  let rowingTargets: {left:THREE.Vector3;right:THREE.Vector3} | null = null;
+  let rowingTargets: { left: THREE.Vector3; right: THREE.Vector3 } | null =
+    null;
   let waveAction: THREE.AnimationAction | null = null;
   let sitAction: THREE.AnimationAction | null = null;
   let activeAction: THREE.AnimationAction | null = null;
@@ -155,61 +172,72 @@ export function createIslandAvatar(
     modelLoader.load(
       '/models/human-traveller.glb',
       (gltf) => {
-      const model = gltf.scene;
-      if (disposed || appearanceChosen) { releaseModel(model); return; }
-      importedModel = model;
-      model.name = 'Human traveller';
-      // Rocketbox faces +Z; the island walker faces -Z.
-      model.rotation.y = Math.PI;
-      model.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          object.castShadow = !mobile;
-          object.receiveShadow = true;
-          for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-            if (material instanceof THREE.MeshStandardMaterial) {
-              material.metalness = 0;
-              if (material.map) material.map.anisotropy = mobile ? 2 : 4;
+        const model = gltf.scene;
+        if (disposed || appearanceChosen) {
+          releaseModel(model);
+          return;
+        }
+        importedModel = model;
+        model.name = 'Human traveller';
+        // Rocketbox faces +Z; the island walker faces -Z.
+        model.rotation.y = Math.PI;
+        model.traverse((object) => {
+          if (object instanceof THREE.Mesh) {
+            object.castShadow = !mobile;
+            object.receiveShadow = true;
+            for (const material of Array.isArray(object.material)
+              ? object.material
+              : [object.material]) {
+              if (material instanceof THREE.MeshStandardMaterial) {
+                material.metalness = 0;
+                if (material.map) material.map.anisotropy = mobile ? 2 : 4;
+              }
             }
           }
-        }
-      });
-      const bounds = new THREE.Box3().setFromObject(model);
-      const size = bounds.getSize(new THREE.Vector3());
-      const height = Math.max(size.y, 0.001);
-      model.scale.setScalar(1.82 / height);
-      captureScale = model.scale.x * 100;
-      const correctedBounds = new THREE.Box3().setFromObject(model);
-      model.position.y -= correctedBounds.min.y;
-      importedModelBaseY = model.position.y;
-      root.add(model);
-      resources.add({
-        dispose: () => {
-          releaseModel(model);
-        },
-      });
-      body.visible = false;
-      shadow.visible = mobile;
-      const actions = gltf.animations.map((clip) => mixer.clipAction(clip));
-      idleAction =
-        actions.find((action) => /idle|stand|breath/i.test(action.getClip().name)) ??
-        actions[0] ??
-        null;
-      walkAction =
-        actions.find((action) => /^walk$/i.test(action.getClip().name)) ??
-        actions[1] ??
-        idleAction;
-      waveAction = actions.find((action) => action.getClip().name === 'Wave') ?? null;
-      sitAction = actions.find((action) => action.getClip().name === 'Sit') ?? null;
-      runAction = actions.find((action) => action.getClip().name === 'Run') ?? walkAction;
-      placeFeet = createFootPlacement(model);
-      rowingHands = createRowingHands(model);
-      activeAction = idleAction;
-      activeAction?.reset().play();
-      mixer.update(0);
-      modelReady = true;
-      modelChanged = true;
-      root.visible = true;
-      finishLoading();
+        });
+        const bounds = new THREE.Box3().setFromObject(model);
+        const size = bounds.getSize(new THREE.Vector3());
+        const height = Math.max(size.y, 0.001);
+        model.scale.setScalar(1.82 / height);
+        captureScale = model.scale.x * 100;
+        const correctedBounds = new THREE.Box3().setFromObject(model);
+        model.position.y -= correctedBounds.min.y;
+        importedModelBaseY = model.position.y;
+        root.add(model);
+        resources.add({
+          dispose: () => {
+            releaseModel(model);
+          },
+        });
+        body.visible = false;
+        shadow.visible = mobile;
+        const actions = gltf.animations.map((clip) => mixer.clipAction(clip));
+        idleAction =
+          actions.find((action) =>
+            /idle|stand|breath/i.test(action.getClip().name),
+          ) ??
+          actions[0] ??
+          null;
+        walkAction =
+          actions.find((action) => /^walk$/i.test(action.getClip().name)) ??
+          actions[1] ??
+          idleAction;
+        waveAction =
+          actions.find((action) => action.getClip().name === 'Wave') ?? null;
+        sitAction =
+          actions.find((action) => action.getClip().name === 'Sit') ?? null;
+        runAction =
+          actions.find((action) => action.getClip().name === 'Run') ??
+          walkAction;
+        placeFeet = createFootPlacement(model);
+        rowingHands = createRowingHands(model);
+        activeAction = idleAction;
+        activeAction?.reset().play();
+        mixer.update(0);
+        modelReady = true;
+        modelChanged = true;
+        root.visible = true;
+        finishLoading();
       },
       undefined,
       () => {
@@ -227,10 +255,15 @@ export function createIslandAvatar(
   let gesture: 'jump' | 'sit' | 'dance' | 'wave' | null = null;
   let gestureTime = 0;
   let seated = false;
-  let poseTransition=0;
+  let poseTransition = 0;
   function perform(action: 'jump' | 'sit' | 'dance' | 'wave') {
     gesture = action;
-    gestureTime = action === 'dance' ? 4 : action === 'wave' && waveAction ? waveAction.getClip().duration : 1.8;
+    gestureTime =
+      action === 'dance'
+        ? 4
+        : action === 'wave' && waveAction
+          ? waveAction.getClip().duration
+          : 1.8;
   }
   function update(
     distance: number,
@@ -238,16 +271,20 @@ export function createIslandAvatar(
     dt: number,
     reducedMotion: boolean,
     automatic = false,
-    ground?: (x: number,z: number) => number,
+    ground?: (x: number, z: number) => number,
   ) {
     rowingHands?.restore();
     const changed = modelChanged;
     modelChanged = false;
-    const speed = dt > 0 && moving ? Math.max(0,distance-previousDistance)/dt : 0;
+    const speed =
+      dt > 0 && moving ? Math.max(0, distance - previousDistance) / dt : 0;
     previousDistance = distance;
     const pace = locomotionPace(speed, captureScale, runningGait);
     runningGait = pace.running;
-    if (reducedMotion) { gesture = null; gestureTime = 0; }
+    if (reducedMotion) {
+      gesture = null;
+      gestureTime = 0;
+    }
     if (gestureTime > 0) gestureTime -= dt;
     else gesture = null;
     blend = THREE.MathUtils.damp(blend, moving ? 1 : 0, moving ? 10 : 7, dt);
@@ -257,7 +294,8 @@ export function createIslandAvatar(
     gait += dt * gaitRate;
     const weightShift = Math.sin(gait * 0.5);
     if (gesture === 'jump') {
-      body.position.y = Math.sin(Math.PI * (1 - Math.max(0, gestureTime) / 1.8)) * 0.45;
+      body.position.y =
+        Math.sin(Math.PI * (1 - Math.max(0, gestureTime) / 1.8)) * 0.45;
     } else if (gesture === 'sit') {
       body.position.y = -0.18;
       body.rotation.x = -0.18;
@@ -275,17 +313,31 @@ export function createIslandAvatar(
     if (modelReady) {
       // Locomotion communicates player movement, including in reduced-motion mode.
       // Freezing the skeleton while the controller travels makes the player slide.
-      const nextAction = gesture === 'wave' && waveAction ? waveAction
-        : (seated || gesture === 'sit') && sitAction ? sitAction
-        : moving ? (pace.running ? runAction : walkAction) : idleAction;
+      const nextAction =
+        gesture === 'wave' && waveAction
+          ? waveAction
+          : (seated || gesture === 'sit') && sitAction
+            ? sitAction
+            : moving
+              ? pace.running
+                ? runAction
+                : walkAction
+              : idleAction;
       if (nextAction && nextAction !== activeAction) {
-        poseTransition=.3;
-        const phase = activeAction && (activeAction === walkAction || activeAction === runAction)
-          ? (activeAction.time / activeAction.getClip().duration) % 1 : 0;
+        poseTransition = 0.3;
+        const phase =
+          activeAction &&
+          (activeAction === walkAction || activeAction === runAction)
+            ? (activeAction.time / activeAction.getClip().duration) % 1
+            : 0;
         activeAction?.fadeOut(0.28);
         nextAction
           .reset()
-          .setEffectiveTimeScale(nextAction === walkAction || nextAction === runAction ? pace.timeScale : 1)
+          .setEffectiveTimeScale(
+            nextAction === walkAction || nextAction === runAction
+              ? pace.timeScale
+              : 1,
+          )
           .fadeIn(automatic ? 0.2 : 0.28)
           .play();
         if (nextAction === walkAction || nextAction === runAction)
@@ -294,33 +346,39 @@ export function createIslandAvatar(
       }
       walkAction?.setEffectiveTimeScale(pace.timeScale);
       runAction?.setEffectiveTimeScale(pace.timeScale);
-      const animate = poseTransition>0 || seated || !reducedMotion || moving || blend > .001;
-      poseTransition=Math.max(0,poseTransition-dt);
+      const animate =
+        poseTransition > 0 ||
+        seated ||
+        !reducedMotion ||
+        moving ||
+        blend > 0.001;
+      poseTransition = Math.max(0, poseTransition - dt);
       if (animate) mixer.update(dt);
       if (importedModel) {
-        importedModel.position.y =
-          importedModelBaseY;
+        importedModel.position.y = importedModelBaseY;
         if (gesture === 'jump')
-          importedModel.position.y += Math.sin(Math.PI * (1 - Math.max(0, gestureTime) / 1.8)) * 0.45;
+          importedModel.position.y +=
+            Math.sin(Math.PI * (1 - Math.max(0, gestureTime) / 1.8)) * 0.45;
         importedModel.rotation.y =
           Math.PI + (gesture === 'dance' ? Math.sin(gait * 1.7) * 0.35 : 0);
         importedModel.rotation.z =
-          gesture === 'dance'
-            ? Math.sin(gait * 1.7) * 0.16
-            : 0;
+          gesture === 'dance' ? Math.sin(gait * 1.7) * 0.16 : 0;
         // Captured pelvis, spine and shoulder motion already supplies weight transfer.
         importedModel.rotation.x = 0;
       }
       if (ground && !seated && !gesture && animate) placeFeet?.(ground);
-      if (seated && rowingTargets) rowingHands?.apply(rowingTargets.left,rowingTargets.right);
+      if (seated && rowingTargets)
+        rowingHands?.apply(rowingTargets.left, rowingTargets.right);
       return changed || animate;
     }
     const phase = distance * (automatic ? 8.8 : 7.2);
     const stride = blend * (automatic ? 1.08 : 1);
     legs.forEach(({ hip, knee }, index) => {
       const swing = Math.sin(phase + index * Math.PI);
-      hip.rotation.x = seated ? -Math.PI/2 : swing * 0.48 * stride;
-      knee.rotation.x = seated ? Math.PI/2 : Math.max(0, -swing) * 0.78 * stride;
+      hip.rotation.x = seated ? -Math.PI / 2 : swing * 0.48 * stride;
+      knee.rotation.x = seated
+        ? Math.PI / 2
+        : Math.max(0, -swing) * 0.78 * stride;
     });
     arms.forEach(({ shoulder, elbow }, index) => {
       shoulder.rotation.z =
@@ -329,18 +387,31 @@ export function createIslandAvatar(
       elbow.rotation.x =
         -0.1 - Math.max(0, Math.sin(phase + index * Math.PI)) * 0.14 * stride;
     });
-    body.rotation.x =
-      gesture === 'sit' ? -0.18 : moving ? -0.045 * stride : 0;
+    body.rotation.x = gesture === 'sit' ? -0.18 : moving ? -0.045 * stride : 0;
     body.rotation.z = moving ? weightShift * 0.028 * stride : 0;
     body.rotation.y = gesture === 'dance' ? Math.sin(gait * 1.7) * 0.35 : 0;
     body.position.y = gesture
       ? body.position.y
       : reducedMotion
-      ? 0
-      : Math.abs(Math.sin(phase)) * 0.035 * stride;
+        ? 0
+        : Math.abs(Math.sin(phase)) * 0.035 * stride;
     return blend > 0.001 || gesture !== null;
   }
-  return { root, ready, get hasHuman() { return modelReady; }, update, perform,
-    setRowingTargets(left?:THREE.Vector3,right?:THREE.Vector3){rowingTargets=left&&right?{left,right}:null;},
-    setSeated(value: boolean) { seated=value; if(!value)rowingTargets=null; shadow.visible=!value && mobile; } };
+  return {
+    root,
+    ready,
+    get hasHuman() {
+      return modelReady;
+    },
+    update,
+    perform,
+    setRowingTargets(left?: THREE.Vector3, right?: THREE.Vector3) {
+      rowingTargets = left && right ? { left, right } : null;
+    },
+    setSeated(value: boolean) {
+      seated = value;
+      if (!value) rowingTargets = null;
+      shadow.visible = !value && mobile;
+    },
+  };
 }

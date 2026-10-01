@@ -31,7 +31,11 @@ export function createIslandLife(
   };
   const time = { value: 0 };
   const oceanDaylight = { value: 0 };
-  const boatMasks={value:Array.from({length:5},()=>new THREE.Matrix4().makeTranslation(1e9,1e9,1e9))};
+  const boatMasks = {
+    value: Array.from({ length: 5 }, () =>
+      new THREE.Matrix4().makeTranslation(1e9, 1e9, 1e9),
+    ),
+  };
   const waterGeometry = own(
     new THREE.PlaneGeometry(240, 240, mobile ? 100 : 180, mobile ? 100 : 180),
   );
@@ -53,7 +57,7 @@ export function createIslandLife(
   water.onBeforeCompile = (shader) => {
     shader.uniforms.islandTime = time;
     shader.uniforms.oceanDaylight = oceanDaylight;
-    shader.uniforms.islandBoats=boatMasks;
+    shader.uniforms.islandBoats = boatMasks;
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
@@ -97,15 +101,23 @@ float oceanFoam=clamp(shore*.75+crest*.25,0.,.72);
 diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.65,.72,.73),oceanFoam);`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-roughnessFactor=mix(roughnessFactor,.74,oceanFoam);`)
-      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      .replace(
+        '#include <roughnessmap_fragment>',
+        `#include <roughnessmap_fragment>
+roughnessFactor=mix(roughnessFactor,.74,oceanFoam);`,
+      )
+      .replace(
+        '#include <normal_fragment_maps>',
+        `#include <normal_fragment_maps>
 vec3 waterSlope=oceanSample(oceanPosition.xz,islandTime);
 float rippleFade=1.-smoothstep(35.,160.,length(cameraPosition-oceanPosition));
 vec2 ripples=vec2(.08,.035)*cos(dot(oceanPosition.xz,vec2(2.3,1.1))-islandTime*2.1)+vec2(-.035,.07)*cos(dot(oceanPosition.xz,vec2(-1.7,3.2))-islandTime*2.8);
 vec3 waterNormal=normalize(vec3(-waterSlope.y-ripples.x*rippleFade,1.,-waterSlope.z-ripples.y*rippleFade));
-normal=normalize(mat3(viewMatrix)*waterNormal);nonPerturbedNormal=normal;`)
-      .replace('#include <opaque_fragment>', `vec3 waterView=normalize(cameraPosition-oceanPosition);
+normal=normalize(mat3(viewMatrix)*waterNormal);nonPerturbedNormal=normal;`,
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        `vec3 waterView=normalize(cameraPosition-oceanPosition);
 vec3 reflectedRay=reflect(-waterView,waterNormal);
 float skyHeight=smoothstep(0.,.85,reflectedRay.y);
 vec3 nightSky=mix(vec3(.028,.052,.072),vec3(.012,.025,.047),skyHeight);
@@ -113,7 +125,8 @@ vec3 daySky=mix(vec3(.61,.78,.91),vec3(.12,.39,.76),skyHeight);
 vec3 reflectedSky=mix(nightSky,daySky,oceanDaylight);
 float fresnel=.0204+.9796*pow(1.-max(dot(waterNormal,waterView),0.),5.);
 outgoingLight=mix(outgoingLight,reflectedSky,fresnel*.8*(1.-oceanFoam));
-#include <opaque_fragment>`);
+#include <opaque_fragment>`,
+      );
   };
   water.customProgramCacheKey = () =>
     `nocturne-living-water-3-${layout.coastGLSL ?? 'legacy'}`;
@@ -406,9 +419,11 @@ void main(){vec3 direction=normalize(skyDirection);vec2 p=direction.xz/(max(dire
     },
   );
   function update(seconds: number, camera?: THREE.Camera) {
-    if(camera){
-      sea.position.x=horizon.position.x=Math.round(camera.position.x/14)*14;
-      sea.position.z=horizon.position.z=Math.round(camera.position.z/14)*14;
+    if (camera) {
+      sea.position.x = horizon.position.x =
+        Math.round(camera.position.x / 14) * 14;
+      sea.position.z = horizon.position.z =
+        Math.round(camera.position.z / 14) * 14;
     }
     time.value = seconds;
     for (let index = 0; index < fishes.length; index++) {
@@ -450,7 +465,7 @@ void main(){vec3 direction=normalize(skyDirection);vec2 p=direction.xz/(max(dire
         : crowPose(seconds, index);
       crow.root.position.set(pose.x, pose.y, pose.z);
       if (layout.crowOffset) crow.root.position.add(layout.crowOffset);
-      crow.root.visible = pose.opacity > .001;
+      crow.root.visible = pose.opacity > 0.001;
       crow.material.opacity = pose.opacity;
       crow.root.rotation.set(pose.bank, pose.yaw, pose.pitch, 'YXZ');
       crow.wings[0].rotation.x = pose.flap;
@@ -458,11 +473,27 @@ void main(){vec3 direction=normalize(skyDirection);vec2 p=direction.xz/(max(dire
     });
   }
   update(0);
-  return { update, water, sea, horizon, clouds, fishes, crows,
-    setDaylight(enabled: boolean) { oceanDaylight.value = enabled ? 1 : 0; },
-    setBoats(boats:THREE.Object3D[]){boatMasks.value.forEach((mask,i)=>{
-      const boat=boats[i];if(!boat){mask.makeTranslation(1e9,1e9,1e9);return;}
-      boat.updateWorldMatrix(true,false);mask.copy(boat.matrixWorld).invert();
-    });},
+  return {
+    update,
+    water,
+    sea,
+    horizon,
+    clouds,
+    fishes,
+    crows,
+    setDaylight(enabled: boolean) {
+      oceanDaylight.value = enabled ? 1 : 0;
+    },
+    setBoats(boats: THREE.Object3D[]) {
+      boatMasks.value.forEach((mask, i) => {
+        const boat = boats[i];
+        if (!boat) {
+          mask.makeTranslation(1e9, 1e9, 1e9);
+          return;
+        }
+        boat.updateWorldMatrix(true, false);
+        mask.copy(boat.matrixWorld).invert();
+      });
+    },
   };
 }

@@ -1,7 +1,16 @@
 import { createOceanTraffic } from './island-traffic.ts';
 import { createRowboatOars } from './island-rowing.ts';
 import { createHaunting } from './island-haunting.ts';
-import { SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE, stairTreads, stairRails, BOAT_DOCK, BOAT_MOORING, DOCK_HEIGHT } from './island-stairs.ts';
+import {
+  SHORE_ROUTE,
+  TOWER_ROUTE,
+  BRIDGE_ROUTE,
+  stairTreads,
+  stairRails,
+  BOAT_DOCK,
+  BOAT_MOORING,
+  DOCK_HEIGHT,
+} from './island-stairs.ts';
 import { islandLamps } from './island-lamps.ts';
 import * as THREE from 'three';
 import type { IslandMode } from './island-mode.ts';
@@ -171,7 +180,17 @@ export function createReferenceEnvironment(
       );
   };
   const winterCover = { value: 0 };
-  for (const mat of [stone, darkStone, edge, rock, soil, path, roof, graveStone, perimeterWood])
+  for (const mat of [
+    stone,
+    darkStone,
+    edge,
+    rock,
+    soil,
+    path,
+    roof,
+    graveStone,
+    perimeterWood,
+  ])
     addWinterSurface(mat, winterCover);
   const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
   const boxGeo = own(new THREE.BoxGeometry(1, 1, 1));
@@ -352,7 +371,18 @@ export function createReferenceEnvironment(
   const crag = createCrag(5),
     scatterCrag = createCrag(2);
   for (const boulder of coastalRocks(mobile)) {
-    add(crag, rock, boulder.x, boulder.y, boulder.z, boulder.sx, boulder.sy, boulder.sz, boulder.turn, boulder.tilt);
+    add(
+      crag,
+      rock,
+      boulder.x,
+      boulder.y,
+      boulder.z,
+      boulder.sx,
+      boulder.sy,
+      boulder.sz,
+      boulder.turn,
+      boulder.tilt,
+    );
   }
 
   // A continuous wet ribbon, with individual raised cobbles and irregular curbs.
@@ -440,7 +470,7 @@ export function createReferenceEnvironment(
         0,
       );
       dummy.scale.set(
-        0.44 + rand() * 0.10,
+        0.44 + rand() * 0.1,
         0.28 + rand() * 0.24,
         0.27 + rand() * 0.06,
       );
@@ -460,7 +490,7 @@ export function createReferenceEnvironment(
 
   const fires: THREE.Mesh[] = [];
   const lampSources: THREE.Vector3[] = [];
-  const localLights = Array.from({length: mobile ? 5 : 10}, () => {
+  const localLights = Array.from({ length: mobile ? 5 : 10 }, () => {
     const light = new THREE.PointLight(0xffbc80, 0, 17, 2);
     scene.add(light);
     return light;
@@ -539,7 +569,9 @@ export function createReferenceEnvironment(
           z = THREE.MathUtils.lerp(az, bz, t),
           y = groundHeight(x, z);
         const key = `${x.toFixed(3)},${z.toFixed(3)}`;
-        const atGate = Math.abs(z-gatePoint.z)<.01 && Math.abs(Math.abs(x-gatePoint.x)-3)<.01;
+        const atGate =
+          Math.abs(z - gatePoint.z) < 0.01 &&
+          Math.abs(Math.abs(x - gatePoint.x) - 3) < 0.01;
         if (!fenceBars.has(key) && !atGate) {
           fenceBars.add(key);
           box(iron, x, y + 1.04, z, 0.029, 2, 0.029);
@@ -611,10 +643,17 @@ export function createReferenceEnvironment(
     }
     // Rails belong to each moving leaf, rather than the world origin.
     for (const h of [0.4, 1.25, 2.4]) {
-      const end = new THREE.Vector3(-side*1.3,0,-2.12);
-      const rail = new THREE.Mesh(own(new THREE.CylinderGeometry(.035,.035,end.length(),6)),iron);
-      rail.position.copy(end).multiplyScalar(.5); rail.position.y=h;
-      rail.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.normalize());
+      const end = new THREE.Vector3(-side * 1.3, 0, -2.12);
+      const rail = new THREE.Mesh(
+        own(new THREE.CylinderGeometry(0.035, 0.035, end.length(), 6)),
+        iron,
+      );
+      rail.position.copy(end).multiplyScalar(0.5);
+      rail.position.y = h;
+      rail.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        end.normalize(),
+      );
       leaf.add(rail);
     }
     entranceGate.add(leaf);
@@ -637,7 +676,7 @@ export function createReferenceEnvironment(
   }
   for (const x of [8.1, 11.9])
     lantern(x, MANOR_ORIGIN.y + 3.9, -24.1, false, true);
-  for (const {x,y,z} of islandLamps) lantern(x,y+.1,z,true,true);
+  for (const { x, y, z } of islandLamps) lantern(x, y + 0.1, z, true, true);
 
   const cemetery = createReferenceGraves(graveStone, resources, mobile);
   scene.add(cemetery.root);
@@ -705,11 +744,27 @@ export function createReferenceEnvironment(
   const grassGeo = own(new THREE.BufferGeometry());
   const blades: number[] = [];
   for (let blade = 0; blade < 5; blade++) {
-    const angle = blade * 2.4, bend = 0.09 + blade * 0.018;
-    const x = Math.cos(angle), z = Math.sin(angle), h = 0.22 + blade * 0.034;
-    blades.push(-z * .013, 0, x * .013, z * .013, 0, -x * .013, x * bend, h, z * bend);
+    const angle = blade * 2.4,
+      bend = 0.09 + blade * 0.018;
+    const x = Math.cos(angle),
+      z = Math.sin(angle),
+      h = 0.22 + blade * 0.034;
+    blades.push(
+      -z * 0.013,
+      0,
+      x * 0.013,
+      z * 0.013,
+      0,
+      -x * 0.013,
+      x * bend,
+      h,
+      z * bend,
+    );
   }
-  grassGeo.setAttribute('position', new THREE.Float32BufferAttribute(blades, 3));
+  grassGeo.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(blades, 3),
+  );
   grassGeo.computeVertexNormals();
   const grassMat = material(0x45483a, { side: THREE.DoubleSide });
   const grassCount = mobile ? 1100 : 3200,
@@ -723,7 +778,14 @@ export function createReferenceEnvironment(
     dummy.rotation.set(0, rand() * 6, rand() * 0.4);
     dummy.scale.setScalar(0.6 + rand() * 1.4);
     dummy.updateMatrix();
-    grass.setColorAt(planted, new THREE.Color().setHSL(0.16 + rand() * 0.06, 0.14, 0.33 + rand() * 0.22));
+    grass.setColorAt(
+      planted,
+      new THREE.Color().setHSL(
+        0.16 + rand() * 0.06,
+        0.14,
+        0.33 + rand() * 0.22,
+      ),
+    );
     grass.setMatrixAt(planted++, dummy.matrix);
   }
   grass.count = planted;
@@ -815,9 +877,10 @@ export function createReferenceEnvironment(
     box(darkStone, x - w / 2, 3.3, z, 0.85, 36, 2.9);
   }
   for (const rail of bridgeParapets) {
-    const x=(rail.ax+rail.bx)/2, width=rail.bx-rail.ax;
-    box(darkStone,x,rail.floor+.43,rail.az,width,.75,.22);
-    box(edge,x,rail.floor+.87,rail.az,width,.16,rail.thickness);
+    const x = (rail.ax + rail.bx) / 2,
+      width = rail.bx - rail.ax;
+    box(darkStone, x, rail.floor + 0.43, rail.az, width, 0.75, 0.22);
+    box(edge, x, rail.floor + 0.87, rail.az, width, 0.16, rail.thickness);
   }
   // End landings overlap both cliffs so the bridge has no floating ends.
   box(stone, -47.6, 25.05, -31, 3, 0.7, 2.8);
@@ -826,24 +889,55 @@ export function createReferenceEnvironment(
     const treads = stairTreads(route);
     for (const [index, step] of treads.entries()) {
       // A closed masonry shoulder bridges the clearance margin to the terrain.
-      const approachLanding = route === BRIDGE_ROUTE && index >= treads.length-route.length;
-      box(darkStone, step.x, step.y-.48, step.z, step.width+1, .9, step.depth+(approachLanding?1:.12), step.angle);
-      box(stone, step.x, step.y-.15, step.z, step.width, .3, step.depth, step.angle);
+      const approachLanding =
+        route === BRIDGE_ROUTE && index >= treads.length - route.length;
+      box(
+        darkStone,
+        step.x,
+        step.y - 0.48,
+        step.z,
+        step.width + 1,
+        0.9,
+        step.depth + (approachLanding ? 1 : 0.12),
+        step.angle,
+      );
+      box(
+        stone,
+        step.x,
+        step.y - 0.15,
+        step.z,
+        step.width,
+        0.3,
+        step.depth,
+        step.angle,
+      );
       // Subtle inset tread caps have exactly the same top as the walking surface.
-      box(edge, step.x, step.y-.035, step.z, step.width-.08, .07, Math.min(step.depth,.08), step.angle);
+      box(
+        edge,
+        step.x,
+        step.y - 0.035,
+        step.z,
+        step.width - 0.08,
+        0.07,
+        Math.min(step.depth, 0.08),
+        step.angle,
+      );
     }
-    for (const step of stairSupports(route)) box(darkStone, step.x, (step.y-1)/2, step.z, .34, step.y+1, .34);
-    for (const {a,b} of stairRails(route)) {
-      const start=new THREE.Vector3(...a), end=new THREE.Vector3(...b);
-      beam(start,end,.065,.065,iron);
-      for (const point of [start,end]) box(iron,point.x,point.y-.5,point.z,.07,1,.07);
+    for (const step of stairSupports(route))
+      box(darkStone, step.x, (step.y - 1) / 2, step.z, 0.34, step.y + 1, 0.34);
+    for (const { a, b } of stairRails(route)) {
+      const start = new THREE.Vector3(...a),
+        end = new THREE.Vector3(...b);
+      beam(start, end, 0.065, 0.065, iron);
+      for (const point of [start, end])
+        box(iron, point.x, point.y - 0.5, point.z, 0.07, 1, 0.07);
     }
   }
   buildStairRoute(SHORE_ROUTE);
   buildStairRoute(BRIDGE_ROUTE);
   // A level dock meets the final landing at the water.
-  box(wood, BOAT_DOCK.x, DOCK_HEIGHT-.15, BOAT_DOCK.z, 4.8, .3, 2.6);
-  lantern(BOAT_DOCK.x+2,DOCK_HEIGHT,BOAT_DOCK.z+.7,true,true);
+  box(wood, BOAT_DOCK.x, DOCK_HEIGHT - 0.15, BOAT_DOCK.z, 4.8, 0.3, 2.6);
+  lantern(BOAT_DOCK.x + 2, DOCK_HEIGHT, BOAT_DOCK.z + 0.7, true, true);
   const boat = new THREE.Group();
   boat.name = 'Small rowboat';
   const boatHull = material(0x8b4f2a, {
@@ -856,60 +950,115 @@ export function createReferenceEnvironment(
     emissiveIntensity: 0.25,
   });
   // Fine timber grain and dark plank seams use the existing hull/oar UVs.
-  for(const timber of [boatHull,boatTrim])timber.onBeforeCompile=shader=>{
-    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 timberUv;')
-      .replace('#include <begin_vertex>','#include <begin_vertex>\ntimberUv=uv;');
-    shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec2 timberUv;')
-      .replace('#include <color_fragment>','#include <color_fragment>\nfloat grain=sin(timberUv.y*240.+sin(timberUv.x*15.)*2.+sin(timberUv.x*53.)*.5);float seam=smoothstep(.015,.055,abs(fract(timberUv.y*8.)-.5));diffuseColor.rgb*= (.86+grain*.12)*mix(.62,1.,seam);');
-  };
+  for (const timber of [boatHull, boatTrim])
+    timber.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nvarying vec2 timberUv;',
+        )
+        .replace(
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\ntimberUv=uv;',
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nvarying vec2 timberUv;',
+        )
+        .replace(
+          '#include <color_fragment>',
+          '#include <color_fragment>\nfloat grain=sin(timberUv.y*240.+sin(timberUv.x*15.)*2.+sin(timberUv.x*53.)*.5);float seam=smoothstep(.015,.055,abs(fract(timberUv.y*8.)-.5));diffuseColor.rgb*= (.86+grain*.12)*mix(.62,1.,seam);',
+        );
+    };
   /* The continuous ocean already covers the landing; avoid a second flat water sheet. */
   // Curved open hull, raised bow and stern, benches, and oars.
-  const hullVertices: number[] = [], hullUvs: number[] = [], hullIndices: number[] = [];
+  const hullVertices: number[] = [],
+    hullUvs: number[] = [],
+    hullIndices: number[] = [];
   for (let row = 0; row <= 24; row++) {
-    const t = row / 24, x = (t - .5) * 5.2;
-    const width = .06 + Math.pow(Math.sin(t * Math.PI), .6) * .84;
+    const t = row / 24,
+      x = (t - 0.5) * 5.2;
+    const width = 0.06 + Math.pow(Math.sin(t * Math.PI), 0.6) * 0.84;
     for (let side = 0; side <= 12; side++) {
-      const angle = side / 12 * Math.PI;
-      hullVertices.push(x, .65 - Math.sin(angle) * .75 + Math.pow(Math.abs(t - .5) * 2, 3) * .3, Math.cos(angle) * width);
+      const angle = (side / 12) * Math.PI;
+      hullVertices.push(
+        x,
+        0.65 -
+          Math.sin(angle) * 0.75 +
+          Math.pow(Math.abs(t - 0.5) * 2, 3) * 0.3,
+        Math.cos(angle) * width,
+      );
       hullUvs.push(t * 4, side / 12);
       if (row < 24 && side < 12) {
-        const a = row * 13 + side, b = a + 13;
+        const a = row * 13 + side,
+          b = a + 13;
         hullIndices.push(a, b, a + 1, a + 1, b, b + 1);
       }
     }
   }
   const hullGeometry = own(new THREE.BufferGeometry());
-  hullGeometry.setAttribute('position', new THREE.Float32BufferAttribute(hullVertices, 3));
+  hullGeometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(hullVertices, 3),
+  );
   hullGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(hullUvs, 2));
-  hullGeometry.setIndex(hullIndices); hullGeometry.computeVertexNormals();
+  hullGeometry.setIndex(hullIndices);
+  hullGeometry.computeVertexNormals();
   boatHull.side = THREE.DoubleSide;
   boatHull.color.set(0x48392e);
   boatTrim.color.set(0x706251);
   const hull = new THREE.Mesh(hullGeometry, boatHull);
-  hull.castShadow = !mobile; hull.receiveShadow = true; boat.add(hull);
-  const boards=[];
-  for(let i=-2;i<=2;i++)boards.push(new THREE.BoxGeometry(3.65,.07,.19).translate(0,.13,i*.2));
-  const deck=own(mergeGeometries(boards)!);boards.forEach(g=>g.dispose());
-  boat.add(new THREE.Mesh(deck,boatTrim));
-  for (const x of [-1.1, .25, 1.25]) {
-    const bench = new THREE.Mesh(own(new THREE.BoxGeometry(.3, .12, 1.4)), boatTrim);
-    bench.position.set(x, .48, 0); boat.add(bench);
+  hull.castShadow = !mobile;
+  hull.receiveShadow = true;
+  boat.add(hull);
+  const boards = [];
+  for (let i = -2; i <= 2; i++)
+    boards.push(
+      new THREE.BoxGeometry(3.65, 0.07, 0.19).translate(0, 0.13, i * 0.2),
+    );
+  const deck = own(mergeGeometries(boards)!);
+  boards.forEach((g) => g.dispose());
+  boat.add(new THREE.Mesh(deck, boatTrim));
+  for (const x of [-1.1, 0.25, 1.25]) {
+    const bench = new THREE.Mesh(
+      own(new THREE.BoxGeometry(0.3, 0.12, 1.4)),
+      boatTrim,
+    );
+    bench.position.set(x, 0.48, 0);
+    boat.add(bench);
   }
   for (const side of [-1, 1]) {
     const points: THREE.Vector3[] = [];
     for (let i = 0; i <= 24; i++) {
       const t = i / 24;
-      points.push(new THREE.Vector3((t - .5) * 5.2, .65 + Math.pow(Math.abs(t - .5) * 2, 3) * .3, side * (.06 + Math.pow(Math.sin(t * Math.PI), .6) * .84)));
+      points.push(
+        new THREE.Vector3(
+          (t - 0.5) * 5.2,
+          0.65 + Math.pow(Math.abs(t - 0.5) * 2, 3) * 0.3,
+          side * (0.06 + Math.pow(Math.sin(t * Math.PI), 0.6) * 0.84),
+        ),
+      );
     }
-    const rail = new THREE.Mesh(own(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 32, .055, 6, false)), boatTrim);
+    const rail = new THREE.Mesh(
+      own(
+        new THREE.TubeGeometry(
+          new THREE.CatmullRomCurve3(points),
+          32,
+          0.055,
+          6,
+          false,
+        ),
+      ),
+      boatTrim,
+    );
     boat.add(rail);
   }
-  const rowing=createRowboatOars(boat,boatTrim,resources);
+  const rowing = createRowboatOars(boat, boatTrim, resources);
   boat.position.set(BOAT_MOORING.x, 0, BOAT_MOORING.z);
   scene.add(boat);
-  const traffic=createOceanTraffic(scene,boat,resources,mobile);
-  const haunting=createHaunting(scene,resources,mobile);
-
+  const traffic = createOceanTraffic(scene, boat, resources, mobile);
+  const haunting = createHaunting(scene, resources, mobile);
 
   // Tower entrance from the viaduct and a visible stair run to its roof lookout.
   const towerDoor = new THREE.Group();
@@ -951,8 +1100,8 @@ export function createReferenceEnvironment(
     [-49.45, -28.45],
   ] as const)
     box(darkStone, x, 36.35, z, 0.28, 2.05, 0.28);
-  box(edge, -54, lookoutRailY, -33.55, 1.3, .22, .2);
-  box(edge, -50, lookoutRailY, -33.55, 1.3, .22, .2);
+  box(edge, -54, lookoutRailY, -33.55, 1.3, 0.22, 0.2);
+  box(edge, -50, lookoutRailY, -33.55, 1.3, 0.22, 0.2);
   box(edge, -52, lookoutRailY, -28.45, 5.3, 0.22, 0.2);
   box(edge, -54.55, lookoutRailY, -31, 0.2, 0.22, 5.3);
   box(edge, -49.45, lookoutRailY, -31, 0.2, 0.22, 5.3);
@@ -981,9 +1130,16 @@ export function createReferenceEnvironment(
   });
   // Optional scanned statues can finish after entry; keep the full-quality
   // terrain, sky and real traveller as the entry requirements.
-  const detailsReady = loadCoastalProps(scene, resources, mobile, () => disposed, groundHeight, {
-    gate: gatePoint,
-  });
+  const detailsReady = loadCoastalProps(
+    scene,
+    resources,
+    mobile,
+    () => disposed,
+    groundHeight,
+    {
+      gate: gatePoint,
+    },
+  );
   life.clouds.visible = false;
   const weather = createIslandWeather(scene, resources, mobile);
   let daylight = false;
@@ -1030,10 +1186,19 @@ export function createReferenceEnvironment(
     mist.position.set(i % 2 ? -23 : 15, -5 + i * 3.3, -10);
     scene.add(mist);
   }
-  for(const [x,z] of [[-4,4],[21,-12],[-7,-20],[-5,15],[16,-40],[-10,-27]]){
-    const mist=new THREE.Mesh(mistGeo,mistMat);
-    mist.scale.set(.19,.13,1);mist.rotation.x=-Math.PI/2;
-    mist.position.set(x,groundHeight(x,z)+.32,z);scene.add(mist);
+  for (const [x, z] of [
+    [-4, 4],
+    [21, -12],
+    [-7, -20],
+    [-5, 15],
+    [16, -40],
+    [-10, -27],
+  ]) {
+    const mist = new THREE.Mesh(mistGeo, mistMat);
+    mist.scale.set(0.19, 0.13, 1);
+    mist.rotation.x = -Math.PI / 2;
+    mist.position.set(x, groundHeight(x, z) + 0.32, z);
+    scene.add(mist);
   }
   function setMode(value: IslandMode) {
     mode = value;
@@ -1042,9 +1207,12 @@ export function createReferenceEnvironment(
     weather.setMode(value);
     life.setDaylight(daylight);
     haunting.setEnabled(value === 'night');
-    life.water.color.setHex(value === 'winter' ? 0x527783 : daylight ? 0x3d879d : 0x233d4a);
-    mistMat.uniforms.density.value = value === 'day' ? .15 : value === 'winter' ? .75 : 1;
-    scene.environmentIntensity = daylight ? .12 : .32;
+    life.water.color.setHex(
+      value === 'winter' ? 0x527783 : daylight ? 0x3d879d : 0x233d4a,
+    );
+    mistMat.uniforms.density.value =
+      value === 'day' ? 0.15 : value === 'winter' ? 0.75 : 1;
+    scene.environmentIntensity = daylight ? 0.12 : 0.32;
   }
   return {
     constrainShoreCamera: shoreCamera.constrain,
@@ -1064,22 +1232,36 @@ export function createReferenceEnvironment(
       setMode(enabled ? 'day' : 'night');
     },
     update(time: number, camera?: THREE.Camera) {
-      life.update(time,camera);
-      traffic.update(time,camera?.position ?? boat.position,boat.position);
-      haunting.update(time,camera);
+      life.update(time, camera);
+      traffic.update(time, camera?.position ?? boat.position, boat.position);
+      haunting.update(time, camera);
       const swell = oceanSample(boat.position.x, boat.position.z, time);
-      boat.position.y = swell.height + .08;
-      boat.rotation.x = Math.atan2(swell.normal.z, swell.normal.y) * .35;
-      boat.rotation.z = -Math.atan2(swell.normal.x, swell.normal.y) * .35;
-      life.setBoats([boat,...traffic.boats.filter(b=>b.root.visible).map(b=>b.root)]);
+      boat.position.y = swell.height + 0.08;
+      boat.rotation.x = Math.atan2(swell.normal.z, swell.normal.y) * 0.35;
+      boat.rotation.z = -Math.atan2(swell.normal.x, swell.normal.y) * 0.35;
+      life.setBoats([
+        boat,
+        ...traffic.boats.filter((b) => b.root.visible).map((b) => b.root),
+      ]);
       weather.update(time, camera);
       if (camera) {
-        const nearest = lampSources.map((position,index) => ({position,index,distance:position.distanceToSquared(camera.position)})).sort((a,b) => a.distance-b.distance);
-        localLights.forEach((lamp,i) => {
-          const source=nearest[i];
-          if (!source) { lamp.intensity=0; return; }
+        const nearest = lampSources
+          .map((position, index) => ({
+            position,
+            index,
+            distance: position.distanceToSquared(camera.position),
+          }))
+          .sort((a, b) => a.distance - b.distance);
+        localLights.forEach((lamp, i) => {
+          const source = nearest[i];
+          if (!source) {
+            lamp.intensity = 0;
+            return;
+          }
           lamp.position.copy(source.position);
-          lamp.intensity=(mode === 'day' ? 5 : mode === 'winter' ? 22 : 30)*(1+.05*Math.sin(time*4.1+source.index*2.1));
+          lamp.intensity =
+            (mode === 'day' ? 5 : mode === 'winter' ? 22 : 30) *
+            (1 + 0.05 * Math.sin(time * 4.1 + source.index * 2.1));
         });
       }
       mistTime.value = time;

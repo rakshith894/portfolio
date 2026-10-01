@@ -6,7 +6,11 @@ import { walkingHeight } from './island-walk.ts';
 import { createTravelDirection, followBehind } from './chase-camera.ts';
 import { MANOR_ORIGIN } from './reference-layout.ts';
 import { MANOR_DOOR } from './manor-layout.ts';
-import { createHouseWalker, houseRoute, type HousePoint } from './house-layout.ts';
+import {
+  createHouseWalker,
+  houseRoute,
+  type HousePoint,
+} from './house-layout.ts';
 import { createHouseScene } from './house-scene.ts';
 import { houseSurface } from './house-stairs.ts';
 import { createHouseCamera } from './house-camera.ts';
@@ -65,21 +69,40 @@ export function createHouseExploration(
     lastStatus = '',
     blocked = 0;
   let route: HousePoint[] = [];
-  let exitAfterRoute = false, arrivalDoor: string | null = null, routeBlocked = 0;
+  let exitAfterRoute = false,
+    arrivalDoor: string | null = null,
+    routeBlocked = 0;
   const velocity = new THREE.Vector3();
   const walkSpeed = 1.45;
   let hallSettings = { ...DEFAULT_HALL_SETTINGS };
-  const markerGeometry = new THREE.RingGeometry(.16, .23, 32);
-  const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xe6d7a1, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide });
+  const markerGeometry = new THREE.RingGeometry(0.16, 0.23, 32);
+  const markerMaterial = new THREE.MeshBasicMaterial({
+    color: 0xe6d7a1,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
   const marker = new THREE.Mesh(markerGeometry, markerMaterial);
   marker.name = 'Indoor walk destination';
   marker.rotation.x = -Math.PI / 2;
   marker.visible = false;
   root.add(marker);
   const pathGeometry = new THREE.BufferGeometry();
-  const pathMaterial = new THREE.LineDashedMaterial({ color: 0x9fffe0, transparent: true, opacity: .7, dashSize: .22, gapSize: .14, depthWrite: false });
-  const path = new THREE.Line(pathGeometry, pathMaterial); path.name = 'Guided indoor walking path'; path.visible = false; root.add(path);
-  let viewDistance = 2.65, smoothedConstrainDist: number | null = null;
+  const pathMaterial = new THREE.LineDashedMaterial({
+    color: 0x9fffe0,
+    transparent: true,
+    opacity: 0.7,
+    dashSize: 0.22,
+    gapSize: 0.14,
+    depthWrite: false,
+  });
+  const path = new THREE.Line(pathGeometry, pathMaterial);
+  path.name = 'Guided indoor walking path';
+  path.visible = false;
+  root.add(path);
+  let viewDistance = 2.65,
+    smoothedConstrainDist: number | null = null;
   const target = new THREE.Vector3(),
     old = new THREE.Vector3(),
     change = new THREE.Vector3();
@@ -101,7 +124,7 @@ export function createHouseExploration(
     if (object instanceof THREE.Mesh) collisions.push(object);
   });
   const cameraObstacles = [...collisions];
-  manor.traverse(object => {
+  manor.traverse((object) => {
     if (object instanceof THREE.Mesh) cameraObstacles.push(object);
   });
   const constrainCamera = createHouseCamera(cameraObstacles);
@@ -127,12 +150,15 @@ export function createHouseExploration(
               ? 'Walking through the doorway.'
               : phase === 'leaving'
                 ? 'Walking back outside.'
-                : (room?.detail ?? 'Meet the hologram in the center. The right door opens the Skills Room; the west staircase leads to the Projects Room. Tap the floor or a stair tread to walk there.'),
+                : (room?.detail ??
+                  'Meet the hologram in the center. The right door opens the Skills Room; the west staircase leads to the Projects Room. Tap the floor or a stair tread to walk there.'),
       door: phase === 'inside' ? (nearby?.name ?? null) : null,
       open: !!nearby?.target,
       travelling: phase !== 'inside' || route.length > 0,
       masterHall: phase === 'inside' && room?.id === 'master-hall',
-      skillsRoom: phase === 'inside' && ['dining', 'west-gallery', 'seance'].includes(room?.id ?? ''),
+      skillsRoom:
+        phase === 'inside' &&
+        ['dining', 'west-gallery', 'seance'].includes(room?.id ?? ''),
     };
     const key = JSON.stringify(status);
     if (key !== lastStatus) {
@@ -175,16 +201,35 @@ export function createHouseExploration(
     if (phase !== 'inside') return false;
     const candidates = [point];
     // A click on an edge can choose the adjacent safe floor, never another level.
-    for (const radius of [.2, .4, .6, .85, 1.2, 1.6])
-      for (let i = 0; i < 8; i++) candidates.push({ x: point.x + Math.cos(i * Math.PI / 4) * radius, z: point.z + Math.sin(i * Math.PI / 4) * radius, y: point.y });
-    const goal = candidates.find(candidate => indoor.canStand(candidate, true));
+    for (const radius of [0.2, 0.4, 0.6, 0.85, 1.2, 1.6])
+      for (let i = 0; i < 8; i++)
+        candidates.push({
+          x: point.x + Math.cos((i * Math.PI) / 4) * radius,
+          z: point.z + Math.sin((i * Math.PI) / 4) * radius,
+          y: point.y,
+        });
+    const goal = candidates.find((candidate) =>
+      indoor.canStand(candidate, true),
+    );
     if (!goal) return false;
-    const planned = houseRoute(indoor.position, goal, candidate => indoor.canStand(candidate, true));
+    const planned = houseRoute(indoor.position, goal, (candidate) =>
+      indoor.canStand(candidate, true),
+    );
     if (!planned?.length) return false;
-    route = planned; exitAfterRoute = false; arrivalDoor = null; routeBlocked = 0;
-    pathGeometry.dispose(); pathGeometry.deleteAttribute('position'); pathGeometry.setFromPoints([indoor.position, ...planned].map(p => new THREE.Vector3(p.x, (p.y ?? 0) + .04, p.z)));
-    path.computeLineDistances(); path.visible = true;
-    marker.position.set(goal.x, (goal.y ?? 0) + .025, goal.z);
+    route = planned;
+    exitAfterRoute = false;
+    arrivalDoor = null;
+    routeBlocked = 0;
+    pathGeometry.dispose();
+    pathGeometry.deleteAttribute('position');
+    pathGeometry.setFromPoints(
+      [indoor.position, ...planned].map(
+        (p) => new THREE.Vector3(p.x, (p.y ?? 0) + 0.04, p.z),
+      ),
+    );
+    path.computeLineDistances();
+    path.visible = true;
+    marker.position.set(goal.x, (goal.y ?? 0) + 0.025, goal.z);
     marker.visible = true;
     emit();
     return true;
@@ -210,7 +255,12 @@ export function createHouseExploration(
     const visualY = player.root.position.y;
     player.root.position.copy(walker.position);
     if (phase === 'inside') {
-      player.root.position.y = THREE.MathUtils.damp(visualY, walker.position.y, 22, dt);
+      player.root.position.y = THREE.MathUtils.damp(
+        visualY,
+        walker.position.y,
+        22,
+        dt,
+      );
       change.y = player.root.position.y - visualY;
     }
     if (travelled > 0.00001) {
@@ -223,9 +273,15 @@ export function createHouseExploration(
     }
     player.root.rotation.x = player.root.rotation.z = 0;
     player.update(distance, travelled > 0.00001, dt, reduced, false, (x, z) =>
-      phase === 'approach' ? walkingHeight(x, z) : phase === 'inside'
-        ? origin.y + (houseSurface({ x: x - origin.x, z: z - origin.z }, indoor.position.y) ?? indoor.position.y)
-        : passageHeight(x, z),
+      phase === 'approach'
+        ? walkingHeight(x, z)
+        : phase === 'inside'
+          ? origin.y +
+            (houseSurface(
+              { x: x - origin.x, z: z - origin.z },
+              indoor.position.y,
+            ) ?? indoor.position.y)
+          : passageHeight(x, z),
     );
   }
   function moveTo(
@@ -259,17 +315,32 @@ export function createHouseExploration(
     get masterHall() {
       return phase === 'inside' && indoor.room()?.id === 'master-hall';
     },
-    get travelling() { return phase !== 'inside' || route.length > 0; },
-    get position() { return { ...indoor.position }; },
-    setHallSettings(settings: HallSettings) { hallSettings = { ...settings }; },
-    get skillsRoom() { return phase === 'inside' && ['dining', 'west-gallery', 'seance'].includes(indoor.room()?.id ?? ''); },
+    get travelling() {
+      return phase !== 'inside' || route.length > 0;
+    },
+    get position() {
+      return { ...indoor.position };
+    },
+    setHallSettings(settings: HallSettings) {
+      hallSettings = { ...settings };
+    },
+    get skillsRoom() {
+      return (
+        phase === 'inside' &&
+        ['dining', 'west-gallery', 'seance'].includes(indoor.room()?.id ?? '')
+      );
+    },
     unoccluded(ray: THREE.Raycaster, distance: number) {
       root.updateMatrixWorld(true);
       const hit = ray.intersectObjects(collisions, false)[0];
-      return !hit || hit.distance >= distance - .04;
+      return !hit || hit.distance >= distance - 0.04;
     },
-    setProjects(projects: HallProject[]) { world.projectFrames.setProjects(projects); },
-    selectProject(id: HallFrameId | null) { world.projectFrames.select(id); },
+    setProjects(projects: HallProject[]) {
+      world.projectFrames.setProjects(projects);
+    },
+    selectProject(id: HallFrameId | null) {
+      world.projectFrames.select(id);
+    },
     enter() {
       if (phase !== 'outside' || !walker.nearHouse) return false;
       root.visible = true;
@@ -302,10 +373,15 @@ export function createHouseExploration(
       const hit = ray.intersectObjects(collisions, false)[0];
       if (indoor.room()?.id === 'master-hall') {
         const frameHit = world.projectFrames.hit(ray);
-        if (frameHit && (!hit || frameHit.distance <= hit.distance + .02)) {
+        if (frameHit && (!hit || frameHit.distance <= hit.distance + 0.02)) {
           let object: THREE.Object3D | null = frameHit.object;
-          while (object && !object.userData.projectFrame) object = object.parent;
-          if (object) { stop(); openProject(object.userData.projectFrame as HallFrameId); return true; }
+          while (object && !object.userData.projectFrame)
+            object = object.parent;
+          if (object) {
+            stop();
+            openProject(object.userData.projectFrame as HallFrameId);
+            return true;
+          }
         }
       }
       if (!hit) return false;
@@ -313,20 +389,42 @@ export function createHouseExploration(
       while (object && object !== scene) {
         const id = [...world.doors].find(([, door]) => door === object)?.[0];
         if (id || object === exteriorDoor) {
-          const door = indoor.doors.find(door => door.id === (id ?? 'front'))!;
-          if (door.id === 'front') { returnToDoor(); return true; }
-          if (indoor.nearestDoor()?.id === door.id) { stop(); indoor.open(door.id); creak(); return true; }
+          const door = indoor.doors.find(
+            (door) => door.id === (id ?? 'front'),
+          )!;
+          if (door.id === 'front') {
+            returnToDoor();
+            return true;
+          }
+          if (indoor.nearestDoor()?.id === door.id) {
+            stop();
+            indoor.open(door.id);
+            creak();
+            return true;
+          }
           const nearSide = Math.sign(indoor.position.x - door.x) || 1;
-          if (!walkTo({ x: door.x + nearSide * .85, z: door.z + door.width / 2, y: door.y ?? 0 })) return false;
+          if (
+            !walkTo({
+              x: door.x + nearSide * 0.85,
+              z: door.z + door.width / 2,
+              y: door.y ?? 0,
+            })
+          )
+            return false;
           arrivalDoor = door.id;
           return true;
         }
         object = object.parent;
       }
-      if (!hit.face || hit.face.normal.clone().transformDirection(hit.object.matrixWorld).y < .65) return false;
+      if (
+        !hit.face ||
+        hit.face.normal.clone().transformDirection(hit.object.matrixWorld).y <
+          0.65
+      )
+        return false;
       const point = root.worldToLocal(hit.point.clone());
       const height = houseSurface(point, point.y);
-      if (height === null || Math.abs(height - point.y) > .22) return false;
+      if (height === null || Math.abs(height - point.y) > 0.22) return false;
       return walkTo({ x: point.x, z: point.z, y: height });
     },
     update(
@@ -405,7 +503,11 @@ export function createHouseExploration(
           manualCamera(),
         );
         if ((forward || side) && route.length) {
-          route = []; exitAfterRoute = false; arrivalDoor = null; marker.visible = false; routeBlocked = 0;
+          route = [];
+          exitAfterRoute = false;
+          arrivalDoor = null;
+          marker.visible = false;
+          routeBlocked = 0;
           path.visible = false;
         }
         const following = route.length > 0;
@@ -421,22 +523,33 @@ export function createHouseExploration(
           const dx = point.x - indoor.position.x,
             dz = point.z - indoor.position.z;
           const remaining = Math.hypot(dx, dz);
-          if (remaining < 0.001 && Math.abs((point.y ?? 0) - indoor.position.y) < .19) {
+          if (
+            remaining < 0.001 &&
+            Math.abs((point.y ?? 0) - indoor.position.y) < 0.19
+          ) {
             route.shift();
             if (!route.length) {
               velocity.set(0, 0, 0);
               marker.visible = false;
               path.visible = false;
               if (exitAfterRoute) startLeaving();
-              else if (arrivalDoor) { indoor.open(arrivalDoor); creak(); arrivalDoor = null; }
+              else if (arrivalDoor) {
+                indoor.open(arrivalDoor);
+                creak();
+                arrivalDoor = null;
+              }
             }
             continue;
           }
-          if (remaining < .001) break;
+          if (remaining < 0.001) break;
           const door = indoor.nearestDoor();
-          const ahead = door && route.find(next =>
-            Math.sign(indoor.position.x - door.x) !== Math.sign(next.x - door.x),
-          );
+          const ahead =
+            door &&
+            route.find(
+              (next) =>
+                Math.sign(indoor.position.x - door.x) !==
+                Math.sign(next.x - door.x),
+            );
           if (
             door &&
             door.id !== 'front' &&
@@ -449,13 +562,17 @@ export function createHouseExploration(
             creak();
           }
           if (door?.target && door.progress < 1) break;
-          if (remainingStep <= .000001) break;
+          if (remainingStep <= 0.000001) break;
           const step = Math.min(remaining, remainingStep);
-          const previousX = indoor.position.x, previousZ = indoor.position.z;
-          indoor.move(dx / remaining * step, dz / remaining * step);
-          const moved = Math.hypot(indoor.position.x - previousX, indoor.position.z - previousZ);
+          const previousX = indoor.position.x,
+            previousZ = indoor.position.z;
+          indoor.move((dx / remaining) * step, (dz / remaining) * step);
+          const moved = Math.hypot(
+            indoor.position.x - previousX,
+            indoor.position.z - previousZ,
+          );
           remainingStep -= step;
-          if (moved < .000001 || moved < step * .99) break;
+          if (moved < 0.000001 || moved < step * 0.99) break;
         }
         if (!following) {
           // Releasing the controls stops precisely, without drifting into walls.
@@ -467,13 +584,29 @@ export function createHouseExploration(
           origin.y + indoor.position.y,
           origin.z + indoor.position.z,
         );
-        const companions = followers().map(point => ({ x: point.x - origin.x, y: point.y - origin.y, z: point.z - origin.z }));
+        const companions = followers().map((point) => ({
+          x: point.x - origin.x,
+          y: point.y - origin.y,
+          z: point.z - origin.z,
+        }));
         for (const door of indoor.doors) {
-          if (!door.target && companions.some(point => Math.abs(point.y - (door.y ?? 0)) < .45 && Math.hypot(point.x - door.x, point.z - door.z) < door.width + .7)) indoor.open(door.id);
+          if (
+            !door.target &&
+            companions.some(
+              (point) =>
+                Math.abs(point.y - (door.y ?? 0)) < 0.45 &&
+                Math.hypot(point.x - door.x, point.z - door.z) <
+                  door.width + 0.7,
+            )
+          )
+            indoor.open(door.id);
         }
         indoor.update(dt, companions);
         if (following && route.length) {
-          routeBlocked = old.distanceToSquared(walker.position) < 1e-8 ? routeBlocked + dt : 0;
+          routeBlocked =
+            old.distanceToSquared(walker.position) < 1e-8
+              ? routeBlocked + dt
+              : 0;
           // Let an opening door finish; cancel a genuinely unreachable route.
           if (routeBlocked > 3) stop();
         }
@@ -498,7 +631,8 @@ export function createHouseExploration(
         const zoomDelta = inputDistance - preUpdateDist;
         if (Math.abs(zoomDelta) > 0.01) {
           const next = THREE.MathUtils.clamp(inputDistance, 0.8, 4.3);
-          if (Math.abs(next - viewDistance) > 0.04) smoothedConstrainDist = null;
+          if (Math.abs(next - viewDistance) > 0.04)
+            smoothedConstrainDist = null;
           viewDistance = next;
         }
         if (Math.hypot(change.x, change.z) > 0.00001 && !manualCamera())
@@ -512,15 +646,25 @@ export function createHouseExploration(
         const rawConstrained = camera.position.distanceTo(controls.target);
         // Asymmetric smoothing: snap IN immediately when hitting geometry,
         // expand OUT slowly to kill wall-edge flicker.
-        if (smoothedConstrainDist === null || rawConstrained <= smoothedConstrainDist) {
+        if (
+          smoothedConstrainDist === null ||
+          rawConstrained <= smoothedConstrainDist
+        ) {
           smoothedConstrainDist = rawConstrained;
         } else {
-          smoothedConstrainDist = Math.min(desiredDistance,
-            THREE.MathUtils.damp(smoothedConstrainDist, rawConstrained, 8, dt));
+          smoothedConstrainDist = Math.min(
+            desiredDistance,
+            THREE.MathUtils.damp(smoothedConstrainDist, rawConstrained, 8, dt),
+          );
         }
         if (rawConstrained > 0.001) {
-          cameraDirection.copy(camera.position).sub(controls.target).normalize();
-          camera.position.copy(controls.target).addScaledVector(cameraDirection, smoothedConstrainDist);
+          cameraDirection
+            .copy(camera.position)
+            .sub(controls.target)
+            .normalize();
+          camera.position
+            .copy(controls.target)
+            .addScaledVector(cameraDirection, smoothedConstrainDist);
         }
         camera.lookAt(controls.target);
       } else {
@@ -551,8 +695,10 @@ export function createHouseExploration(
       }
     },
     dispose() {
-      pathGeometry.dispose(); pathMaterial.dispose();
-      markerGeometry.dispose(); markerMaterial.dispose();
+      pathGeometry.dispose();
+      pathMaterial.dispose();
+      markerGeometry.dispose();
+      markerMaterial.dispose();
       world.dispose();
       root.removeFromParent();
     },

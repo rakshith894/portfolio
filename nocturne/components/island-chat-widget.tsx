@@ -1,153 +1,543 @@
 'use client';
-import { useState, useRef, useEffect, useImperativeHandle, type Ref } from 'react';
-import { Bot, X, Send, Mic, MicOff, Volume2, VolumeX, Pause, Play, Square } from 'lucide-react';
+import {
+  useState,
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  type Ref,
+} from 'react';
+import {
+  Bot,
+  X,
+  Send,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Pause,
+  Play,
+  Square,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CHAT_LIMIT, chatHistory, localAssistantReply, portfolioReading, validateAssistantReply, type ChatMessage, type AssistantAction, type AssistantReply, type PortfolioContent } from '@/lib/portfolio-assistant';
-import { createAssistantVoice, recognitionConstructor, type Recognition, type VoiceState } from '@/lib/assistant-voice';
+import {
+  CHAT_LIMIT,
+  chatHistory,
+  localAssistantReply,
+  portfolioReading,
+  validateAssistantReply,
+  type ChatMessage,
+  type AssistantAction,
+  type AssistantReply,
+  type PortfolioContent,
+} from '@/lib/portfolio-assistant';
+import {
+  createAssistantVoice,
+  recognitionConstructor,
+  type Recognition,
+  type VoiceState,
+} from '@/lib/assistant-voice';
 import { stopIslandSpeech } from '@/lib/island-commands';
 
 export type AssistantHandle = { startVoice: () => void };
 type Props = PortfolioContent & {
-  ref?: Ref<AssistantHandle>; active?: boolean;
+  ref?: Ref<AssistantHandle>;
+  active?: boolean;
   onAction: (action: AssistantAction) => string | void;
   onVoiceStart: () => void;
 };
-const languages = [['en-US', 'English'], ['en-IN', 'English (India)'], ['kn-IN', 'ಕನ್ನಡ'], ['hi-IN', 'हिन्दी'], ['ta-IN', 'தமிழ்'], ['te-IN', 'తెలుగు'], ['ml-IN', 'മലയാളം'], ['es-ES', 'Español'], ['fr-FR', 'Français'], ['de-DE', 'Deutsch'], ['ja-JP', '日本語'], ['ar-SA', 'العربية']];
-export function IslandChatWidget({ ref, active = true, onAction, onVoiceStart, ...content }: Props) {
+const languages = [
+  ['en-US', 'English'],
+  ['en-IN', 'English (India)'],
+  ['kn-IN', 'ಕನ್ನಡ'],
+  ['hi-IN', 'हिन्दी'],
+  ['ta-IN', 'தமிழ்'],
+  ['te-IN', 'తెలుగు'],
+  ['ml-IN', 'മലയാളം'],
+  ['es-ES', 'Español'],
+  ['fr-FR', 'Français'],
+  ['de-DE', 'Deutsch'],
+  ['ja-JP', '日本語'],
+  ['ar-SA', 'العربية'],
+];
+export function IslandChatWidget({
+  ref,
+  active = true,
+  onAction,
+  onVoiceStart,
+  ...content
+}: Props) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: 'Welcome! Ask about ' + content.name + ', show a section, or say “read the portfolio”. I can also guide you around the island. Use the microphone to dictate a longer request.' }]);
-  const [input, setInput] = useState(''), [loading, setLoading] = useState(false);
-  const [error, setError] = useState(''), [notice, setNotice] = useState('');
-  const [listening, setListening] = useState(false), [voiceMode, setVoiceMode] = useState(false);
-  const [language, setLanguage] = useState('en-US'), [voiceState, setVoiceState] = useState<VoiceState>('idle');
-  const scrollRef = useRef<HTMLDivElement>(null), inputRef = useRef<HTMLTextAreaElement>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: 'assistant',
+      content:
+        'Welcome! Ask about ' +
+        content.name +
+        ', show a section, or say “read the portfolio”. I can also guide you around the island. Use the microphone to dictate a longer request.',
+    },
+  ]);
+  const [input, setInput] = useState(''),
+    [loading, setLoading] = useState(false);
+  const [error, setError] = useState(''),
+    [notice, setNotice] = useState('');
+  const [listening, setListening] = useState(false),
+    [voiceMode, setVoiceMode] = useState(false);
+  const [language, setLanguage] = useState('en-US'),
+    [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const scrollRef = useRef<HTMLDivElement>(null),
+    inputRef = useRef<HTMLTextAreaElement>(null);
   const recognition = useRef<Recognition | null>(null);
   const voice = useRef<ReturnType<typeof createAssistantVoice> | null>(null);
-  const request = useRef<AbortController | null>(null), version = useRef(0), busy = useRef(false);
+  const request = useRef<AbortController | null>(null),
+    version = useRef(0),
+    busy = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
 
   function detachRecognition() {
-    const previous = recognition.current; recognition.current = null;
-    if (previous) { previous.onresult = null; previous.onerror = null; previous.onend = null; previous.abort(); }
+    const previous = recognition.current;
+    recognition.current = null;
+    if (previous) {
+      previous.onresult = null;
+      previous.onerror = null;
+      previous.onend = null;
+      previous.abort();
+    }
   }
   function cancel() {
-    version.current++; request.current?.abort(); request.current = null;
-    detachRecognition(); setListening(false); voice.current?.stop();
-    busy.current = false; setLoading(false);
+    version.current++;
+    request.current?.abort();
+    request.current = null;
+    detachRecognition();
+    setListening(false);
+    voice.current?.stop();
+    busy.current = false;
+    setLoading(false);
   }
-  function close() { cancel(); setOpen(false); trigger.current?.focus(); }
-  function stopAll() { cancel(); stopIslandSpeech(); onAction({ type: 'control', target: 'stop' }); setNotice('Stopped.'); }
+  function close() {
+    cancel();
+    setOpen(false);
+    trigger.current?.focus();
+  }
+  function stopAll() {
+    cancel();
+    stopIslandSpeech();
+    onAction({ type: 'control', target: 'stop' });
+    setNotice('Stopped.');
+  }
   function startListening() {
-    if (recognition.current) { recognition.current.stop(); return; }
-    cancel(); onVoiceStart(); stopIslandSpeech(); setError('');
+    if (recognition.current) {
+      recognition.current.stop();
+      return;
+    }
+    cancel();
+    onVoiceStart();
+    stopIslandSpeech();
+    setError('');
     const Constructor = recognitionConstructor();
-    if (!Constructor) { setNotice('Voice input is unavailable in this browser. You can type the same requests below.'); return; }
-    const recognizer = new Constructor(); recognition.current = recognizer;
+    if (!Constructor) {
+      setNotice(
+        'Voice input is unavailable in this browser. You can type the same requests below.',
+      );
+      return;
+    }
+    const recognizer = new Constructor();
+    recognition.current = recognizer;
     const prefix = input.trim();
-    recognizer.lang = language; recognizer.continuous = true; recognizer.interimResults = true;
-    recognizer.onresult = event => {
+    recognizer.lang = language;
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+    recognizer.onresult = (event) => {
       if (recognition.current !== recognizer) return;
-      const words = Array.from(event.results).map(result => result[0]?.transcript ?? '').join(' ');
+      const words = Array.from(event.results)
+        .map((result) => result[0]?.transcript ?? '')
+        .join(' ');
       const transcript = [prefix, words].filter(Boolean).join(' ');
       setInput(transcript.slice(0, CHAT_LIMIT));
-      if (transcript.length >= CHAT_LIMIT) { recognizer.stop(); setNotice('The message limit was reached. Review and send this part, then continue.'); }
+      if (transcript.length >= CHAT_LIMIT) {
+        recognizer.stop();
+        setNotice(
+          'The message limit was reached. Review and send this part, then continue.',
+        );
+      }
     };
-    recognizer.onerror = event => {
+    recognizer.onerror = (event) => {
       if (recognition.current !== recognizer) return;
-      detachRecognition(); setListening(false);
-      setNotice(event.error === 'not-allowed' || event.error === 'service-not-allowed' ? 'Microphone permission was denied. Allow it in your browser, or type your request.' : event.error === 'language-not-supported' ? 'This speech service does not support that language. Choose another language or type your request.' : 'Dictation stopped. Your words are still here; review and send, or try the microphone again.');
+      detachRecognition();
+      setListening(false);
+      setNotice(
+        event.error === 'not-allowed' || event.error === 'service-not-allowed'
+          ? 'Microphone permission was denied. Allow it in your browser, or type your request.'
+          : event.error === 'language-not-supported'
+            ? 'This speech service does not support that language. Choose another language or type your request.'
+            : 'Dictation stopped. Your words are still here; review and send, or try the microphone again.',
+      );
     };
-    recognizer.onend = () => { if (recognition.current !== recognizer) return; recognition.current = null; setListening(false); setNotice('Dictation finished. Review your words, then send.'); };
-    try { recognizer.start(); setListening(true); setVoiceMode(true); setNotice('Listening… Speak naturally. Press the microphone when finished, then send.'); }
-    catch { detachRecognition(); setListening(false); setNotice('The microphone could not start. Allow microphone access and try again, or type below.'); }
+    recognizer.onend = () => {
+      if (recognition.current !== recognizer) return;
+      recognition.current = null;
+      setListening(false);
+      setNotice('Dictation finished. Review your words, then send.');
+    };
+    try {
+      recognizer.start();
+      setListening(true);
+      setVoiceMode(true);
+      setNotice(
+        'Listening… Speak naturally. Press the microphone when finished, then send.',
+      );
+    } catch {
+      detachRecognition();
+      setListening(false);
+      setNotice(
+        'The microphone could not start. Allow microphone access and try again, or type below.',
+      );
+    }
   }
   async function readAloud(text: string) {
-    detachRecognition(); setListening(false); onVoiceStart(); stopIslandSpeech();
+    detachRecognition();
+    setListening(false);
+    onVoiceStart();
+    stopIslandSpeech();
     await voice.current?.speak(text, language);
   }
   async function perform(result: AssistantReply, token: number) {
-    setMessages(previous => [...previous, { role: 'assistant', content: result.reply }]);
-    const hasReading = result.actions.some(action => action.type === 'read' || action.type === 'tour');
+    setMessages((previous) => [
+      ...previous,
+      { role: 'assistant', content: result.reply },
+    ]);
+    const hasReading = result.actions.some(
+      (action) => action.type === 'read' || action.type === 'tour',
+    );
     for (const action of result.actions) {
       if (token !== version.current) return;
       if (action.type === 'read') {
         const text = portfolioReading(content, action.target);
         onVoiceStart();
-        setMessages(previous => [...previous, { role: 'assistant', content: text }]);
+        setMessages((previous) => [
+          ...previous,
+          { role: 'assistant', content: text },
+        ]);
         await readAloud(text);
       } else {
         const feedback = onAction(action);
-        if (feedback) setMessages(previous => [...previous, { role: 'assistant', content: feedback }]);
+        if (feedback)
+          setMessages((previous) => [
+            ...previous,
+            { role: 'assistant', content: feedback },
+          ]);
       }
     }
-    if (token === version.current && voiceMode && !hasReading && !result.actions.some(a => a.type === 'control' && a.target === 'stop')) await readAloud(result.reply);
+    if (
+      token === version.current &&
+      voiceMode &&
+      !hasReading &&
+      !result.actions.some((a) => a.type === 'control' && a.target === 'stop')
+    )
+      await readAloud(result.reply);
   }
   async function send(value = input) {
-    const text = value.trim(); if (!text || text.length > CHAT_LIMIT) return;
+    const text = value.trim();
+    if (!text || text.length > CHAT_LIMIT) return;
     const local = localAssistantReply(text);
-    if (local?.actions.some(a => a.type === 'control' && a.target === 'stop')) { stopAll(); setInput(''); return; }
+    if (
+      local?.actions.some((a) => a.type === 'control' && a.target === 'stop')
+    ) {
+      stopAll();
+      setInput('');
+      return;
+    }
     if (busy.current) return;
-    cancel(); const token = version.current; busy.current = true;
-    setInput(''); setError(''); setNotice(''); setLoading(true);
-    const next: ChatMessage[] = [...messages, { role: 'user', content: text }]; setMessages(next);
+    cancel();
+    const token = version.current;
+    busy.current = true;
+    setInput('');
+    setError('');
+    setNotice('');
+    setLoading(true);
+    const next: ChatMessage[] = [...messages, { role: 'user', content: text }];
+    setMessages(next);
     try {
       let result = local;
       if (!result) {
-        const controller = new AbortController(); request.current = controller;
-        const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]), body: JSON.stringify({ messages: chatHistory(next) }) });
+        const controller = new AbortController();
+        request.current = controller;
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(35000),
+          ]),
+          body: JSON.stringify({ messages: chatHistory(next) }),
+        });
         const data: unknown = await response.json();
-        if (!response.ok) throw new Error(data && typeof data === 'object' && 'error' in data && typeof data.error === 'string' ? data.error : 'The AI could not answer. Try again.');
+        if (!response.ok)
+          throw new Error(
+            data &&
+              typeof data === 'object' &&
+              'error' in data &&
+              typeof data.error === 'string'
+              ? data.error
+              : 'The AI could not answer. Try again.',
+          );
         result = validateAssistantReply(data);
-        if (!result) throw new Error('The AI returned an invalid response. No actions were performed.');
+        if (!result)
+          throw new Error(
+            'The AI returned an invalid response. No actions were performed.',
+          );
       }
       if (token !== version.current) return;
       setLoading(false);
       await perform(result, token);
     } catch (reason) {
       if (token !== version.current) return;
-      setError(reason instanceof Error ? reason.message : 'Could not reach the AI. Try again.'); setInput(text);
-    } finally { if (token === version.current) { busy.current = false; setLoading(false); request.current = null; } }
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'Could not reach the AI. Try again.',
+      );
+      setInput(text);
+    } finally {
+      if (token === version.current) {
+        busy.current = false;
+        setLoading(false);
+        request.current = null;
+      }
+    }
   }
   useEffect(() => {
     const speaker = createAssistantVoice(setVoiceState, setNotice);
     voice.current = speaker;
-    return () => { cancel(); speaker.stop(); };
+    return () => {
+      cancel();
+      speaker.stop();
+    };
   }, []);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, loading]);
-  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  useEffect(() => {
+    if (scrollRef.current)
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, loading]);
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
   useEffect(() => () => cancel(), [active]);
   useEffect(() => {
-    const hide = () => { if (document.hidden) cancel(); };
+    const hide = () => {
+      if (document.hidden) cancel();
+    };
     document.addEventListener('visibilitychange', hide);
     return () => document.removeEventListener('visibilitychange', hide);
   }, []);
-  useImperativeHandle(ref, () => ({ startVoice() { setOpen(true); startListening(); } }));
+  useImperativeHandle(ref, () => ({
+    startVoice() {
+      setOpen(true);
+      startListening();
+    },
+  }));
 
-  return <>
-    <Button ref={trigger} className="island-chat-trigger" onClick={() => open ? close() : setOpen(true)} aria-label={open ? 'Close AI assistant' : 'Open AI assistant'} aria-expanded={open} aria-controls="portfolio-assistant">
-      {open ? <X /> : <Bot />}
-    </Button>
-    {open && <dialog open id="portfolio-assistant" className="island-chat-panel" aria-label="Nocturne AI assistant" onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') close(); }}>
-      <div className="island-chat-header"><span className="island-chat-header-dot" /><h3>NOCTURNE AI</h3><Button variant="ghost" size="icon" onClick={close} aria-label="Close chat"><X size={18} /></Button></div>
-      <div className="chat-voice-tools">
-        <label>Voice language<select aria-label="Voice language" value={language} disabled={listening} onChange={event => { voice.current?.stop(); setLanguage(event.target.value); }}>{languages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
-        <Button variant="ghost" size="icon" aria-label={voiceMode ? 'Turn spoken replies off' : 'Turn spoken replies on'} aria-pressed={voiceMode} onClick={() => { if (voiceMode) voice.current?.stop(); setVoiceMode(!voiceMode); }}>{voiceMode ? <Volume2 /> : <VolumeX />}</Button>
-        {voiceState !== 'idle' && <Button variant="ghost" size="icon" aria-label={voiceState === 'paused' ? 'Resume reading' : 'Pause reading'} onClick={() => voiceState === 'paused' ? voice.current?.resume() : voice.current?.pause()}>{voiceState === 'paused' ? <Play /> : <Pause />}</Button>}
-        <Button variant="ghost" size="icon" onClick={stopAll} aria-label="Stop speech and actions"><Square /></Button>
-      </div>
-      <div className="island-chat-messages" ref={scrollRef} role="log" aria-label="Conversation" aria-live="polite">
-        {messages.map((message, index) => <div key={index} className={'chat-bubble chat-bubble-' + message.role}><span>{message.content}</span>{message.role === 'assistant' && <Button variant="ghost" size="sm" className="chat-read" onClick={() => { cancel(); void readAloud(message.content); }} aria-label="Read this reply aloud"><Volume2 size={13} /> Read aloud</Button>}</div>)}
-        {loading && <div className="chat-typing" aria-label="Thinking"><span /><span /><span /></div>}
-      </div>
-      <div className="chat-shortcuts">{['Show skills', 'Read portfolio', 'Start tour'].map(command => <Button key={command} size="sm" variant="outline" disabled={loading || voiceState !== 'idle'} onClick={() => void send(command)}>{command}</Button>)}</div>
-      {notice && <output className="chat-notice">{notice}</output>}
-      {error && <p className="chat-error" role="alert">{error}</p>}
-      <form className="island-chat-input" onSubmit={event => { event.preventDefault(); void send(); }}>
-        <textarea ref={inputRef} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} placeholder="Ask, show, read, or explore…" aria-label="Message the portfolio assistant" maxLength={CHAT_LIMIT} rows={2} />
-        <Button type="button" variant="ghost" size="icon" onClick={startListening} aria-label={listening ? 'Finish dictation' : 'Start voice dictation'} aria-pressed={listening}>{listening ? <MicOff /> : <Mic />}</Button>
-        <Button type="submit" className="island-chat-send" disabled={loading || voiceState !== 'idle' || !input.trim()} aria-label="Send message"><Send size={16} /></Button>
-      </form>
-      <p className="chat-privacy">{input.length.toLocaleString()} / {CHAT_LIMIT.toLocaleString()} · Shift+Enter for a new line. Dictation may use your browser’s speech service. Sent messages go to the AI provider.</p>
-    </dialog>}
-  </>;
+  return (
+    <>
+      <Button
+        ref={trigger}
+        className="island-chat-trigger"
+        onClick={() => (open ? close() : setOpen(true))}
+        aria-label={open ? 'Close AI assistant' : 'Open AI assistant'}
+        aria-expanded={open}
+        aria-controls="portfolio-assistant"
+      >
+        {open ? <X /> : <Bot />}
+      </Button>
+      {open && (
+        <dialog
+          open
+          id="portfolio-assistant"
+          className="island-chat-panel"
+          aria-label="Nocturne AI assistant"
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === 'Escape') close();
+          }}
+        >
+          <div className="island-chat-header">
+            <span className="island-chat-header-dot" />
+            <h3>NOCTURNE AI</h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={close}
+              aria-label="Close chat"
+            >
+              <X size={18} />
+            </Button>
+          </div>
+          <div className="chat-voice-tools">
+            <label>
+              Voice language
+              <select
+                aria-label="Voice language"
+                value={language}
+                disabled={listening}
+                onChange={(event) => {
+                  voice.current?.stop();
+                  setLanguage(event.target.value);
+                }}
+              >
+                {languages.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={
+                voiceMode ? 'Turn spoken replies off' : 'Turn spoken replies on'
+              }
+              aria-pressed={voiceMode}
+              onClick={() => {
+                if (voiceMode) voice.current?.stop();
+                setVoiceMode(!voiceMode);
+              }}
+            >
+              {voiceMode ? <Volume2 /> : <VolumeX />}
+            </Button>
+            {voiceState !== 'idle' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={
+                  voiceState === 'paused' ? 'Resume reading' : 'Pause reading'
+                }
+                onClick={() =>
+                  voiceState === 'paused'
+                    ? voice.current?.resume()
+                    : voice.current?.pause()
+                }
+              >
+                {voiceState === 'paused' ? <Play /> : <Pause />}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={stopAll}
+              aria-label="Stop speech and actions"
+            >
+              <Square />
+            </Button>
+          </div>
+          <div
+            className="island-chat-messages"
+            ref={scrollRef}
+            role="log"
+            aria-label="Conversation"
+            aria-live="polite"
+          >
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={'chat-bubble chat-bubble-' + message.role}
+              >
+                <span>{message.content}</span>
+                {message.role === 'assistant' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="chat-read"
+                    onClick={() => {
+                      cancel();
+                      void readAloud(message.content);
+                    }}
+                    aria-label="Read this reply aloud"
+                  >
+                    <Volume2 size={13} /> Read aloud
+                  </Button>
+                )}
+              </div>
+            ))}
+            {loading && (
+              <div className="chat-typing" aria-label="Thinking">
+                <span />
+                <span />
+                <span />
+              </div>
+            )}
+          </div>
+          <div className="chat-shortcuts">
+            {['Show skills', 'Read portfolio', 'Start tour'].map((command) => (
+              <Button
+                key={command}
+                size="sm"
+                variant="outline"
+                disabled={loading || voiceState !== 'idle'}
+                onClick={() => void send(command)}
+              >
+                {command}
+              </Button>
+            ))}
+          </div>
+          {notice && <output className="chat-notice">{notice}</output>}
+          {error && (
+            <p className="chat-error" role="alert">
+              {error}
+            </p>
+          )}
+          <form
+            className="island-chat-input"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void send();
+            }}
+          >
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  void send();
+                }
+              }}
+              placeholder="Ask, show, read, or explore…"
+              aria-label="Message the portfolio assistant"
+              maxLength={CHAT_LIMIT}
+              rows={2}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={startListening}
+              aria-label={
+                listening ? 'Finish dictation' : 'Start voice dictation'
+              }
+              aria-pressed={listening}
+            >
+              {listening ? <MicOff /> : <Mic />}
+            </Button>
+            <Button
+              type="submit"
+              className="island-chat-send"
+              disabled={loading || voiceState !== 'idle' || !input.trim()}
+              aria-label="Send message"
+            >
+              <Send size={16} />
+            </Button>
+          </form>
+          <p className="chat-privacy">
+            {input.length.toLocaleString()} / {CHAT_LIMIT.toLocaleString()} ·
+            Shift+Enter for a new line. Dictation may use your browser’s speech
+            service. Sent messages go to the AI provider.
+          </p>
+        </dialog>
+      )}
+    </>
+  );
 }

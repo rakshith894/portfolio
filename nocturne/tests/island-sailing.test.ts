@@ -15,16 +15,18 @@ import { createOceanTraffic } from '../lib/island-traffic.ts';
 import { apparitionOpacity } from '../lib/island-haunting.ts';
 import { SEA_OBSTACLES } from '../lib/coastal-layout.ts';
 
-void test('the moored boat waits for input and settles after rowing stops',()=>{
-  const boat=createSailingController(),start=boat.position.clone(),idle=new THREE.Vector3();
-  for(let i=0;i<120;i++)boat.move(idle,1/60);
+void test('the moored boat waits for input and settles after rowing stops', () => {
+  const boat = createSailingController(),
+    start = boat.position.clone(),
+    idle = new THREE.Vector3();
+  for (let i = 0; i < 120; i++) boat.move(idle, 1 / 60);
   assert.ok(boat.position.equals(start));
-  for(let i=0;i<120;i++)boat.move(new THREE.Vector3(0,0,-1),1/60);
-  assert.ok(boat.position.distanceTo(start)>5);
-  for(let i=0;i<300;i++)boat.move(idle,1/60);
-  assert.equal(boat.velocity.lengthSq(),0);
-  const settled=boat.position.clone();
-  boat.move(idle,.05);
+  for (let i = 0; i < 120; i++) boat.move(new THREE.Vector3(0, 0, -1), 1 / 60);
+  assert.ok(boat.position.distanceTo(start) > 5);
+  for (let i = 0; i < 300; i++) boat.move(idle, 1 / 60);
+  assert.equal(boat.velocity.lengthSq(), 0);
+  const settled = boat.position.clone();
+  boat.move(idle, 0.05);
   assert.ok(boat.position.equals(settled));
 });
 
@@ -36,10 +38,17 @@ void test('visible offshore rocks and stair supports stop hulls while the dock s
     assert.equal(canSail(obstacle.x + obstacle.radius + 3, obstacle.z), false);
   }
   const boat = createSailingController();
-  for (let frame = 0; frame < 500; frame++) boat.move(new THREE.Vector3(-1, 0, 1), .05, true);
+  for (let frame = 0; frame < 500; frame++)
+    boat.move(new THREE.Vector3(-1, 0, 1), 0.05, true);
   for (const obstacle of SEA_OBSTACLES)
-    assert.ok(Math.hypot(boat.position.x-obstacle.x,boat.position.z-obstacle.z) >= obstacle.radius+3.2);
-  assert.ok(seaRoute(boat.position), 'A blocked hull can still return to its mooring');
+    assert.ok(
+      Math.hypot(boat.position.x - obstacle.x, boat.position.z - obstacle.z) >=
+        obstacle.radius + 3.2,
+    );
+  assert.ok(
+    seaRoute(boat.position),
+    'A blocked hull can still return to its mooring',
+  );
 });
 
 void test('boats travel kilometres beyond the old water edge and stay clear of shore', () => {
@@ -90,7 +99,10 @@ void test('return routes from all sides avoid both islands and are actually sail
         }
         boat.move(direction.multiplyScalar(1 / 3).clampLength(0, 1), 0.05);
       }
-      assert.ok(remaining < 0.3, `Return stuck at ${boat.position.toArray().join(', ')}`);
+      assert.ok(
+        remaining < 0.3,
+        `Return stuck at ${boat.position.toArray().join(', ')}`,
+      );
     }
     assert.ok(
       Math.hypot(

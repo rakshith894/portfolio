@@ -26,15 +26,33 @@ const volumes = [
       ),
     ),
 );
-volumes.push(new THREE.Box3(
-  new THREE.Vector3(-UPPER_HALL.width / 2, MANOR_DOOR.y + 4.8, MANOR_DOOR.z + UPPER_HALL.z - UPPER_HALL.depth / 2),
-  new THREE.Vector3(UPPER_HALL.width / 2, MANOR_DOOR.y + UPPER_HALL.y + UPPER_HALL.height, MANOR_DOOR.z + UPPER_HALL.z + UPPER_HALL.depth / 2),
-));
+volumes.push(
+  new THREE.Box3(
+    new THREE.Vector3(
+      -UPPER_HALL.width / 2,
+      MANOR_DOOR.y + 4.8,
+      MANOR_DOOR.z + UPPER_HALL.z - UPPER_HALL.depth / 2,
+    ),
+    new THREE.Vector3(
+      UPPER_HALL.width / 2,
+      MANOR_DOOR.y + UPPER_HALL.y + UPPER_HALL.height,
+      MANOR_DOOR.z + UPPER_HALL.z + UPPER_HALL.depth / 2,
+    ),
+  ),
+);
 
 type Vertex = { point: THREE.Vector3; normal: THREE.Vector3 };
 for (const window of HOUSE_WINDOWS) {
-  const center = new THREE.Vector3(window.x, MANOR_DOOR.y + window.y, MANOR_DOOR.z + window.z);
-  const size = new THREE.Vector3(window.axis === 'x' ? window.width : 1.5, window.height, window.axis === 'z' ? window.width : 1.5);
+  const center = new THREE.Vector3(
+    window.x,
+    MANOR_DOOR.y + window.y,
+    MANOR_DOOR.z + window.z,
+  );
+  const size = new THREE.Vector3(
+    window.axis === 'x' ? window.width : 1.5,
+    window.height,
+    window.axis === 'z' ? window.width : 1.5,
+  );
   volumes.push(new THREE.Box3().setFromCenterAndSize(center, size));
 }
 function split(
