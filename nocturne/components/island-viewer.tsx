@@ -1330,7 +1330,7 @@ export default function IslandViewer({
       };
     };
     const pointerUp = (event: PointerEvent) => {
-      if (!clickStart || performance.now() - clickStart.time > 450) {
+      if (!clickStart || performance.now() - clickStart.time > 650) {
         clickStart = null;
         return;
       }
@@ -1340,7 +1340,7 @@ export default function IslandViewer({
       );
       clickStart = null;
       if (
-        moved > 8 ||
+        moved > 14 ||
         !interactive ||
         !activeScene.current ||
         selectedProjectRef.current ||
@@ -1357,14 +1357,9 @@ export default function IslandViewer({
       clickRay.setFromCamera(clickPoint, camera);
       if (!inBoat) {
         const skillHit = skillHolograms.hit(clickRay);
-        const obstacle = clickRay.intersectObjects(
-          [environment.manor, environment.ground],
-          true,
-        )[0];
         if (
           skillHit &&
-          skillHit.distance < 18 &&
-          (!obstacle || obstacle.distance >= skillHit.distance - 0.05) &&
+          skillHit.distance < 40 &&
           house.unoccluded(clickRay, skillHit.distance)
         ) {
           showSkills(true, skillHit.object.userData.skillId as string | null);
@@ -1373,19 +1368,12 @@ export default function IslandViewer({
       }
       const contactHit = apparition.hit(clickRay);
       if (
-        house.inside &&
         contactHit &&
-        contactHit.distance < 12 &&
-        house.unoccluded(clickRay, contactHit.distance)
+        contactHit.distance < 45 &&
+        (!house.inside || house.unoccluded(clickRay, contactHit.distance))
       ) {
-        const obstacle = clickRay.intersectObjects(
-          [environment.manor, environment.ground],
-          true,
-        )[0];
-        if (!obstacle || obstacle.distance >= contactHit.distance - 0.05) {
-          showContact(true);
-          return;
-        }
+        showContact(true);
+        return;
       }
       if (!house.active && !inBoat) {
         const coffin = companions.hit(clickRay, [

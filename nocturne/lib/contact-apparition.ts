@@ -340,6 +340,22 @@ export function createContactApparition(
   label.scale.set(2.2, 0.46, 1);
   root.add(label);
 
+  // Large invisible click collider surrounding the hologram and pedestal
+  const hitVolume = own(
+    new THREE.Mesh(
+      own(new THREE.CylinderGeometry(1.6, 1.6, 4.0, 16)),
+      own(
+        new THREE.MeshBasicMaterial({
+          visible: false,
+          wireframe: false,
+        }),
+      ),
+    ),
+  );
+  hitVolume.position.y = 1.9;
+  hitVolume.name = 'Contact apparition click volume';
+  root.add(hitVolume);
+
   function setProfile(profile: ContactProfile) {
     const ctx = labelCanvas.getContext('2d');
     if (!ctx) return;
@@ -374,15 +390,15 @@ export function createContactApparition(
     },
     near(position: THREE.Vector3) {
       return (
-        Math.abs(position.y - root.position.y) < 0.5 &&
+        Math.abs(position.y - root.position.y) < 1.6 &&
         Math.hypot(position.x - root.position.x, position.z - root.position.z) <
-          2.2
+          4.5
       );
     },
     hit(ray: THREE.Raycaster) {
       root.updateMatrixWorld(true);
       return (
-        ray.intersectObjects([base, button, person.root, label], true)[0] ??
+        ray.intersectObjects([hitVolume, base, button, person.root, label], true)[0] ??
         null
       );
     },
