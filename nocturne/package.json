@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
-    "start": "node tools/start-preview.mjs",
+    "start": "vinext start",
+    "preview": "node tools/start-preview.mjs",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
