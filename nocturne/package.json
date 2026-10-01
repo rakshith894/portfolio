@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "vinext build",
+    "build": "vinext build --prerender-all && node tools/copy-prerender.mjs",
     "start": "vinext start",
     "preview": "node tools/start-preview.mjs",
     "lint": "oxlint",
