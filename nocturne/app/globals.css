@@ -3385,3 +3385,73 @@ a {
   }
 }
 
+/* ── Admin Status Bar Pill ──────────────────────────────────────────────── */
+.admin-status-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 8000;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: #09131cf2;
+  border: 1px solid #67e8f944;
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 24px #0008, 0 0 16px #67e8f920;
+  font: 12px/1.2 system-ui, -apple-system, sans-serif;
+  color: #c4e9e2;
+  animation: admin-pill-in 0.3s ease-out;
+  pointer-events: auto;
+}
+
+@keyframes admin-pill-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.admin-status-bar.guest-mode {
+  border-color: #94a3b833;
+  box-shadow: 0 4px 20px #0008;
+}
+
+.admin-status-badge {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #67e8f9;
+  text-shadow: 0 0 8px #67e8f955;
+}
+.admin-status-badge.guest {
+  color: #94a3b8;
+  text-shadow: none;
+}
+
+.admin-switch-btn {
+  background: #67e8f918;
+  border: 1px solid #67e8f933;
+  color: #e0f7f4;
+  padding: 4px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.admin-switch-btn:hover {
+  background: #67e8f933;
+  border-color: #67e8f988;
+  color: #fff;
+  transform: scale(1.04);
+}
+
+@media (max-width: 640px) {
+  .admin-status-bar {
+    bottom: 84px;
+    left: 12px;
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+}
+
+

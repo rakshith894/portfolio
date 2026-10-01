@@ -133,13 +133,63 @@ export default function IslandViewer({
   >(() => {});
   const assistant = useRef<AssistantHandle | null>(null);
   const [houseStatus, setHouseStatus] = useState<HouseStatus>(null);
-  // Strict edit security: only allow editing when running locally on your computer
-  // and NOT in guest preview mode. When deployed to a public URL, this is always false.
   const isLocalHost = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '::1');
-  const isGuestMode = typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('view') === 'guest';
-  const canEditProjects = isLocalHost && !isGuestMode;
+  const [adminMode, setAdminMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const adminParam = params.get('admin');
+    if (adminParam) {
+      if (adminParam.toLowerCase() === 'rakshith' || adminParam === 'true') {
+        try { localStorage.setItem('nocturne_admin', 'true'); } catch {}
+        return true;
+      }
+    }
+    if (params.get('view') === 'guest') {
+      try { localStorage.setItem('nocturne_admin', 'false'); } catch {}
+      return false;
+    }
+    try {
+      const saved = localStorage.getItem('nocturne_admin');
+      if (saved === 'false') return false;
+      if (saved === 'true') return true;
+    } catch {}
+    return isLocalHost;
+  });
+
+  const canEditProjects = adminMode;
+
+  function toggleAdminMode() {
+    setAdminMode(current => {
+      const next = !current;
+      try { localStorage.setItem('nocturne_admin', next ? 'true' : 'false'); } catch {}
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    function handleAdminShortcut(e: KeyboardEvent) {
+      if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        if (adminMode) {
+          if (confirm('Switch to Guest View? (All editing tools will be hidden)')) {
+            toggleAdminMode();
+          }
+        } else {
+          const pass = prompt('Enter Admin Passcode to unlock editing:');
+          if (pass && pass.trim().toLowerCase() === 'rakshith') {
+            setAdminMode(true);
+            try { localStorage.setItem('nocturne_admin', 'true'); } catch {}
+            alert('Admin Mode Unlocked!');
+          } else if (pass) {
+            alert('Incorrect passcode.');
+          }
+        }
+      }
+    }
+    window.addEventListener('keydown', handleAdminShortcut);
+    return () => window.removeEventListener('keydown', handleAdminShortcut);
+  }, [adminMode]);
   const [profile, setProfile] = useState<ContactProfile>(savedProfile);
   const profileRef = useRef(profile);
   const [contactOpen, setContactOpen] = useState(false);
@@ -1431,6 +1481,32 @@ export default function IslandViewer({
           ))}
         </fieldset>
       </footer>
+      {adminMode && (
+        <aside className="admin-status-bar" aria-label="Admin mode active">
+          <span className="admin-status-badge">🛡️ Admin Mode</span>
+          <button
+            type="button"
+            className="admin-switch-btn"
+            onClick={toggleAdminMode}
+            title="Preview how guests and recruiters see your portfolio"
+          >
+            Switch to Guest View
+          </button>
+        </aside>
+      )}
+      {!adminMode && isLocalHost && (
+        <aside className="admin-status-bar guest-mode" aria-label="Guest preview mode">
+          <span className="admin-status-badge guest">👁️ Guest View</span>
+          <button
+            type="button"
+            className="admin-switch-btn"
+            onClick={toggleAdminMode}
+            title="Switch back to Admin Mode"
+          >
+            Switch to Admin
+          </button>
+        </aside>
+      )}
       <IslandChatWidget
         ref={assistant}
         active={active}
