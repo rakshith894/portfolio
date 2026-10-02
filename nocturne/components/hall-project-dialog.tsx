@@ -271,18 +271,23 @@ function FrameContent({ project, onSave, canEdit }: Props) {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const response = await fetch('/__nocturne/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image }),
-      });
-      const result = (await response.json()) as {
-        cover?: string;
-        error?: string;
-      };
-      if (!response.ok || !result.cover)
-        throw new Error(result.error ?? 'Could not upload your cover.');
-      setCover(result.cover);
+      try {
+        const response = await fetch('/__nocturne/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image }),
+        });
+        const result = (await response.json()) as {
+          cover?: string;
+          error?: string;
+        };
+        if (response.ok && result.cover) {
+          setCover(result.cover);
+          return;
+        }
+      } catch {}
+      // Fallback for static hosting (Vercel): use data URL directly
+      setCover(image);
     } catch (problem) {
       setError(
         problem instanceof Error

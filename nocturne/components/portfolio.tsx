@@ -39,13 +39,46 @@ export default function Portfolio({
   const [current, setCurrent] = useState(
     section === 'resume' ? 'about' : section,
   );
-  const [profile, setProfile] = useState<ContactProfile>(savedProfile);
-  const [skills, setSkills] = useState(() => readSkills(savedSkills));
-  const [projects, setProjects] = useState(() =>
-    readHallProjects(JSON.stringify(savedProjects)).filter(
+  const [profile, setProfile] = useState<ContactProfile>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('nocturne_custom_profile');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const valid = validateContactProfile(parsed);
+          if (valid) return valid;
+        }
+      } catch {}
+    }
+    return savedProfile;
+  });
+  const [skills, setSkills] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('nocturne_custom_skills');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const custom = readSkills(parsed);
+          if (custom && custom.length > 0) return custom;
+        }
+      } catch {}
+    }
+    return readSkills(savedSkills);
+  });
+  const [projects, setProjects] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('nocturne_custom_projects');
+        if (stored) {
+          const custom = readHallProjects(stored);
+          if (custom && custom.length > 0) return custom.filter((p) => p.url);
+        }
+      } catch {}
+    }
+    return readHallProjects(JSON.stringify(savedProjects)).filter(
       (project) => project.url,
-    ),
-  );
+    );
+  });
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
     const controller = new AbortController();

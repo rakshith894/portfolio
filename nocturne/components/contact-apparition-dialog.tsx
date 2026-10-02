@@ -103,15 +103,23 @@ export function ContactApparitionDialog({
         error?: string;
         profile?: ContactProfile;
       };
-      if (!response.ok || !result.profile)
-        throw new Error(result.error || 'Could not save your profile.');
-      onSave(result.profile);
+      if (response.ok && result.profile) {
+        onSave(result.profile);
+        setEditing(false);
+        return;
+      }
+    } catch {
+      // Local server not available (e.g. static hosting on Vercel)
+    }
+
+    try {
+      onSave(value);
       setEditing(false);
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : 'Could not reach the local editor.',
+          : 'Could not save profile.',
       );
     } finally {
       setBusy(false);
@@ -141,18 +149,23 @@ export function ContactApparitionDialog({
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const response = await fetch('/__nocturne/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image }),
-      });
-      const result = (await response.json()) as {
-        error?: string;
-        photo?: string;
-      };
-      if (!response.ok || !result.photo)
-        throw new Error(result.error || 'Could not upload your photo.');
-      setDraft((current) => ({ ...current, photo: result.photo! }));
+      try {
+        const response = await fetch('/__nocturne/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image }),
+        });
+        const result = (await response.json()) as {
+          error?: string;
+          photo?: string;
+        };
+        if (response.ok && result.photo) {
+          setDraft((current) => ({ ...current, photo: result.photo! }));
+          return;
+        }
+      } catch {}
+      // Fallback for static hosting: use data URL directly
+      setDraft((current) => ({ ...current, photo: image }));
     } catch {
       setError(
         'That photo could not be opened. Try a different PNG, JPEG, or WebP image.',
@@ -179,18 +192,23 @@ export function ContactApparitionDialog({
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const response = await fetch('/__nocturne/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume }),
-      });
-      const result = (await response.json()) as {
-        resume?: string;
-        error?: string;
-      };
-      if (!response.ok || !result.resume)
-        throw new Error(result.error || 'The résumé could not be uploaded.');
-      setDraft((current) => ({ ...current, resume: result.resume }));
+      try {
+        const response = await fetch('/__nocturne/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resume }),
+        });
+        const result = (await response.json()) as {
+          resume?: string;
+          error?: string;
+        };
+        if (response.ok && result.resume) {
+          setDraft((current) => ({ ...current, resume: result.resume }));
+          return;
+        }
+      } catch {}
+      // Fallback for static hosting: use data URL directly
+      setDraft((current) => ({ ...current, resume }));
     } catch (error) {
       setError(
         error instanceof Error

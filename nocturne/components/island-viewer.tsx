@@ -22,6 +22,7 @@ import {
 import {
   HALL_PROJECT_KEY,
   readHallProjects,
+  nextHallProject,
   hallProjectPage,
   hallPageCount,
   HALL_PAGE_SIZE,
@@ -31,7 +32,10 @@ import {
 import { HallProjectDialog } from '@/components/hall-project-dialog';
 import savedProjects from '@/content/hall-projects.json';
 import savedProfile from '@/content/profile.json';
-import type { ContactProfile } from '@/lib/contact-profile';
+import {
+  validateContactProfile,
+  type ContactProfile,
+} from '@/lib/contact-profile';
 import { ContactApparitionDialog } from '@/components/contact-apparition-dialog';
 import { createContactApparition } from '@/lib/contact-apparition';
 import { createSkillHolograms } from '@/lib/skill-holograms';
@@ -180,12 +184,54 @@ export default function IslandViewer({
     (window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1' ||
       window.location.hostname === '::1');
+
+  function getAdminPassword(): string {
+    if (typeof window === 'undefined') return 'rakshith';
+    try {
+      return localStorage.getItem('nocturne_admin_password') || 'rakshith';
+    } catch {
+      return 'rakshith';
+    }
+  }
+
+  function verifyAdminPassword(pass: string): boolean {
+    const current = getAdminPassword();
+    return pass.trim().toLowerCase() === current.trim().toLowerCase();
+  }
+
+  function changeAdminPassword() {
+    const entered = prompt('Enter your current Admin Passcode:');
+    if (entered === null) return;
+    if (!verifyAdminPassword(entered)) {
+      alert('Incorrect current passcode.');
+      return;
+    }
+    const newPass = prompt('Enter your new Admin Passcode:');
+    if (newPass === null) return;
+    if (!newPass.trim()) {
+      alert('Passcode cannot be empty.');
+      return;
+    }
+    const confirmPass = prompt('Confirm your new Admin Passcode:');
+    if (confirmPass === null) return;
+    if (confirmPass.trim() !== newPass.trim()) {
+      alert('Passcodes do not match.');
+      return;
+    }
+    try {
+      localStorage.setItem('nocturne_admin_password', newPass.trim());
+      alert('Admin Passcode updated successfully! Remember your new passcode.');
+    } catch {
+      alert('Could not save passcode to local storage.');
+    }
+  }
+
   const [adminMode, setAdminMode] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
     const adminParam = params.get('admin');
     if (adminParam) {
-      if (adminParam.toLowerCase() === 'rakshith' || adminParam === 'true') {
+      if (verifyAdminPassword(adminParam) || adminParam === 'true') {
         try {
           localStorage.setItem('nocturne_admin', 'true');
         } catch {}
@@ -230,7 +276,7 @@ export default function IslandViewer({
           }
         } else {
           const pass = prompt('Enter Admin Passcode to unlock editing:');
-          if (pass && pass.trim().toLowerCase() === 'rakshith') {
+          if (pass && verifyAdminPassword(pass)) {
             setAdminMode(true);
             try {
               localStorage.setItem('nocturne_admin', 'true');
@@ -245,13 +291,35 @@ export default function IslandViewer({
     window.addEventListener('keydown', handleAdminShortcut);
     return () => window.removeEventListener('keydown', handleAdminShortcut);
   }, [adminMode]);
-  const [profile, setProfile] = useState<ContactProfile>(savedProfile);
+  const [profile, setProfile] = useState<ContactProfile>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('nocturne_custom_profile');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const valid = validateContactProfile(parsed);
+          if (valid) return valid;
+        }
+      } catch {}
+    }
+    return savedProfile;
+  });
   const profileRef = useRef(profile);
   const [contactOpen, setContactOpen] = useState(false);
   const contactOpenRef = useRef(false);
-  const [skills, setSkills] = useState<GallerySkill[]>(() =>
-    readSkills(savedSkills),
-  );
+  const [skills, setSkills] = useState<GallerySkill[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('nocturne_custom_skills');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const custom = readSkills(parsed);
+          if (custom && custom.length > 0) return custom;
+        }
+      } catch {}
+    }
+    return readSkills(savedSkills);
+  });
   const skillsRef = useRef(skills),
     skillsOpenRef = useRef(false);
   const [skillsOpen, setSkillsOpen] = useState(false),
@@ -272,6 +340,18 @@ export default function IslandViewer({
     remove = false,
   ): Promise<string | null> {
     if (!canEditProjects) return 'This portfolio is view-only.';
+    let next: GallerySkill[];
+    if (remove) {
+      next = skillsRef.current.filter((s) => s.id !== skill.id);
+    } else {
+      const exists = skillsRef.current.some((s) => s.id === skill.id);
+      if (exists) {
+        next = skillsRef.current.map((s) => (s.id === skill.id ? skill : s));
+      } else {
+        next = [...skillsRef.current, skill];
+      }
+    }
+
     try {
       const response = await fetch('/__nocturne/skills', {
         method: remove ? 'DELETE' : 'PUT',
@@ -282,16 +362,21 @@ export default function IslandViewer({
         skills?: unknown;
         error?: string;
       };
-      if (!response.ok) return result.error ?? 'Could not save this skill.';
-      const next = readSkills(result.skills);
-      skillsRef.current = next;
-      setSkills(next);
-      applySkills.current(next);
-      setSelectedSkill(remove ? (next[0]?.id ?? null) : skill.id);
-      return null;
+      if (response.ok && result.skills) {
+        next = readSkills(result.skills);
+      }
     } catch {
-      return 'Could not reach the local editor. Your entered text is still here.';
+      // Local dev editor not reachable (e.g. running on Vercel)
     }
+
+    try {
+      localStorage.setItem('nocturne_custom_skills', JSON.stringify(next));
+    } catch {}
+    skillsRef.current = next;
+    setSkills(next);
+    applySkills.current(next);
+    setSelectedSkill(remove ? (next[0]?.id ?? null) : skill.id);
+    return null;
   }
   const contactInteraction = useRef<(open: boolean) => void>(() => {});
   const applyProfile = useRef<(profile: ContactProfile) => void>(() => {});
@@ -302,13 +387,25 @@ export default function IslandViewer({
     contactInteraction.current(open);
   }
   function saveProfile(value: ContactProfile) {
+    try {
+      localStorage.setItem('nocturne_custom_profile', JSON.stringify(value));
+    } catch {}
     profileRef.current = value;
     setProfile(value);
     applyProfile.current(value);
   }
-  const [projects, setProjects] = useState<HallProject[]>(() =>
-    readHallProjects(JSON.stringify(savedProjects)),
-  );
+  const [projects, setProjects] = useState<HallProject[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('nocturne_custom_projects');
+        if (stored) {
+          const custom = readHallProjects(stored);
+          if (custom && custom.length > 0) return custom;
+        }
+      } catch {}
+    }
+    return readHallProjects(JSON.stringify(savedProjects));
+  });
   const projectsRef = useRef(projects);
   const [galleryPage, setGalleryPage] = useState(0);
   const galleryPageRef = useRef(0);
@@ -326,6 +423,9 @@ export default function IslandViewer({
   const frameMutation = useRef(false);
   const [_frameNotice, setFrameNotice] = useState('');
   function updateProjectCollection(next: HallProject[]) {
+    try {
+      localStorage.setItem('nocturne_custom_projects', JSON.stringify(next));
+    } catch {}
     projectsRef.current = next;
     setProjects(next);
     changeGalleryPage(galleryPageRef.current);
@@ -338,30 +438,38 @@ export default function IslandViewer({
     setFrameBusy(true);
     setFrameNotice('');
     try {
-      const response = await fetch('/__nocturne/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create' }),
-      });
-      const result = (await response.json()) as {
-        projects?: unknown;
-        project?: HallProject;
-        error?: string;
-      };
-      if (!response.ok || !result.project)
-        throw new Error(
-          result.error || 'Could not add a frame. Please try again.',
-        );
-      updateProjectCollection(
-        readHallProjects(JSON.stringify(result.projects)),
-      );
-      chooseProject(result.project.id);
+      let created: HallProject | null = null;
+      let nextProjects: HallProject[] = [];
+      try {
+        const response = await fetch('/__nocturne/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create' }),
+        });
+        const result = (await response.json()) as {
+          projects?: unknown;
+          project?: HallProject;
+          error?: string;
+        };
+        if (response.ok && result.project) {
+          created = result.project;
+          nextProjects = readHallProjects(JSON.stringify(result.projects));
+        }
+      } catch {}
+
+      if (!created) {
+        created = nextHallProject(projectsRef.current);
+        nextProjects = [...projectsRef.current, created];
+      }
+
+      updateProjectCollection(nextProjects);
+      chooseProject(created.id);
       return null;
     } catch (problem) {
       const message =
         problem instanceof Error
           ? problem.message
-          : 'Could not reach the local editor.';
+          : 'Could not add a frame.';
       setFrameNotice(message);
       return message;
     } finally {
@@ -380,25 +488,30 @@ export default function IslandViewer({
       const index = projectsRef.current.findIndex(
         (current) => current.id === project.id,
       );
-      const response = await fetch('/__nocturne/projects', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: project.id }),
-      });
-      const result = (await response.json()) as {
-        projects?: unknown;
-        error?: string;
-      };
-      if (!response.ok)
-        return result.error || 'Could not remove the frame. Please try again.';
-      const next = readHallProjects(JSON.stringify(result.projects));
+      let next: HallProject[] = projectsRef.current.filter(
+        (current) => current.id !== project.id,
+      );
+
+      try {
+        const response = await fetch('/__nocturne/projects', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: project.id }),
+        });
+        const result = (await response.json()) as {
+          projects?: unknown;
+          error?: string;
+        };
+        if (response.ok && result.projects) {
+          next = readHallProjects(JSON.stringify(result.projects));
+        }
+      } catch {}
+
       updateProjectCollection(next);
       chooseProject(
         next[Math.min(Math.max(index, 0), next.length - 1)]?.id ?? null,
       );
       return null;
-    } catch {
-      return 'Could not reach the local editor. The frame has not been removed.';
     } finally {
       frameMutation.current = false;
       setFrameBusy(false);
@@ -424,6 +537,9 @@ export default function IslandViewer({
   }
   async function saveProject(project: HallProject): Promise<string | null> {
     if (!canEditProjects) return 'This portfolio is view-only.';
+    let next: HallProject[] = projectsRef.current.map((current) =>
+      current.id === project.id ? project : current,
+    );
     try {
       const response = await fetch('/__nocturne/projects', {
         method: 'PUT',
@@ -434,14 +550,13 @@ export default function IslandViewer({
         error?: string;
         projects?: unknown;
       };
-      if (!response.ok)
-        return result.error || 'Could not save the frame. Please try again.';
-      const next = readHallProjects(JSON.stringify(result.projects));
-      updateProjectCollection(next);
-      return null;
-    } catch {
-      return 'Could not reach the local editor. Keep the development server running and try again.';
-    }
+      if (response.ok && result.projects) {
+        next = readHallProjects(JSON.stringify(result.projects));
+      }
+    } catch {}
+
+    updateProjectCollection(next);
+    return null;
   }
   async function importProjectDrafts(): Promise<string | null> {
     if (!canEditProjects) return 'This portfolio is view-only.';
@@ -2417,6 +2532,14 @@ export default function IslandViewer({
           <button
             type="button"
             className="admin-switch-btn"
+            onClick={changeAdminPassword}
+            title="Change your Admin Passcode"
+          >
+            Change Passcode
+          </button>
+          <button
+            type="button"
+            className="admin-switch-btn"
             onClick={toggleAdminMode}
             title="Preview how guests and recruiters see your portfolio"
           >
@@ -2424,7 +2547,7 @@ export default function IslandViewer({
           </button>
         </aside>
       )}
-      {!adminMode && isLocalHost && (
+      {!adminMode && (isLocalHost || (typeof window !== 'undefined' && localStorage.getItem('nocturne_admin') !== null)) && (
         <aside
           className="admin-status-bar guest-mode"
           aria-label="Guest preview mode"
@@ -2433,7 +2556,21 @@ export default function IslandViewer({
           <button
             type="button"
             className="admin-switch-btn"
-            onClick={toggleAdminMode}
+            onClick={() => {
+              if (isLocalHost) {
+                toggleAdminMode();
+              } else {
+                const pass = prompt('Enter Admin Passcode to unlock editing:');
+                if (pass && verifyAdminPassword(pass)) {
+                  setAdminMode(true);
+                  try {
+                    localStorage.setItem('nocturne_admin', 'true');
+                  } catch {}
+                } else if (pass) {
+                  alert('Incorrect passcode.');
+                }
+              }
+            }}
             title="Switch back to Admin Mode"
           >
             Switch to Admin
