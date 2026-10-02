@@ -44,12 +44,16 @@ export function followBehind(
 /** Preserve the requested zoom when a wall temporarily shortens the camera arm. */
 export function createFollowOrbit(initialDistance = 10) {
   let desired = initialDistance;
+  let smoothed: number | null = null;
+  let lastDt = 1 / 60;
   return {
     reset(distance = desired) {
       desired = THREE.MathUtils.clamp(distance, 4.5, 42);
+      smoothed = null;
     },
     zoom(factor: number) {
       desired = THREE.MathUtils.clamp(desired * factor, 4.5, 42);
+      smoothed = null;
     },
     prepare(
       position: THREE.Vector3,
@@ -57,19 +61,27 @@ export function createFollowOrbit(initialDistance = 10) {
       dt: number,
       _manual = false,
     ) {
-      const offset = position.clone().sub(target),
-        current = offset.length();
-      if (current > 0.001)
-        position
-          .copy(target)
-          .add(
-            offset.setLength(
-              current > desired
-                ? desired
-                : THREE.MathUtils.damp(current, desired, 5, dt),
-            ),
-          );
+      lastDt = dt > 0 ? dt : 1 / 60;
+      const offset = position.clone().sub(target);
+      const current = offset.length();
+      if (current > 0.001) {
+        position.copy(target).add(offset.setLength(desired));
+      }
     },
-    commit(_position: THREE.Vector3, _target: THREE.Vector3) {},
+    commit(position: THREE.Vector3, target: THREE.Vector3) {
+      const offset = position.clone().sub(target);
+      const raw = offset.length();
+      if (raw < 0.001) return;
+
+      if (smoothed === null || raw <= smoothed) {
+        smoothed = raw;
+      } else {
+        smoothed = Math.min(
+          desired,
+          THREE.MathUtils.damp(smoothed, raw, 6, lastDt),
+        );
+      }
+      position.copy(target).add(offset.setLength(smoothed));
+    },
   };
 }

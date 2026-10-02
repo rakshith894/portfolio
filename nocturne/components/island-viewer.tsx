@@ -467,9 +467,7 @@ export default function IslandViewer({
       return null;
     } catch (problem) {
       const message =
-        problem instanceof Error
-          ? problem.message
-          : 'Could not add a frame.';
+        problem instanceof Error ? problem.message : 'Could not add a frame.';
       setFrameNotice(message);
       return message;
     } finally {
@@ -943,8 +941,7 @@ export default function IslandViewer({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enabled = true;
     controls.enableRotate = true;
-    controls.enableZoom = true;
-    controls.enableDamping = !motion.matches;
+    controls.enableDamping = false;
     controls.dampingFactor = 0.09;
     controls.enablePan = false;
     // The normal zoom limit is applied below; collisions may shorten the orbit.
@@ -1556,7 +1553,9 @@ export default function IslandViewer({
         return;
       }
       if (!inBoat) {
-        const doorGroup = environment.manor?.userData?.door as THREE.Group | undefined;
+        const doorGroup = environment.manor?.userData?.door as
+          | THREE.Group
+          | undefined;
         if (doorGroup && clickRay.intersectObject(doorGroup, true).length > 0) {
           if (walker.nearHouse) {
             requestHouse.current();
@@ -1587,7 +1586,11 @@ export default function IslandViewer({
         let targetX = hit.point.x;
         let targetZ = hit.point.z;
         // If clicking on the manor stairs or door landing, snap to the walkable stair corridor
-        if (Math.abs(targetX - 10) < 2.6 && targetZ < -20.5 && targetZ > -25.5) {
+        if (
+          Math.abs(targetX - 10) < 2.6 &&
+          targetZ < -20.5 &&
+          targetZ > -25.5
+        ) {
           targetX = 10;
           targetZ = Math.max(-23.9, Math.min(-20.8, targetZ));
         }
@@ -1720,8 +1723,7 @@ export default function IslandViewer({
         renderer.render(scene, camera);
         return;
       }
-      // Restore damping when back outside.
-      controls.enableDamping = true;
+      controls.enableDamping = overviewRef.current && !motion.matches;
       house.updateOutside(dt);
       if (hallLightingActive) {
         applyMode.current(modeRef.current);
@@ -1944,15 +1946,10 @@ export default function IslandViewer({
         camera.position.add(desiredTarget.clone().sub(controls.target));
         controls.target.copy(desiredTarget);
       }
-      controls.enableDamping = !motion.matches;
+      controls.enableDamping = overviewRef.current && !motion.matches;
       controls.update();
       if (!overviewRef.current && moved > 0.0001 && now > cameraManualUntil) {
-        followBehind(
-          camera,
-          controls.target,
-          Math.atan2(-change.x, -change.z),
-          dt,
-        );
+        followBehind(camera, controls.target, player.root.rotation.y, dt);
       }
       if (overviewRef.current !== wasOverview) {
         followOrbit.reset();
@@ -2645,36 +2642,41 @@ export default function IslandViewer({
           </button>
         </aside>
       )}
-      {!adminMode && (isLocalHost || (typeof window !== 'undefined' && localStorage.getItem('nocturne_admin') !== null)) && (
-        <aside
-          className="admin-status-bar guest-mode"
-          aria-label="Guest preview mode"
-        >
-          <span className="admin-status-badge guest">👁️ Guest View</span>
-          <button
-            type="button"
-            className="admin-switch-btn"
-            onClick={() => {
-              if (isLocalHost) {
-                toggleAdminMode();
-              } else {
-                const pass = prompt('Enter Admin Passcode to unlock editing:');
-                if (pass && verifyAdminPassword(pass)) {
-                  setAdminMode(true);
-                  try {
-                    localStorage.setItem('nocturne_admin', 'true');
-                  } catch {}
-                } else if (pass) {
-                  alert('Incorrect passcode.');
-                }
-              }
-            }}
-            title="Switch back to Admin Mode"
+      {!adminMode &&
+        (isLocalHost ||
+          (typeof window !== 'undefined' &&
+            localStorage.getItem('nocturne_admin') !== null)) && (
+          <aside
+            className="admin-status-bar guest-mode"
+            aria-label="Guest preview mode"
           >
-            Switch to Admin
-          </button>
-        </aside>
-      )}
+            <span className="admin-status-badge guest">👁️ Guest View</span>
+            <button
+              type="button"
+              className="admin-switch-btn"
+              onClick={() => {
+                if (isLocalHost) {
+                  toggleAdminMode();
+                } else {
+                  const pass = prompt(
+                    'Enter Admin Passcode to unlock editing:',
+                  );
+                  if (pass && verifyAdminPassword(pass)) {
+                    setAdminMode(true);
+                    try {
+                      localStorage.setItem('nocturne_admin', 'true');
+                    } catch {}
+                  } else if (pass) {
+                    alert('Incorrect passcode.');
+                  }
+                }
+              }}
+              title="Switch back to Admin Mode"
+            >
+              Switch to Admin
+            </button>
+          </aside>
+        )}
       <IslandChatWidget
         ref={assistant}
         active={active}

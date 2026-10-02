@@ -153,7 +153,9 @@ export function walkingHeight(x: number, z: number) {
   )
     return TOWER_TOP.height;
   if (Math.hypot(x + 52, (z + 31) / 1.15) < 8.5) return 25.04;
-  return groundHeight(x, z) + (pathDistance(x, z) < 2.2 ? 0.23 : 0.04);
+  const pathBlend =
+    1 - THREE.MathUtils.smoothstep(pathDistance(x, z), 1.8, 2.4);
+  return groundHeight(x, z) + THREE.MathUtils.lerp(0.04, 0.23, pathBlend);
 }
 
 export function onWalkingSurface(x: number, z: number) {
