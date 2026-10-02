@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Pause, Play } from 'lucide-react';
@@ -9,7 +9,6 @@ type Props = {
   onExplore: () => void;
   onPrepare: () => void;
   onPortfolio: () => void;
-  onTour: () => void;
   audioError: boolean;
 };
 
@@ -17,7 +16,6 @@ export function Entrance({
   onExplore,
   onPrepare,
   onPortfolio,
-  onTour,
   audioError,
 }: Props) {
   const [paused, setPaused] = useState(false);
@@ -127,18 +125,6 @@ export function Entrance({
             Quick portfolio <ArrowUpRight />
           </Button>
         </div>
-        <Button
-          className="landing-tour"
-          variant="ghost"
-          onPointerEnter={onPrepare}
-          onFocus={onPrepare}
-          onClick={onTour}
-        >
-          Take the narrated tour →
-        </Button>
-        <p className="landing-note">
-          Explore freely, follow the guide, or go straight to the work.
-        </p>
       </section>
       <footer className="landing-colophon">
         <span>

@@ -470,6 +470,7 @@ export function createHouseExploration(
         if (moveTo(target, 1.65, dt, false)) {
           phase = 'inside';
           controls.enabled = true;
+          controls.minDistance = 0.8;
           controls.maxDistance = 4.3;
           smoothedConstrainDist = null;
           viewDistance = 2.65;
@@ -495,6 +496,7 @@ export function createHouseExploration(
               walker.position.z,
             );
             controls.enabled = true;
+            controls.minDistance = 0.4;
             controls.maxDistance = 42;
             emit();
             return false;

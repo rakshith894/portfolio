@@ -85,7 +85,13 @@ export function createFollowOrbit(initialDistance = 10) {
           );
     },
     commit(position: THREE.Vector3, target: THREE.Vector3) {
-      rendered = position.distanceTo(target);
+      const constrained = position.distanceTo(target);
+      // If a collision constraint shortened the arm significantly this frame,
+      // softly pull desired toward the constrained length to stop the
+      // prepare→constrain oscillation that causes visible shaking near cliffs.
+      if (rendered !== null && constrained < rendered - 0.05)
+        desired = Math.max(constrained, THREE.MathUtils.damp(desired, constrained, 6, 1 / 60));
+      rendered = constrained;
     },
   };
 }

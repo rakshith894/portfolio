@@ -110,10 +110,6 @@ export default function Home() {
             setGuided(false);
             exploreIsland();
           }}
-          onTour={() => {
-            setGuided(true);
-            exploreIsland();
-          }}
           onPortfolio={() => setSection('about')}
           audioError={audioError}
         />
