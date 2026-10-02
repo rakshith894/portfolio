@@ -51,7 +51,6 @@ export function createHouseExploration(
   root.name = 'Rooms inside the manor shell';
   root.position.copy(origin);
   const world = createHouseScene(root, mobile);
-  root.visible = false;
   scene.add(root);
   world.doors.get('front')!.visible = false;
   const exteriorDoor = manor.userData.door as THREE.Group;
@@ -494,7 +493,6 @@ export function createHouseExploration(
           target.copy(origin).add(new THREE.Vector3(0, 0, 1.5));
           if (moveTo(target, 1.65, dt, false)) {
             phase = 'outside';
-            root.visible = false;
             manor.visible = true;
             walker.position.y = walkingHeight(
               walker.position.x,

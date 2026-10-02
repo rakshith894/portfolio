@@ -1555,16 +1555,16 @@ export default function IslandViewer({
         }
         return;
       }
-      if (
-        !inBoat &&
-        walker.nearHouse &&
-        clickRay.intersectObject(
-          environment.manor.userData.door as THREE.Group,
-          true,
-        ).length
-      ) {
-        requestHouse.current();
-        return;
+      if (!inBoat) {
+        const doorGroup = environment.manor?.userData?.door as THREE.Group | undefined;
+        if (doorGroup && clickRay.intersectObject(doorGroup, true).length > 0) {
+          if (walker.nearHouse) {
+            requestHouse.current();
+          } else {
+            void navigateTo({ x: 10, z: -23.8 }, 'the front door');
+          }
+          return;
+        }
       }
       if (inBoat) {
         const point = clickRay.ray.intersectPlane(
@@ -1579,10 +1579,20 @@ export default function IslandViewer({
         } else setVoiceNotice('Choose open water away from the shore.');
         return;
       }
-      const hit = clickRay.intersectObject(environment.ground, false)[0];
-      // A terrain hit is authoritative; never project a blocked hit through scenery.
-      if (hit) void navigateTo(hit.point, 'the selected spot');
-      else {
+      const clickTargets: THREE.Object3D[] = [environment.ground];
+      if (environment.manor) clickTargets.push(environment.manor);
+      const hit = clickRay.intersectObjects(clickTargets, true)[0];
+      // A terrain or scenery hit is authoritative; never project a blocked hit through scenery.
+      if (hit) {
+        let targetX = hit.point.x;
+        let targetZ = hit.point.z;
+        // If clicking on the manor stairs or door landing, snap to the walkable stair corridor
+        if (Math.abs(targetX - 10) < 2.6 && targetZ < -20.5 && targetZ > -25.5) {
+          targetX = 10;
+          targetZ = Math.max(-23.9, Math.min(-20.8, targetZ));
+        }
+        void navigateTo({ x: targetX, z: targetZ }, 'the selected spot');
+      } else {
         const level = new THREE.Plane(
           new THREE.Vector3(0, 1, 0),
           -walker.position.y,
