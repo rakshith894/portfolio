@@ -583,6 +583,12 @@ export default function IslandViewer({
   const houseReturn = useRef<() => void>(() => {});
   const houseUpstairs = useRef<() => void>(() => {});
   const houseSkills = useRef<() => void>(() => {});
+  const houseEnterRoom = useRef<
+    (room: 'skills' | 'projects' | 'entrance') => void
+  >(() => {});
+  const assistantTargetRef = useRef<'skills' | 'projects' | 'entrance' | null>(
+    null,
+  );
   const [hallSettings, setHallSettings] = useState<HallSettings>(
     DEFAULT_HALL_SETTINGS,
   );
@@ -668,10 +674,12 @@ export default function IslandViewer({
       chooseProject(null);
       tourControl.current?.stop();
       if (action.target === 'skills') {
+        if (assistantTargetRef.current === 'skills') return;
         showSkills(true);
         return 'Skills opened.';
       }
       if (action.target === 'projects') {
+        if (assistantTargetRef.current === 'projects') return;
         const first = projectsRef.current.find((project) => project.url);
         if (first) {
           chooseProject(first.id);
@@ -691,6 +699,7 @@ export default function IslandViewer({
         : 'About and contact opened.';
     }
     if (action.type === 'tour') {
+      assistantTargetRef.current = null;
       if (action.target === 'start') {
         showContact(false);
         showSkills(false);
@@ -709,6 +718,7 @@ export default function IslandViewer({
       return;
     }
     if (action.type === 'navigate') {
+      assistantTargetRef.current = null;
       tourControl.current?.stop();
       goToPlace.current(action.target);
       return;
@@ -720,20 +730,31 @@ export default function IslandViewer({
     }
     if (action.type === 'control') {
       if (action.target === 'stop') {
+        assistantTargetRef.current = null;
         stopIslandSpeech();
         stopNavigation.current();
         return;
       }
       tourControl.current?.stop();
       if (action.target === 'overview') cameraCommand.current('overview');
-      else if (action.target === 'enter') {
-        if (houseStatus) return 'You are already inside the manor.';
-        if (nearHouse) requestHouse.current();
-        else {
-          goToPlace.current('manor');
-          return 'Follow the route to the manor, then ask to enter when you reach the door.';
-        }
+      else if (action.target === 'skillsRoom') {
+        if (houseStatus?.skillsRoom) return 'You are in the Skills Room.';
+        houseEnterRoom.current('skills');
+        return houseStatus?.inside
+          ? 'Walking into the Skills Room.'
+          : 'Walking to the manor and heading inside to the Skills Room.';
+      } else if (action.target === 'projectsRoom') {
+        if (houseStatus?.masterHall) return 'You are in the Projects Gallery.';
+        houseEnterRoom.current('projects');
+        return houseStatus?.inside
+          ? 'Walking upstairs to the Projects Gallery.'
+          : 'Walking to the manor and heading upstairs to the Projects Gallery.';
+      } else if (action.target === 'enter') {
+        if (houseStatus?.inside) return 'You are already inside the manor.';
+        houseEnterRoom.current('entrance');
+        return 'Heading inside the manor.';
       } else if (action.target === 'exit') {
+        assistantTargetRef.current = null;
         if (!houseStatus) return 'You are already outside the manor.';
         houseReturn.current();
       } else {
@@ -1125,6 +1146,7 @@ export default function IslandViewer({
       destination.set(NaN, NaN, NaN);
     };
     stopNavigation.current = () => {
+      assistantTargetRef.current = null;
       tourControl.current?.stop();
       clearInput();
       house.stop();
@@ -1299,6 +1321,27 @@ export default function IslandViewer({
       tour.stop();
       clearInput();
       house.walkTo({ x: 5.5, z: -4.4, y: 0 });
+    };
+    houseEnterRoom.current = (room) => {
+      assistantTargetRef.current = room;
+      tour.stop();
+      if (house.inside) {
+        assistantTargetRef.current = null;
+        if (room === 'skills') houseSkills.current();
+        else if (room === 'projects') houseUpstairs.current();
+        return;
+      }
+      if (house.active) return;
+      if (walker.nearHouse && !inBoat) {
+        clearInput();
+        if (house.enter()) {
+          setEnteringHouse(true);
+          setDestinationsOpen(false);
+        }
+      } else {
+        const place = islandPlaces.find((p) => p.id === 'manor')!;
+        void navigateTo(place, 'the Manor');
+      }
     };
     applyHallSettings.current = (settings) => house.setHallSettings(settings);
     house.setHallSettings(hallSettingsRef.current);
@@ -1547,6 +1590,25 @@ export default function IslandViewer({
       previous = now;
       updateTourTravel(dt);
       guide.update(dt);
+      if (assistantTargetRef.current) {
+        if (!house.inside && !house.active) {
+          if (walker.nearHouse && !inBoat) {
+            clearInput();
+            if (house.enter()) {
+              setEnteringHouse(true);
+              setDestinationsOpen(false);
+            }
+          }
+        } else if (house.inside) {
+          const room = assistantTargetRef.current;
+          assistantTargetRef.current = null;
+          if (room === 'skills') {
+            houseSkills.current();
+          } else if (room === 'projects') {
+            houseUpstairs.current();
+          }
+        }
+      }
       simulationTime += dt;
       if (!interactive) {
         environment.update(simulationTime, camera);
@@ -1978,6 +2040,8 @@ export default function IslandViewer({
       houseInteract.current = () => {};
       houseReturn.current = () => {};
       houseUpstairs.current = () => {};
+      houseEnterRoom.current = () => {};
+      assistantTargetRef.current = null;
       applyHallSettings.current = () => {};
       applyProjects.current = () => {};
       projectSelection.current = () => {};

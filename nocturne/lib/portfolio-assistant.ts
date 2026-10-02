@@ -20,7 +20,9 @@ export type AssistantAction =
         | 'leaveBoat'
         | 'swim'
         | 'enter'
-        | 'exit';
+        | 'exit'
+        | 'skillsRoom'
+        | 'projectsRoom';
     };
 export type AssistantReply = { reply: string; actions: AssistantAction[] };
 const targets: Record<AssistantAction['type'], readonly string[]> = {
@@ -30,7 +32,17 @@ const targets: Record<AssistantAction['type'], readonly string[]> = {
   navigate: islandPlaces.map((place) => place.id),
   animate: ['jump', 'sit', 'dance', 'wave'],
   mode: ['day', 'night', 'winter'],
-  control: ['stop', 'overview', 'board', 'leaveBoat', 'swim', 'enter', 'exit'],
+  control: [
+    'stop',
+    'overview',
+    'board',
+    'leaveBoat',
+    'swim',
+    'enter',
+    'exit',
+    'skillsRoom',
+    'projectsRoom',
+  ],
 };
 export const assistantActionHelp = Object.entries(targets)
   .map(([type, values]) => type + ': ' + values.join(', '))
@@ -185,6 +197,36 @@ export function localAssistantReply(input: string): AssistantReply | null {
         'Requesting a route to ' + destination.name + '.',
       );
   }
+  if (
+    /^(?:(?:go|take me|walk|head) (?:inside|iside|in) (?:and |to )?(?:show (?:me )?)?skills|go to (?:the )?skills(?: room)?|visit (?:the )?skills(?: room)?|skills room|take me to (?:the )?skills(?: room)?)$/.test(
+      text,
+    )
+  ) {
+    return answer(
+      { type: 'control', target: 'skillsRoom' },
+      'Going inside to the Skills Room.',
+    );
+  }
+  if (
+    /^(?:(?:go|take me|walk|head) (?:inside|iside|in) (?:and |to )?(?:show (?:me )?)?projects|go to (?:the )?projects(?: room)?|visit (?:the )?projects(?: room)?|projects room|take me to (?:the )?projects(?: room)?)$/.test(
+      text,
+    )
+  ) {
+    return answer(
+      { type: 'control', target: 'projectsRoom' },
+      'Going inside to the Projects Gallery.',
+    );
+  }
+  if (
+    /^(?:enter|go inside|go iside|enter (?:the )?(?:house|manor)|go in|take me inside|take me iside|step inside)$/.test(
+      text,
+    )
+  ) {
+    return answer(
+      { type: 'control', target: 'enter' },
+      'Heading inside the manor.',
+    );
+  }
   const control: Record<string, AssistantAction & { type: 'control' }> = {
     'look around': { type: 'control', target: 'overview' },
     'ride the boat': { type: 'control', target: 'board' },
@@ -192,7 +234,9 @@ export function localAssistantReply(input: string): AssistantReply | null {
     'leave the boat': { type: 'control', target: 'leaveBoat' },
     swim: { type: 'control', target: 'swim' },
     'enter the house': { type: 'control', target: 'enter' },
+    'enter the manor': { type: 'control', target: 'enter' },
     'leave the house': { type: 'control', target: 'exit' },
+    'leave the manor': { type: 'control', target: 'exit' },
   };
   return Object.hasOwn(control, text)
     ? answer(control[text], 'Requested: ' + text + '.')

@@ -25,6 +25,21 @@ void test('only explicit local commands perform actions; questions and negations
   assert.deepEqual(localAssistantReply('continue the tour')?.actions, [
     { type: 'tour', target: 'resume' },
   ]);
+  assert.deepEqual(localAssistantReply('go inside and show skills')?.actions, [
+    { type: 'control', target: 'skillsRoom' },
+  ]);
+  assert.deepEqual(localAssistantReply('go iside and show skills')?.actions, [
+    { type: 'control', target: 'skillsRoom' },
+  ]);
+  assert.deepEqual(localAssistantReply('go to skills room')?.actions, [
+    { type: 'control', target: 'skillsRoom' },
+  ]);
+  assert.deepEqual(localAssistantReply('go inside and show projects')?.actions, [
+    { type: 'control', target: 'projectsRoom' },
+  ]);
+  assert.deepEqual(localAssistantReply('go inside')?.actions, [
+    { type: 'control', target: 'enter' },
+  ]);
   for (const text of [
     'Do not open projects',
     'What skills does he have?',
@@ -48,6 +63,16 @@ void test('untrusted model output cannot execute unknown actions, URLs or inject
       actions: [{ type: 'show', target: 'skills', code: 'bad' }],
     }),
     { reply: 'Okay', actions: [{ type: 'show', target: 'skills' }] },
+  );
+  assert.deepEqual(
+    validateAssistantReply({
+      reply: 'Taking you to the Skills Room',
+      actions: [{ type: 'control', target: 'skillsRoom' }],
+    }),
+    {
+      reply: 'Taking you to the Skills Room',
+      actions: [{ type: 'control', target: 'skillsRoom' }],
+    },
   );
 });
 void test('long multilingual input is preserved and history has bounded size', () => {
