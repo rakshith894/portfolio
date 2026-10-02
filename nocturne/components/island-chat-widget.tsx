@@ -309,8 +309,13 @@ export function IslandChatWidget({
               `Projects: ${content.projects.map((p) => p.title + ': ' + p.description).join('; ')}`,
               `World: A Gothic island with an interactive manor house, Skills Room (floating holograms), Gallery of project frames, apparition contact projector, rowing boat, and weather effects.`,
               `Be helpful, natural, friendly, and concise. Keep answers under 3-4 sentences.`,
-              `Available actions: show (targets: 'about', 'skills', 'projects', 'resume'), tour (target: 'start'), control (targets: 'stop', 'enter', 'exit').`,
-              `If the user wants to see skills, include {"type":"show","target":"skills"}. If projects, {"type":"show","target":"projects"}. If contact/bio, {"type":"show","target":"about"}. If tour, {"type":"tour","target":"start"}.`,
+              `Available actions: control (targets: 'skillsRoom', 'projectsRoom', 'enter', 'exit', 'stop'), navigate (targets: 'landing', 'gate', 'graves', 'willow', 'lookout', 'manor', 'boat', 'bridge', 'tower'), show (targets: 'about', 'skills', 'projects', 'resume'), tour (target: 'start').`,
+              `Action guidelines:`,
+              `- When asked to go inside, visit the skills room, show skills, or see skills: ALWAYS use {"type":"control","target":"skillsRoom"} so the 3D avatar actually walks inside into the Skills Room!`,
+              `- When asked to go inside, visit the projects room, show projects, or see projects: use {"type":"control","target":"projectsRoom"} so the 3D avatar walks inside to the Projects Gallery!`,
+              `- When asked to enter the manor or go inside: use {"type":"control","target":"enter"}.`,
+              `- When asked to go to an island landmark (bridge, tower, boat, graves, gate, lookout, willow, landing): use {"type":"navigate","target":"<place-id>"}.`,
+              `- When asked for contact/bio: use {"type":"show","target":"about"}. If tour: {"type":"tour","target":"start"}.`,
               `Return strictly a JSON object: {"reply": "your answer here", "actions": []}`,
             ].join('\n');
 
@@ -369,20 +374,73 @@ export function IslandChatWidget({
           lower.includes('stack') ||
           lower.includes('technolog')
         ) {
-          const skillList = content.skills.map((s) => s.title).join(', ');
           result = {
-            reply: `${content.name} specializes in: ${skillList}. You can explore the interactive skill cards in the Manor's Skills Room!`,
-            actions: [{ type: 'show', target: 'skills' }],
+            reply: `Walking inside to the Skills Room to show you ${content.name}'s skills. Follow me!`,
+            actions: [{ type: 'control', target: 'skillsRoom' }],
           };
         } else if (
           lower.includes('project') ||
           lower.includes('work') ||
-          lower.includes('portfolio')
+          lower.includes('gallery')
         ) {
-          const projectList = content.projects.map((p) => p.title).join(', ');
           result = {
-            reply: `${content.name}'s featured projects include: ${projectList}. You can inspect each frame in the Gallery!`,
-            actions: [{ type: 'show', target: 'projects' }],
+            reply: `Walking inside and heading upstairs to the Projects Gallery. Follow me!`,
+            actions: [{ type: 'control', target: 'projectsRoom' }],
+          };
+        } else if (
+          lower.includes('inside') ||
+          lower.includes('iside') ||
+          lower.includes('enter') ||
+          lower.includes('manor') ||
+          lower.includes('house')
+        ) {
+          result = {
+            reply: `Heading inside the manor now. Follow me!`,
+            actions: [{ type: 'control', target: 'enter' }],
+          };
+        } else if (lower.includes('tower')) {
+          result = {
+            reply: `Walking to the Watchtower across the Moonlit Viaduct. Follow me!`,
+            actions: [{ type: 'navigate', target: 'tower' }],
+          };
+        } else if (lower.includes('bridge') || lower.includes('viaduct')) {
+          result = {
+            reply: `Walking to the Moonlit Viaduct bridge. Follow me!`,
+            actions: [{ type: 'navigate', target: 'bridge' }],
+          };
+        } else if (
+          lower.includes('boat') ||
+          lower.includes('dock') ||
+          lower.includes('cove')
+        ) {
+          result = {
+            reply: `Walking to the Boat Landing. Follow me!`,
+            actions: [{ type: 'navigate', target: 'boat' }],
+          };
+        } else if (lower.includes('grave') || lower.includes('cemetery')) {
+          result = {
+            reply: `Walking to Whispering Graves. Follow me!`,
+            actions: [{ type: 'navigate', target: 'graves' }],
+          };
+        } else if (lower.includes('gate')) {
+          result = {
+            reply: `Walking to Raven Gate. Follow me!`,
+            actions: [{ type: 'navigate', target: 'gate' }],
+          };
+        } else if (lower.includes('lookout') || lower.includes('beacon')) {
+          result = {
+            reply: `Walking to Lantern Lookout. Follow me!`,
+            actions: [{ type: 'navigate', target: 'lookout' }],
+          };
+        } else if (lower.includes('willow')) {
+          result = {
+            reply: `Walking to Willow Hollow. Follow me!`,
+            actions: [{ type: 'navigate', target: 'willow' }],
+          };
+        } else if (lower.includes('landing') || lower.includes('start')) {
+          result = {
+            reply: `Walking back to Frostfall Landing. Follow me!`,
+            actions: [{ type: 'navigate', target: 'landing' }],
           };
         } else if (
           lower.includes('contact') ||
@@ -417,7 +475,7 @@ export function IslandChatWidget({
           };
         } else {
           result = {
-            reply: `I heard you! You can ask about ${content.name}'s skills, projects, contact info, or click any of the shortcut buttons above.`,
+            reply: `I heard you! Ask me to walk to any place on the island (manor, skills room, projects gallery, tower, bridge, boat, graves) or ask about ${content.name}'s work!`,
             actions: [],
           };
         }

@@ -674,12 +674,26 @@ export default function IslandViewer({
       chooseProject(null);
       tourControl.current?.stop();
       if (action.target === 'skills') {
-        if (assistantTargetRef.current === 'skills') return;
+        if (!houseStatus?.inside) {
+          houseEnterRoom.current('skills');
+          return 'Walking inside to the Skills Room.';
+        }
+        if (houseStatus.inside && !houseStatus.skillsRoom) {
+          houseSkills.current();
+          return 'Walking into the Skills Room.';
+        }
         showSkills(true);
         return 'Skills opened.';
       }
       if (action.target === 'projects') {
-        if (assistantTargetRef.current === 'projects') return;
+        if (!houseStatus?.inside) {
+          houseEnterRoom.current('projects');
+          return 'Walking inside to the Projects Gallery.';
+        }
+        if (houseStatus.inside && !houseStatus.masterHall) {
+          houseUpstairs.current();
+          return 'Walking upstairs to the Projects Gallery.';
+        }
         const first = projectsRef.current.find((project) => project.url);
         if (first) {
           chooseProject(first.id);
@@ -1333,15 +1347,15 @@ export default function IslandViewer({
       }
       if (house.active) return;
       if (walker.nearHouse && !inBoat) {
-        clearInput();
         if (house.enter()) {
+          clearInput();
           setEnteringHouse(true);
           setDestinationsOpen(false);
+          return;
         }
-      } else {
-        const place = islandPlaces.find((p) => p.id === 'manor')!;
-        void navigateTo(place, 'the Manor');
       }
+      const place = islandPlaces.find((p) => p.id === 'manor')!;
+      void navigateTo(place, 'the Manor');
     };
     applyHallSettings.current = (settings) => house.setHallSettings(settings);
     house.setHallSettings(hallSettingsRef.current);
@@ -1593,8 +1607,8 @@ export default function IslandViewer({
       if (assistantTargetRef.current) {
         if (!house.inside && !house.active) {
           if (walker.nearHouse && !inBoat) {
-            clearInput();
             if (house.enter()) {
+              clearInput();
               setEnteringHouse(true);
               setDestinationsOpen(false);
             }
