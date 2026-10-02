@@ -800,9 +800,8 @@ body:has(.contact-apparition-dialog) [data-slot='dialog-overlay'] {
   width: min(540px, calc(100vw - 28px)) !important;
   max-width: 540px !important;
   max-height: min(84dvh, 680px) !important;
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-  padding: 42px 28px 24px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
   box-sizing: border-box !important;
   pointer-events: auto !important;
   z-index: 9999 !important;
@@ -831,18 +830,37 @@ body:has(.contact-apparition-dialog) [data-slot='dialog-overlay'] {
   max-height: min(90dvh, 780px) !important;
 }
 
+.apparition-scroll {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  max-height: inherit;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 42px 28px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: #67e8f944 transparent;
+  overflow-wrap: anywhere;
+}
+
+.apparition-contact-links > * > span {
+  min-width: 0;
+}
+
 /* Custom sleek neon scrollbars */
-.contact-apparition-dialog[data-slot='dialog-content']::-webkit-scrollbar {
+.apparition-scroll::-webkit-scrollbar {
   width: 5px;
 }
-.contact-apparition-dialog[data-slot='dialog-content']::-webkit-scrollbar-track {
+.apparition-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-.contact-apparition-dialog[data-slot='dialog-content']::-webkit-scrollbar-thumb {
+.apparition-scroll::-webkit-scrollbar-thumb {
   background: #67e8f944;
   border-radius: 4px;
 }
-.contact-apparition-dialog[data-slot='dialog-content']::-webkit-scrollbar-thumb:hover {
+.apparition-scroll::-webkit-scrollbar-thumb:hover {
   background: #67e8f988;
 }
 
@@ -876,7 +894,7 @@ body:has(.contact-apparition-dialog) [data-slot='dialog-overlay'] {
 .contact-apparition-dialog[data-slot='dialog-content']::before {
   content: '';
   position: absolute;
-  inset: -1px;
+  inset: 0;
   border-radius: 22px;
   padding: 1.5px;
   background: conic-gradient(

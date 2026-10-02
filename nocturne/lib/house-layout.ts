@@ -224,10 +224,13 @@ export function createHouseWalker() {
   const side = (door: HouseDoor) =>
     Math.sign(door.axis === 'z' ? position.x - door.x : position.z - door.z);
   let occupants: HousePoint[] = [];
+  const overlapsHeight = (point: HousePoint, door: HouseDoor) =>
+    (point.y ?? 0) + 1.82 > (door.y ?? 0) &&
+    (point.y ?? 0) < (door.y ?? 0) + door.height;
   const safeToClose = (door: HouseDoor) =>
     [position, ...occupants].every(
       (point) =>
-        Math.abs((point.y ?? 0) - (door.y ?? 0)) > door.height ||
+        !overlapsHeight(point, door) ||
         Math.hypot(point.x - door.x, point.z - door.z) >
           door.width + HOUSE_RADIUS + 0.45,
     );
@@ -319,9 +322,26 @@ export function createHouseWalker() {
               Math.abs(door.target - door.progress),
               Math.max(0, dt) / 0.85,
             );
-        const { a, b } = doorSegment(door, next);
-        if (segmentDistance(position, a, b) >= HOUSE_RADIUS + 0.08)
-          door.progress = next;
+        // Check the entire swing, including followers, on this floor only.
+        // A slow frame must not let the leaf jump through an occupant.
+        const steps = Math.max(
+          1,
+          Math.ceil(Math.abs(next - door.progress) / 0.02),
+        );
+        for (let step = 1; step <= steps; step++) {
+          const progress =
+            door.progress + (next - door.progress) / (steps - step + 1);
+          const { a, b } = doorSegment(door, progress);
+          if (
+            [position, ...occupants].some(
+              (point) =>
+                overlapsHeight(point, door) &&
+                segmentDistance(point, a, b) < HOUSE_RADIUS + 0.08,
+            )
+          )
+            break;
+          door.progress = progress;
+        }
       }
     },
     move(dx: number, dz: number) {

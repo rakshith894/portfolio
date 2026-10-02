@@ -10,6 +10,8 @@ import {
   HOUSE_FLOORS,
   type HousePoint,
   houseRoute,
+  doorSegment,
+  HOUSE_RADIUS,
 } from '../lib/house-layout.ts';
 import { MANOR_DOOR, MANOR_SOLIDS } from '../lib/manor-layout.ts';
 import { MANOR_ORIGIN } from '../lib/reference-layout.ts';
@@ -539,8 +541,23 @@ void test('the same avatar walks through an actual open portal, explores, and wa
     );
     assert.equal(exploration.walkTo({ x: 100, z: 100, y: 0 }), false);
     exploration.returnToDoor();
-    for (let frame = 0; frame < 2400 && exploration.active; frame++)
+    for (let frame = 0; frame < 2400 && exploration.active; frame++) {
       exploration.update(1 / 60, 30 + frame / 60, 0, 0, false, false);
+      const front = createHouseWalker().doors[0];
+      const { a, b } = doorSegment(front, door.rotation.y / (Math.PI / 2));
+      const leaf = new THREE.Line3(
+        new THREE.Vector3(a.x, 0, a.z),
+        new THREE.Vector3(b.x, 0, b.z),
+      );
+      const local = walker.position.clone().sub(origin).setY(0);
+      assert.ok(
+        leaf
+          .closestPointToPoint(local, true, new THREE.Vector3())
+          .distanceTo(local) >=
+          HOUSE_RADIUS + 0.08,
+        'The front door never swings through the visitor during exit',
+      );
+    }
     assert.equal(
       exploration.active,
       false,
@@ -587,4 +604,30 @@ void test('the study is replaced by an empty skills gallery and long moves canno
   walker.position.z = -2.8;
   walker.move(8, 0);
   assert.ok(walker.position.x < 2.2, 'Room partition blocks a long frame');
+});
+
+void test('an upstairs visitor does not freeze a ground-floor door', () => {
+  const walker = createHouseWalker();
+  const door = walker.doors.find((door) => door.id === 'dining')!;
+  Object.assign(walker.position, {
+    x: door.x,
+    z: door.z + door.width / 2,
+    y: 5,
+  });
+  door.progress = 1;
+  door.target = 0;
+  door.crossed = true;
+  tick(walker);
+  assert.equal(door.progress, 0);
+});
+
+void test('an opening door cannot sweep through a follower even on a slow frame', () => {
+  const walker = createHouseWalker();
+  const door = walker.doors.find((door) => door.id === 'dining')!;
+  Object.assign(walker.position, { x: door.x - 0.8, z: door.z + 0.8, y: 0 });
+  walker.open(door.id);
+  walker.update(1, [{ x: door.x + 0.7, z: door.z + 0.8, y: 0 }]);
+  assert.ok(door.progress > 0 && door.progress < 1);
+  walker.update(1);
+  assert.equal(door.progress, 1, 'The door resumes once its swing is clear');
 });

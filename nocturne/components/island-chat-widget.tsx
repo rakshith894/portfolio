@@ -260,7 +260,11 @@ export function IslandChatWidget({
       let result = local;
       if (!result) {
         const lower = text.toLowerCase().trim();
-        if (/^(hi|hello|hey|greetings|howdy|good (morning|afternoon|evening))[.!?]*$/i.test(lower)) {
+        if (
+          /^(hi|hello|hey|greetings|howdy|good (morning|afternoon|evening))[.!?]*$/i.test(
+            lower,
+          )
+        ) {
           result = {
             reply: `Hello! I'm the Nocturne AI guide. I know all about ${content.name}'s work, skills, and this 3D island world. What would you like to explore?`,
             actions: [],
@@ -312,32 +316,40 @@ export function IslandChatWidget({
 
             const controller = new AbortController();
             request.current = controller;
-            const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': 'Bearer ' + groqKey,
-                'Content-Type': 'application/json',
+            const groqRes = await fetch(
+              'https://api.groq.com/openai/v1/chat/completions',
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: 'Bearer ' + groqKey,
+                  'Content-Type': 'application/json',
+                },
+                signal: AbortSignal.any([
+                  controller.signal,
+                  AbortSignal.timeout(20000),
+                ]),
+                body: JSON.stringify({
+                  model: 'openai/gpt-oss-20b',
+                  messages: [
+                    { role: 'system', content: prompt },
+                    ...chatHistory(next).map((m) => ({
+                      role: m.role,
+                      content: m.content,
+                    })),
+                  ],
+                  temperature: 0.6,
+                  max_tokens: 600,
+                  response_format: { type: 'json_object' },
+                }),
               },
-              signal: AbortSignal.any([
-                controller.signal,
-                AbortSignal.timeout(20000),
-              ]),
-              body: JSON.stringify({
-                model: 'openai/gpt-oss-20b',
-                messages: [
-                  { role: 'system', content: prompt },
-                  ...chatHistory(next).map((m) => ({ role: m.role, content: m.content })),
-                ],
-                temperature: 0.6,
-                max_tokens: 600,
-                response_format: { type: 'json_object' },
-              }),
-            });
+            );
 
             if (groqRes.ok) {
-              const groqData = await groqRes.json();
-              const rawContent = groqData.choices?.[0]?.message?.content;
-              if (rawContent) {
+              const groqData = (await groqRes.json()) as {
+                choices?: { message?: { content?: unknown } }[];
+              } | null;
+              const rawContent = groqData?.choices?.[0]?.message?.content;
+              if (typeof rawContent === 'string' && rawContent) {
                 const parsed = JSON.parse(rawContent);
                 result = validateAssistantReply(parsed) || {
                   reply: parsed.reply || rawContent,
@@ -352,29 +364,53 @@ export function IslandChatWidget({
       }
       if (!result) {
         const lower = text.toLowerCase();
-        if (lower.includes('skill') || lower.includes('stack') || lower.includes('technolog')) {
+        if (
+          lower.includes('skill') ||
+          lower.includes('stack') ||
+          lower.includes('technolog')
+        ) {
           const skillList = content.skills.map((s) => s.title).join(', ');
           result = {
             reply: `${content.name} specializes in: ${skillList}. You can explore the interactive skill cards in the Manor's Skills Room!`,
             actions: [{ type: 'show', target: 'skills' }],
           };
-        } else if (lower.includes('project') || lower.includes('work') || lower.includes('portfolio')) {
+        } else if (
+          lower.includes('project') ||
+          lower.includes('work') ||
+          lower.includes('portfolio')
+        ) {
           const projectList = content.projects.map((p) => p.title).join(', ');
           result = {
             reply: `${content.name}'s featured projects include: ${projectList}. You can inspect each frame in the Gallery!`,
             actions: [{ type: 'show', target: 'projects' }],
           };
-        } else if (lower.includes('contact') || lower.includes('email') || lower.includes('phone') || lower.includes('hire') || lower.includes('reach')) {
+        } else if (
+          lower.includes('contact') ||
+          lower.includes('email') ||
+          lower.includes('phone') ||
+          lower.includes('hire') ||
+          lower.includes('reach')
+        ) {
           result = {
             reply: `You can reach ${content.name} at ${content.email}${content.phone ? ' or phone ' + content.phone : ''}. Opening contact details now!`,
             actions: [{ type: 'show', target: 'about' }],
           };
-        } else if (lower.includes('about') || lower.includes('who is') || lower.includes('bio') || lower.includes('college') || lower.includes('education')) {
+        } else if (
+          lower.includes('about') ||
+          lower.includes('who is') ||
+          lower.includes('bio') ||
+          lower.includes('college') ||
+          lower.includes('education')
+        ) {
           result = {
             reply: `${content.name} is a ${content.role}. ${content.bio}`,
             actions: [{ type: 'show', target: 'about' }],
           };
-        } else if (lower.includes('tour') || lower.includes('walk') || lower.includes('guide')) {
+        } else if (
+          lower.includes('tour') ||
+          lower.includes('walk') ||
+          lower.includes('guide')
+        ) {
           result = {
             reply: `Starting the guided tour across Nocturne island! Follow the lights.`,
             actions: [{ type: 'tour', target: 'start' }],

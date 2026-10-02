@@ -251,216 +251,220 @@ export function ContactApparitionDialog({
           <span className="holo-trace holo-trace-2" />
         </div>
 
-        <div className="hologram-transmission">
-          <span className={revealed < total ? 'is-transmitting' : ''} />
-          {revealed < total ? 'ESTABLISHING CONTACT' : 'TRANSMISSION COMPLETE'}
-          {revealed < total && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setRevealed(total)}
-            >
-              Show all
-            </Button>
-          )}
-        </div>
-        {(editing ? draft.photo : profile.photo) && (
-          <div className="apparition-portrait">
-            <Image
-              src={editing ? draft.photo : profile.photo}
-              width={240}
-              height={240}
-              unoptimized
-              alt={`${profile.name}'s portrait`}
-            />
-          </div>
-        )}
-        <div className="apparition-introduction">
-          <span className="hall-project-eyebrow">
-            THE PERSON BEHIND THE WORLD
-          </span>
-          <DialogTitle>{typed('name')}</DialogTitle>
-          <DialogDescription>{typed('role')}</DialogDescription>
-        </div>
-        {editing && canEdit ? (
-          <form className="hall-project-editor" onSubmit={submit}>
-            <fieldset disabled={busy}>
-              <label>
-                Your photo
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) => void upload(event.target.files?.[0])}
-                />
-              </label>
-              {draft.photo && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setDraft({ ...draft, photo: '' })}
-                >
-                  Remove photo
-                </Button>
-              )}
-              <label>
-                Your résumé (PDF, up to 5 MB)
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  onChange={(event) =>
-                    void uploadResume(event.target.files?.[0])
-                  }
-                />
-              </label>
-              {draft.resume && (
-                <div className="resume-editor-status">
-                  <span>
-                    Résumé ready. Save your profile to publish this choice.
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setDraft({ ...draft, resume: '' })}
-                  >
-                    Remove résumé
-                  </Button>
-                </div>
-              )}
-              <div className="apparition-editor-grid">
-                {(
-                  [
-                    'name',
-                    'role',
-                    'email',
-                    'phone',
-                    'location',
-                    'website',
-                    'github',
-                    'linkedin',
-                  ] as const
-                ).map((key) => (
-                  <label key={key}>
-                    {
-                      {
-                        name: 'Name',
-                        role: 'Role / headline',
-                        email: 'Email',
-                        phone: 'Phone',
-                        location: 'Location',
-                        website: 'Website',
-                        github: 'GitHub URL',
-                        linkedin: 'LinkedIn URL',
-                      }[key]
-                    }
-                    <input
-                      type={
-                        key === 'email'
-                          ? 'email'
-                          : ['website', 'github', 'linkedin'].includes(key)
-                            ? 'url'
-                            : 'text'
-                      }
-                      value={draft[key]}
-                      maxLength={PROFILE_LIMITS[key]}
-                      required={key === 'name'}
-                      onChange={(event) =>
-                        setDraft({ ...draft, [key]: event.target.value })
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-              <label>
-                About you
-                <textarea
-                  rows={5}
-                  maxLength={PROFILE_LIMITS.bio}
-                  value={draft.bio}
-                  onChange={(event) =>
-                    setDraft({ ...draft, bio: event.target.value })
-                  }
-                />
-              </label>
-              <div className="hall-project-editor-actions">
-                <Button type="submit">
-                  <Save />
-                  {busy ? 'Saving…' : 'Save profile'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setDraft(profile);
-                    setError('');
-                    setEditing(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-              <p className="hall-storage-note">
-                Edit locally, then publish to update the profile visitors see.
-                Blank contact fields stay hidden.
-              </p>
-            </fieldset>
-          </form>
-        ) : (
-          <div className="apparition-details">
-            <p className="apparition-bio">{typed('bio')}</p>
-            <div className="apparition-contact-links">
-              {profile.email && (
-                <a href={`mailto:${profile.email}`}>
-                  <Mail size={18} />
-                  {typed('email')}
-                </a>
-              )}
-              {profile.phone && (
-                <a href={`tel:${profile.phone.replace(/[^+\d]/g, '')}`}>
-                  <Phone size={18} />
-                  {typed('phone')}
-                </a>
-              )}
-              {profile.location && (
-                <p>
-                  <MapPin size={18} />
-                  {typed('location')}
-                </p>
-              )}
-              {(['website', 'github', 'linkedin'] as const).map(
-                (key) =>
-                  profile[key] && (
-                    <a
-                      key={key}
-                      href={profile[key]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {typed(key)}
-                      <ArrowUpRight size={18} />
-                    </a>
-                  ),
-              )}
-            </div>
-            <ResumeActions url={profile.resume} name={profile.name} />
-            {canEdit && (
+        <div className="apparition-scroll">
+          <div className="hologram-transmission">
+            <span className={revealed < total ? 'is-transmitting' : ''} />
+            {revealed < total
+              ? 'ESTABLISHING CONTACT'
+              : 'TRANSMISSION COMPLETE'}
+            {revealed < total && (
               <Button
-                variant="outline"
-                onClick={() => {
-                  setDraft(profile);
-                  setEditing(true);
-                }}
+                variant="ghost"
+                size="sm"
+                onClick={() => setRevealed(total)}
               >
-                <Pencil />
-                Edit photo, résumé &amp; contact
+                Show all
               </Button>
             )}
           </div>
-        )}
-        {error && (
-          <p className="hall-project-error" role="alert">
-            {error}
-          </p>
-        )}
+          {(editing ? draft.photo : profile.photo) && (
+            <div className="apparition-portrait">
+              <Image
+                src={editing ? draft.photo : profile.photo}
+                width={240}
+                height={240}
+                unoptimized
+                alt={`${profile.name}'s portrait`}
+              />
+            </div>
+          )}
+          <div className="apparition-introduction">
+            <span className="hall-project-eyebrow">
+              THE PERSON BEHIND THE WORLD
+            </span>
+            <DialogTitle>{typed('name')}</DialogTitle>
+            <DialogDescription>{typed('role')}</DialogDescription>
+          </div>
+          {editing && canEdit ? (
+            <form className="hall-project-editor" onSubmit={submit}>
+              <fieldset disabled={busy}>
+                <label>
+                  Your photo
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => void upload(event.target.files?.[0])}
+                  />
+                </label>
+                {draft.photo && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setDraft({ ...draft, photo: '' })}
+                  >
+                    Remove photo
+                  </Button>
+                )}
+                <label>
+                  Your résumé (PDF, up to 5 MB)
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={(event) =>
+                      void uploadResume(event.target.files?.[0])
+                    }
+                  />
+                </label>
+                {draft.resume && (
+                  <div className="resume-editor-status">
+                    <span>
+                      Résumé ready. Save your profile to publish this choice.
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setDraft({ ...draft, resume: '' })}
+                    >
+                      Remove résumé
+                    </Button>
+                  </div>
+                )}
+                <div className="apparition-editor-grid">
+                  {(
+                    [
+                      'name',
+                      'role',
+                      'email',
+                      'phone',
+                      'location',
+                      'website',
+                      'github',
+                      'linkedin',
+                    ] as const
+                  ).map((key) => (
+                    <label key={key}>
+                      {
+                        {
+                          name: 'Name',
+                          role: 'Role / headline',
+                          email: 'Email',
+                          phone: 'Phone',
+                          location: 'Location',
+                          website: 'Website',
+                          github: 'GitHub URL',
+                          linkedin: 'LinkedIn URL',
+                        }[key]
+                      }
+                      <input
+                        type={
+                          key === 'email'
+                            ? 'email'
+                            : ['website', 'github', 'linkedin'].includes(key)
+                              ? 'url'
+                              : 'text'
+                        }
+                        value={draft[key]}
+                        maxLength={PROFILE_LIMITS[key]}
+                        required={key === 'name'}
+                        onChange={(event) =>
+                          setDraft({ ...draft, [key]: event.target.value })
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+                <label>
+                  About you
+                  <textarea
+                    rows={5}
+                    maxLength={PROFILE_LIMITS.bio}
+                    value={draft.bio}
+                    onChange={(event) =>
+                      setDraft({ ...draft, bio: event.target.value })
+                    }
+                  />
+                </label>
+                <div className="hall-project-editor-actions">
+                  <Button type="submit">
+                    <Save />
+                    {busy ? 'Saving…' : 'Save profile'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setDraft(profile);
+                      setError('');
+                      setEditing(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <p className="hall-storage-note">
+                  Edit locally, then publish to update the profile visitors see.
+                  Blank contact fields stay hidden.
+                </p>
+              </fieldset>
+            </form>
+          ) : (
+            <div className="apparition-details">
+              <p className="apparition-bio">{typed('bio')}</p>
+              <div className="apparition-contact-links">
+                {profile.email && (
+                  <a href={`mailto:${profile.email}`}>
+                    <Mail size={18} />
+                    {typed('email')}
+                  </a>
+                )}
+                {profile.phone && (
+                  <a href={`tel:${profile.phone.replace(/[^+\d]/g, '')}`}>
+                    <Phone size={18} />
+                    {typed('phone')}
+                  </a>
+                )}
+                {profile.location && (
+                  <p>
+                    <MapPin size={18} />
+                    {typed('location')}
+                  </p>
+                )}
+                {(['website', 'github', 'linkedin'] as const).map(
+                  (key) =>
+                    profile[key] && (
+                      <a
+                        key={key}
+                        href={profile[key]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {typed(key)}
+                        <ArrowUpRight size={18} />
+                      </a>
+                    ),
+                )}
+              </div>
+              <ResumeActions url={profile.resume} name={profile.name} />
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDraft(profile);
+                    setEditing(true);
+                  }}
+                >
+                  <Pencil />
+                  Edit photo, résumé &amp; contact
+                </Button>
+              )}
+            </div>
+          )}
+          {error && (
+            <p className="hall-project-error" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

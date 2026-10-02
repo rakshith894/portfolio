@@ -76,7 +76,6 @@ import {
   FolderGit2,
   Sparkles,
   Compass,
-  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createReferenceEnvironment } from '@/lib/reference-environment';
@@ -1274,16 +1273,6 @@ export default function IslandViewer({
         destinationRoute.length = 0;
         destination.set(NaN, NaN, NaN);
       }
-      if (
-        event.code === 'KeyE' &&
-        house.inside &&
-        apparition.near(walker.position) &&
-        !event.repeat
-      ) {
-        event.preventDefault();
-        showContact(true);
-        return;
-      }
       if (event.code === 'KeyE' && house.active && !event.repeat) {
         event.preventDefault();
         house.interact();
@@ -1355,15 +1344,15 @@ export default function IslandViewer({
       );
       tour.stop();
       clickRay.setFromCamera(clickPoint, camera);
-      if (!inBoat) {
+      if (house.inside && !inBoat) {
         const skillHit = skillHolograms.hit(clickRay);
-        if (skillHit) {
+        if (skillHit && house.unoccluded(clickRay, skillHit.distance)) {
           showSkills(true, skillHit.object.userData.skillId as string | null);
           return;
         }
       }
-      const contactHit = apparition.hit(clickRay);
-      if (contactHit) {
+      const contactHit = house.inside ? apparition.hit(clickRay) : null;
+      if (contactHit && house.unoccluded(clickRay, contactHit.distance)) {
         showContact(true);
         return;
       }
@@ -1945,20 +1934,13 @@ export default function IslandViewer({
             >
               {narration ? <Volume2 /> : <VolumeX />}
             </Button>
-            <Button
-              className="island-portfolio-link"
-              variant="ghost"
-              onClick={() => showSkills(true)}
-            >
-              All skills ({skills.length})
-            </Button>
-            {(nearHouse || houseStatus) && (
+            {houseStatus?.inside && (
               <Button
                 className="island-portfolio-link"
                 variant="ghost"
-                onClick={() => showContact(true)}
+                onClick={() => showSkills(true)}
               >
-                Contact
+                All skills ({skills.length})
               </Button>
             )}
             {houseStatus && (
@@ -2160,17 +2142,6 @@ export default function IslandViewer({
               >
                 <Compass size={15} />
                 <span>Entrance Hall</span>
-              </Button>
-            )}
-
-            {houseStatus.room === 'The entrance hall' && (
-              <Button
-                variant="outline"
-                className="house-sidebar-btn hall-contact-trigger"
-                onClick={() => showContact(true)}
-              >
-                <User size={15} />
-                <span>Contact Hologram</span>
               </Button>
             )}
 

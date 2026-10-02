@@ -9,6 +9,7 @@ import { MANOR_DOOR } from './manor-layout.ts';
 import {
   createHouseWalker,
   houseRoute,
+  HOUSE_RADIUS,
   type HousePoint,
 } from './house-layout.ts';
 import { createHouseScene } from './house-scene.ts';
@@ -18,6 +19,7 @@ import { DEFAULT_HALL_SETTINGS, type HallSettings } from './master-hall.ts';
 import type { HallFrameId, HallProject } from './hall-projects.ts';
 
 export type HouseStatus = {
+  inside: boolean;
   room: string;
   detail: string;
   door: string | null;
@@ -137,6 +139,7 @@ export function createHouseExploration(
     const room = indoor.room();
     const nearby = indoor.nearestDoor();
     const status = {
+      inside: phase === 'inside',
       room:
         phase === 'inside'
           ? (room?.name ?? 'The entrance hall')
@@ -176,8 +179,10 @@ export function createHouseExploration(
   function returnToDoor() {
     if (phase !== 'inside') return;
     route =
-      houseRoute(indoor.position, { x: 0, z: -1 }, (point) =>
-        indoor.canStand(point, true),
+      houseRoute(
+        indoor.position,
+        { x: 0, z: -(MANOR_DOOR.width + HOUSE_RADIUS + 0.25) },
+        (point) => indoor.canStand(point, true),
       ) ?? [];
     exitAfterRoute = route.length > 0;
     arrivalDoor = null;
@@ -332,7 +337,8 @@ export function createHouseExploration(
     },
     unoccluded(ray: THREE.Raycaster, distance: number) {
       root.updateMatrixWorld(true);
-      const hit = ray.intersectObjects(collisions, false)[0];
+      exteriorDoor.updateMatrixWorld(true);
+      const hit = ray.intersectObjects(cameraObstacles, false)[0];
       return !hit || hit.distance >= distance - 0.04;
     },
     setProjects(projects: HallProject[]) {
@@ -454,8 +460,8 @@ export function createHouseExploration(
           return false;
         }
       } else if (phase === 'opening') {
-        doorProgress = Math.min(1, elapsed / 1.1);
-        if (elapsed >= 1.2) {
+        doorProgress = Math.min(1, doorProgress + dt / 1.1);
+        if (doorProgress === 1) {
           phase = 'crossing';
           elapsed = 0;
         }
