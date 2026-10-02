@@ -964,11 +964,17 @@ export default function IslandViewer({
     // constrainCamera reset the camera distance every frame (zoom is invisible).
     renderer.domElement.addEventListener(
       'wheel',
-      () => {
+      (event: WheelEvent) => {
         cameraManualUntil = Math.max(
           cameraManualUntil,
           performance.now() + 600,
         );
+        const factor = event.deltaY < 0 ? 0.88 : 1.14;
+        if (house.inside) {
+          house.zoom(factor);
+        } else {
+          followOrbit.zoom(factor);
+        }
       },
       { passive: true },
     );
@@ -977,14 +983,18 @@ export default function IslandViewer({
         overviewRef.current = !overviewRef.current;
         setOverview(overviewRef.current);
       } else {
-        const factor = action === 'zoomIn' ? 0.7 : 1.35;
-        followOrbit.zoom(factor);
-        const offset = camera.position
-          .clone()
-          .sub(controls.target)
-          .multiplyScalar(factor);
-        camera.position.copy(controls.target).add(offset);
-        controls.update();
+        const factor = action === 'zoomIn' ? 0.75 : 1.3;
+        if (house.inside) {
+          house.zoom(factor);
+        } else {
+          followOrbit.zoom(factor);
+          const offset = camera.position
+            .clone()
+            .sub(controls.target)
+            .multiplyScalar(factor);
+          camera.position.copy(controls.target).add(offset);
+          controls.update();
+        }
       }
     };
     waterAction.current = (action) => {

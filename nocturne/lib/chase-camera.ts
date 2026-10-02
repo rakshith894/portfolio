@@ -43,36 +43,22 @@ export function followBehind(
 
 /** Preserve the requested zoom when a wall temporarily shortens the camera arm. */
 export function createFollowOrbit(initialDistance = 10) {
-  let desired = initialDistance,
-    rendered: number | null = null;
+  let desired = initialDistance;
   return {
     reset(distance = desired) {
       desired = THREE.MathUtils.clamp(distance, 4.5, 42);
-      rendered = null;
     },
     zoom(factor: number) {
       desired = THREE.MathUtils.clamp(desired * factor, 4.5, 42);
-      rendered = null;
     },
     prepare(
       position: THREE.Vector3,
       target: THREE.Vector3,
       dt: number,
-      manual: boolean,
+      _manual = false,
     ) {
       const offset = position.clone().sub(target),
         current = offset.length();
-      if (
-        manual &&
-        rendered !== null &&
-        rendered > 0.001 &&
-        Math.abs(current - rendered) > 0.02
-      )
-        desired = THREE.MathUtils.clamp(
-          (desired * current) / rendered,
-          4.5,
-          42,
-        );
       if (current > 0.001)
         position
           .copy(target)
@@ -84,14 +70,6 @@ export function createFollowOrbit(initialDistance = 10) {
             ),
           );
     },
-    commit(position: THREE.Vector3, target: THREE.Vector3) {
-      const constrained = position.distanceTo(target);
-      // If a collision constraint shortened the arm significantly this frame,
-      // softly pull desired toward the constrained length to stop the
-      // prepare→constrain oscillation that causes visible shaking near cliffs.
-      if (rendered !== null && constrained < rendered - 0.05)
-        desired = Math.max(constrained, THREE.MathUtils.damp(desired, constrained, 6, 1 / 60));
-      rendered = constrained;
-    },
+    commit(_position: THREE.Vector3, _target: THREE.Vector3) {},
   };
 }

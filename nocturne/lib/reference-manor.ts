@@ -461,7 +461,7 @@ export function createReferenceManor(
   // Central entrance projects forward, with a vaulted stone portico.
   const portalZ = front + 1.32;
   const portalShape = new THREE.ShapeGeometry(
-    pointedShape(MANOR_DOOR.width, MANOR_DOOR.height),
+    pointedShape(MANOR_DOOR.width, 3.76),
     16,
   );
   const door = new THREE.Group();

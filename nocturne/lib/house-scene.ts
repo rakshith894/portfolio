@@ -642,51 +642,53 @@ export function createHouseScene(scene: THREE.Scene, mobile: boolean) {
       sphere(leaf, trim, width - 0.3, 1.42, side * 0.14, 0.065, 0.065, 0.065);
       box(leaf, trim, width / 2, 2.36, side * 0.083, 0.48, 0.24, 0.025);
     }
-    const frame = new THREE.Group();
-    frame.position.copy(pivot.position);
-    if (door.axis === 'z') frame.rotation.y = -Math.PI / 2;
-    scene.add(frame);
-    for (const x of [-0.1, width + 0.1])
-      box(frame, trim, x, door.height / 2, 0, 0.15, door.height, 0.3);
-    box(frame, trim, width / 2, door.height + 0.08, 0, width + 0.35, 0.16, 0.3);
-    box(
-      frame,
-      stone,
-      width / 2,
-      (door.height + 4.8) / 2,
-      0,
-      width + 0.2,
-      4.8 - door.height,
-      0.3,
-    );
-    // Legible door plaques are UI labels in world space, not external artwork.
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 96;
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.fillStyle = '#211d19';
-      context.fillRect(0, 0, 512, 96);
-      context.fillStyle = '#dfceac';
-      context.textAlign = 'center';
-      context.font = '32px Georgia';
-      context.fillText(door.name, 256, 59);
-      const plaque = new THREE.Mesh(
-        own(new THREE.PlaneGeometry(1.6, 0.3)),
-        own(
-          new THREE.MeshBasicMaterial({
-            map: own(new THREE.CanvasTexture(canvas)),
-            side: THREE.DoubleSide,
-          }),
-        ),
-      );
-      plaque.position.set(
+    if (door.id !== 'front') {
+      const frame = new THREE.Group();
+      frame.position.copy(pivot.position);
+      if (door.axis === 'z') frame.rotation.y = -Math.PI / 2;
+      scene.add(frame);
+      for (const x of [-0.1, width + 0.1])
+        box(frame, trim, x, door.height / 2, 0, 0.15, door.height, 0.3);
+      box(frame, trim, width / 2, door.height + 0.08, 0, width + 0.35, 0.16, 0.3);
+      box(
+        frame,
+        stone,
         width / 2,
-        door.height + 0.38,
-        door.axis === 'z' && door.x < 0 ? -0.19 : 0.19,
+        (door.height + 4.8) / 2,
+        0,
+        width + 0.2,
+        4.8 - door.height,
+        0.3,
       );
-      if (door.axis === 'z' && door.x < 0) plaque.rotation.y = Math.PI;
-      frame.add(plaque);
+      // Legible door plaques are UI labels in world space, not external artwork.
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 96;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.fillStyle = '#211d19';
+        context.fillRect(0, 0, 512, 96);
+        context.fillStyle = '#dfceac';
+        context.textAlign = 'center';
+        context.font = '32px Georgia';
+        context.fillText(door.name, 256, 59);
+        const plaque = new THREE.Mesh(
+          own(new THREE.PlaneGeometry(1.6, 0.3)),
+          own(
+            new THREE.MeshBasicMaterial({
+              map: own(new THREE.CanvasTexture(canvas)),
+              side: THREE.DoubleSide,
+            }),
+          ),
+        );
+        plaque.position.set(
+          width / 2,
+          door.height + 0.38,
+          door.axis === 'z' && door.x < 0 ? -0.19 : 0.19,
+        );
+        if (door.axis === 'z' && door.x < 0) plaque.rotation.y = Math.PI;
+        frame.add(plaque);
+      }
     }
   }
   const bookMaterials = [

@@ -51,6 +51,7 @@ export function createHouseExploration(
   root.name = 'Rooms inside the manor shell';
   root.position.copy(origin);
   const world = createHouseScene(root, mobile);
+  root.visible = false;
   scene.add(root);
   world.doors.get('front')!.visible = false;
   const exteriorDoor = manor.userData.door as THREE.Group;
@@ -371,6 +372,9 @@ export function createHouseExploration(
     },
     returnToDoor,
     stop,
+    zoom(factor: number) {
+      viewDistance = THREE.MathUtils.clamp(viewDistance * factor, 0.8, 4.3);
+    },
     setMode: world.setMode,
     walkTo,
     point(ray: THREE.Raycaster) {
@@ -490,6 +494,7 @@ export function createHouseExploration(
           target.copy(origin).add(new THREE.Vector3(0, 0, 1.5));
           if (moveTo(target, 1.65, dt, false)) {
             phase = 'outside';
+            root.visible = false;
             manor.visible = true;
             walker.position.y = walkingHeight(
               walker.position.x,
@@ -629,20 +634,7 @@ export function createHouseExploration(
         target.copy(player.root.position).add(new THREE.Vector3(0, 1.35, 0));
         camera.position.add(target.clone().sub(controls.target));
         controls.target.copy(target);
-        // Measure distance before update so we can detect zoom input precisely.
-        const preUpdateDist = camera.position.distanceTo(controls.target);
-        controls.update(); // applies scroll-wheel zoom and orbit rotation
-        const inputDistance = camera.position.distanceTo(controls.target);
-        // If controls.update() changed the radius, the user zoomed (scroll/pinch).
-        // Using a pre/post delta removes the need for manualCamera() here, which
-        // was unreliable because scroll-wheel never fires OrbitControls start/end.
-        const zoomDelta = inputDistance - preUpdateDist;
-        if (Math.abs(zoomDelta) > 0.01) {
-          const next = THREE.MathUtils.clamp(inputDistance, 0.8, 4.3);
-          if (Math.abs(next - viewDistance) > 0.04)
-            smoothedConstrainDist = null;
-          viewDistance = next;
-        }
+        controls.update();
         if (Math.hypot(change.x, change.z) > 0.00001 && !manualCamera())
           followBehind(camera, controls.target, player.root.rotation.y, dt);
         cameraDirection.copy(camera.position).sub(controls.target);
