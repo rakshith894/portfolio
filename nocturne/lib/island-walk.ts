@@ -363,7 +363,21 @@ export function createIslandWalker(
           clearedSceneryHeight(intersection.x, intersection.z, Infinity)
         )
           continue;
-        visibleDistance = Math.max(0.15, distance - 0.22);
+        let low = Math.max(entry, distance - 0.12);
+        let high = distance;
+        for (let s = 0; s < 5; s++) {
+          const mid = (low + high) * 0.5;
+          cameraRay.at(mid, intersection);
+          if (
+            intersection.y <=
+            clearedSceneryHeight(intersection.x, intersection.z, Infinity)
+          ) {
+            high = mid;
+          } else {
+            low = mid;
+          }
+        }
+        visibleDistance = Math.max(0.15, low - 0.22);
         break;
       }
     }
@@ -379,7 +393,25 @@ export function createIslandWalker(
           ) + 0.3
         : 1.2;
       if (intersection.y >= floor) continue;
-      visibleDistance = Math.max(0.15, distance - 0.2);
+      let low = Math.max(0.15, distance - 0.15);
+      let high = distance;
+      for (let s = 0; s < 5; s++) {
+        const mid = (low + high) * 0.5;
+        cameraRay.at(mid, intersection);
+        const midFloor = onIsland(intersection.x, intersection.z)
+          ? clearedSceneryHeight(
+              intersection.x,
+              intersection.z,
+              groundHeight(intersection.x, intersection.z),
+            ) + 0.3
+          : 1.2;
+        if (intersection.y < midFloor) {
+          high = mid;
+        } else {
+          low = mid;
+        }
+      }
+      visibleDistance = Math.max(0.15, low - 0.2);
       break;
     }
     if (visibleDistance < length)
