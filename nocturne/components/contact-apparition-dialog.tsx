@@ -14,7 +14,6 @@ import {
   validateContactProfile,
   type ContactProfile,
 } from '@/lib/contact-profile';
-import { EffectsToggle } from '@/components/effects-toggle';
 import { useLiveEffects } from '@/lib/live-effects';
 import { ResumeActions } from '@/components/resume-actions';
 
@@ -253,7 +252,6 @@ export function ContactApparitionDialog({
       <DialogContent
         className={`contact-apparition-dialog${editing ? ' is-editing' : ''}`}
       >
-        <EffectsToggle />
         {/* ── Live hologram effects layer ── */}
         <div className="holo-fx" aria-hidden="true" ref={dialogRef}>
           <div className="holo-scanline" />

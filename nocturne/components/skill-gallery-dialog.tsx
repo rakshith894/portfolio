@@ -8,7 +8,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { speakIsland } from '@/lib/island-commands';
 import { skillPlacement } from '@/lib/skill-placement';
 import { SKILL_COLORS, type GallerySkill } from '@/lib/skill-gallery';
 type Props = {
@@ -76,16 +75,6 @@ export function SkillGalleryDialog(props: Props) {
                 <p>
                   {skill.description || 'More about this skill is coming soon.'}
                 </p>
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    speakIsland(`${skill.title}. ${skill.description}`, {
-                      rate: 1,
-                    })
-                  }
-                >
-                  Read aloud
-                </Button>
               </article>
             ))}
           </div>
