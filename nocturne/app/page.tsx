@@ -6,6 +6,7 @@ import { SceneBoundary } from '@/components/scene-boundary';
 import { createAmbience } from '@/lib/ambience';
 import { islandMode } from '@/lib/island-mode';
 import type { Destination } from '@/lib/nocturne';
+import { useLiveEffects } from '@/lib/live-effects';
 
 let islandModule:
   | Promise<typeof import('@/components/island-viewer')>
@@ -23,6 +24,7 @@ const IslandViewer = lazy(loadIsland);
 const Portfolio = lazy(() => import('@/components/portfolio'));
 
 export default function Home() {
+  useLiveEffects();
   const [scene, setScene] = useState<'entrance' | 'island'>('entrance');
   const [guided, setGuided] = useState(false);
   const [section, setSection] = useState<Destination | null>(null);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SHORE_ROUTE, STAIR_WIDTH, sampleStairRoute } from './island-stairs.ts';
+import { MANOR_SOLIDS, MANOR_TOWERS } from './manor-layout.ts';
 
 export const MANOR_ORIGIN = new THREE.Vector3(10, 25, -10);
 export const REFERENCE_VIEWS = {
@@ -198,6 +199,22 @@ export function perimeterFenceSegments() {
       midpointX = (ax + bx) / 2,
       midpointZ = (az + bz) / 2;
     if (
+      // Keep both rendered rails and their collisions outside the manor shell.
+      Array.from({ length: 17 }, (_, sample) => {
+        const x = THREE.MathUtils.lerp(ax, bx, sample / 16) - MANOR_ORIGIN.x;
+        const z = THREE.MathUtils.lerp(az, bz, sample / 16) - MANOR_ORIGIN.z;
+        return (
+          MANOR_SOLIDS.some(
+            (solid) =>
+              Math.abs(x - solid.x) < solid.width / 2 + 0.9 &&
+              Math.abs(z - solid.z) < solid.depth / 2 + 0.9,
+          ) ||
+          MANOR_TOWERS.some(
+            (tower) =>
+              Math.hypot(x - tower.x, z - tower.z) < tower.radius * 1.08 + 0.9,
+          )
+        );
+      }).some(Boolean) ||
       cemeteryFences.some((points) =>
         points
           .slice(1)

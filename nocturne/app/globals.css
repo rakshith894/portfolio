@@ -2212,8 +2212,16 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   translate: -50% -50% !important;
   transform: none !important;
   background:
-    radial-gradient(ellipse at 20% 0%, rgba(26, 74, 72, 0.6) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 100%, rgba(42, 26, 72, 0.45) 0%, transparent 60%),
+    radial-gradient(
+      ellipse at 20% 0%,
+      rgba(26, 74, 72, 0.6) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse at 80% 100%,
+      rgba(42, 26, 72, 0.45) 0%,
+      transparent 60%
+    ),
     radial-gradient(ellipse at 50% 50%, #0d1e2ecc 50%, #070d16fa 100%) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
@@ -2227,7 +2235,6 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   color: #f0e8d5;
   animation: dialog-border-pulse 6s ease-in-out infinite;
 }
-
 
 /* Glowing rotating border ring using registered property --holo-angle */
 .portfolio-dialog[data-slot='dialog-content']::before {
@@ -2366,8 +2373,15 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   animation: dot-pulse 1.8s ease-in-out infinite;
 }
 @keyframes dot-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
 }
 .portfolio-status-pill {
   display: inline-flex;
@@ -2484,7 +2498,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   z-index: 1;
   border: 2px solid #3ecfa066;
   box-shadow: 0 0 24px #3ecfa033;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 .portfolio-portrait-frame:hover .quick-portrait {
   transform: scale(1.03);
@@ -2506,10 +2522,14 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   animation: portrait-orbit-spin-reverse 18s linear infinite;
 }
 @keyframes portrait-orbit-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes portrait-orbit-spin-reverse {
-  to { transform: rotate(-360deg); }
+  to {
+    transform: rotate(-360deg);
+  }
 }
 
 .portfolio-about-meta {
@@ -2573,7 +2593,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   background: rgba(22, 45, 56, 0.7);
   border-color: #3ecfa066;
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px #00000040, 0 0 20px #3ecfa015;
+  box-shadow:
+    0 8px 24px #00000040,
+    0 0 20px #3ecfa015;
 }
 .contact-icon {
   width: 38px;
@@ -2609,7 +2631,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 }
 .contact-arrow {
   color: #557579;
-  transition: transform 0.2s, color 0.2s;
+  transition:
+    transform 0.2s,
+    color 0.2s;
   flex-shrink: 0;
 }
 .contact-card:hover .contact-arrow {
@@ -2640,7 +2664,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 .quick-skill-card:hover {
   background: rgba(18, 38, 50, 0.7);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px #00000040, -2px 0 16px var(--skill-color, #3ecfa0);
+  box-shadow:
+    0 8px 24px #00000040,
+    -2px 0 16px var(--skill-color, #3ecfa0);
 }
 .skill-card-top {
   display: flex;
@@ -2689,7 +2715,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   background: rgba(18, 36, 48, 0.75);
   border-color: #3ecfa055;
   transform: translateY(-2px);
-  box-shadow: 0 12px 36px #00000050, 0 0 24px #3ecfa015;
+  box-shadow:
+    0 12px 36px #00000050,
+    0 0 24px #3ecfa015;
 }
 .project-cover-wrap {
   border-radius: 8px;
@@ -2703,7 +2731,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   height: 100%;
   object-fit: cover;
   filter: saturate(0.85);
-  transition: transform 0.4s ease, filter 0.4s ease;
+  transition:
+    transform 0.4s ease,
+    filter 0.4s ease;
 }
 .quick-project-card:hover .project-cover-img {
   transform: scale(1.04);
@@ -2791,7 +2821,6 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   font-size: 13px;
   padding: 20px 0;
 }
-
 
 .project-preview {
   display: grid;
@@ -3551,9 +3580,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  html:not([data-live-effects='on']) *,
+  html:not([data-live-effects='on']) *::before,
+  html:not([data-live-effects='on']) *::after {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
@@ -4463,7 +4492,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   display: block;
   position: relative;
   z-index: 1;
-  box-shadow: 0 0 0 3px #3ecfa022, 0 0 28px #3ecfa018;
+  box-shadow:
+    0 0 0 3px #3ecfa022,
+    0 0 28px #3ecfa018;
   transition: box-shadow 0.4s;
 }
 .portrait-glow-wrap {
@@ -4474,7 +4505,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   display: inline-block;
 }
 .portrait-glow-wrap:hover .quick-portrait {
-  box-shadow: 0 0 0 3px #3ecfa055, 0 0 42px #3ecfa038;
+  box-shadow:
+    0 0 0 3px #3ecfa055,
+    0 0 42px #3ecfa038;
 }
 .portrait-orbit {
   position: absolute;
@@ -4489,8 +4522,16 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
     transparent 100%
   );
   animation: portrait-spin 4s linear infinite;
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 2px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 2px)
+  );
   opacity: 0.6;
 }
 .quick-contact {
@@ -4518,9 +4559,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   background: #0e1e2408;
   transition:
     background 0.25s,
-    transform 0.25s cubic-bezier(0.22,1,0.36,1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.25s;
-  animation: pf-section-in 0.4s cubic-bezier(0.22,1,0.36,1) both;
+  animation: pf-section-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .quick-skill:hover {
   background: #1a2e3818;
@@ -4555,8 +4596,8 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 .portfolio-tour {
   position: absolute;
   z-index: 18;
-  right: 22px;
-  top: 90px;
+  left: 22px;
+  top: 130px;
   width: min(410px, calc(100% - 44px));
   max-height: calc(100dvh - 230px);
   overflow-y: auto;
@@ -4607,7 +4648,8 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 @media (max-width: 640px) {
   .portfolio-tour {
     top: 105px;
-    right: 12px;
+    left: 12px;
+    right: auto;
     width: calc(100% - 24px);
     padding: 16px;
     max-height: calc(100dvh - 290px);
@@ -5336,16 +5378,18 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 /* ─── Quick Portfolio: project-preview hover lift ─────────────────── */
 .project-preview {
   transition:
-    transform 0.3s cubic-bezier(0.22,1,0.36,1),
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.3s;
-  animation: pf-section-in 0.4s cubic-bezier(0.22,1,0.36,1) both;
+  animation: pf-section-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .project-preview:hover {
   transform: translateY(-3px);
   box-shadow: 0 14px 40px #00000030;
 }
 .project-preview img {
-  transition: filter 0.35s, transform 0.35s;
+  transition:
+    filter 0.35s,
+    transform 0.35s;
 }
 .project-preview:hover img {
   filter: saturate(0.85) brightness(1.06);
@@ -5388,5 +5432,231 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 @keyframes portrait-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+/* Live effects share one explicit preference across dialogs and the island. */
+.effects-toggle {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 11px;
+  margin-bottom: 12px;
+  border: 1px solid #93dbc14d;
+  border-radius: 999px;
+  color: #cbefe1;
+  background: #0c252c;
+  font-size: 11px;
+  cursor: pointer;
+  position: relative;
+  z-index: 3;
+}
+.effects-toggle[aria-pressed='true'] svg {
+  color: #9de8c7;
+  filter: drop-shadow(0 0 4px #5cffb8);
+}
+.effects-toggle:focus-visible {
+  outline: 2px solid #d9c38b;
+  outline-offset: 3px;
+}
+.island-effects {
+  position: absolute;
+  top: 82px;
+  right: 24px;
+  z-index: 16;
+}
+.portfolio-tour {
+  width: min(365px, calc(100% - 44px));
+  padding: 23px;
+  border-radius: 22px;
+  border-color: #99e4cf55;
+  background:
+    radial-gradient(ellipse at 0 0, #276b6355, transparent 65%),
+    linear-gradient(150deg, #112932f5, #090f1bf5);
+  box-shadow:
+    0 24px 70px #0009,
+    inset 0 1px #e4fff120,
+    0 0 28px #5edaba12;
+}
+.tour-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.tour-orbit {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid #b9eadb55;
+  border-radius: 50%;
+  font-size: 28px;
+  color: #e9d39e;
+  box-shadow: 0 0 22px #87edc62a;
+  animation: companion-breathe 4s ease-in-out infinite;
+}
+.tour-kicker {
+  font-size: 9px;
+  letter-spacing: 1.7px;
+  color: #d8c695;
+}
+.tour-path-label {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #a9c9c5;
+}
+.tour-progress {
+  display: flex;
+  gap: 5px;
+  margin: 21px 0 18px;
+}
+.tour-progress span {
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: #759b9833;
+}
+.tour-progress span[data-reached='true'] {
+  background: #a5e8ca;
+  box-shadow: 0 0 9px #80edbc66;
+}
+.portfolio-tour .eyebrow {
+  color: #87b9ab;
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+.portfolio-tour h2 {
+  font-size: 30px;
+  margin: 12px 0;
+  color: #f1ebd9;
+}
+.portfolio-tour p {
+  color: #c5dcd7;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.tour-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #adc8bb22;
+}
+.tour-actions button {
+  min-height: 39px;
+  border: 1px solid #9bddc528;
+  border-radius: 10px;
+  background: #7be7c408;
+  font-size: 12px;
+}
+.tour-actions button:last-child {
+  grid-column: 1 / -1;
+  color: #daca9c;
+}
+:is(.island-viewer, .portfolio-dialog, .contact-apparition-dialog)
+  [data-slot='button'] {
+  overflow: hidden;
+  transition:
+    box-shadow 0.25s,
+    border-color 0.25s,
+    background-color 0.25s;
+}
+:is(.island-viewer, .portfolio-dialog, .contact-apparition-dialog)
+  [data-slot='button']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 25%,
+    #c3ffe523 50%,
+    transparent 75%
+  );
+  transform: translateX(-125%);
+  animation: button-light-pass 7s ease-in-out infinite;
+}
+:is(.island-viewer, .portfolio-dialog, .contact-apparition-dialog)
+  [data-slot='button']:is(:hover, :focus-visible) {
+  box-shadow: 0 0 18px #8bdfc333;
+  border-color: #b1edd080;
+}
+@keyframes button-light-pass {
+  0%,
+  65% {
+    transform: translateX(-125%);
+  }
+  90%,
+  100% {
+    transform: translateX(125%);
+  }
+}
+@keyframes companion-breathe {
+  50% {
+    box-shadow: 0 0 30px #87edc649;
+  }
+}
+html[data-live-effects='off'] *,
+html[data-live-effects='off'] *::before,
+html[data-live-effects='off'] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+@media (max-width: 640px) {
+  .island-effects {
+    top: 145px;
+    right: 12px;
+  }
+  .portfolio-tour {
+    top: 188px;
+    left: 12px;
+    width: min(365px, calc(100% - 24px));
+    padding: 17px;
+    max-height: calc(100dvh - 325px);
+  }
+  .tour-heading {
+    gap: 9px;
+  }
+  .tour-kicker {
+    font-size: 8px;
+  }
+  .tour-progress {
+    margin: 14px 0;
+  }
+  .portfolio-tour h2 {
+    font-size: 24px;
+  }
+  .tour-actions {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+}
+@media (max-height: 550px) and (min-width: 641px) {
+  .portfolio-tour {
+    top: 92px;
+    max-height: calc(100dvh - 115px);
+  }
+}
+/* Keep positioned scene controls anchored while containing their light sweep. */
+:is(.tour-actions, .portfolio-bottom, .island-toolbar-actions)
+  [data-slot='button'] {
+  position: relative;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-live-effects='on'] .hologram-transmission .is-transmitting {
+    animation: hologram-color-shift 4s linear infinite;
+  }
+  html[data-live-effects='on']
+    .apparition-introduction
+    [data-slot='dialog-title'] {
+    background: linear-gradient(90deg, #a4ffe0, #c4b5fd, #67e8f9);
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: hologram-color-shift 5s linear infinite;
   }
 }

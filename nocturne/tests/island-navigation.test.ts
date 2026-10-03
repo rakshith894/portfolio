@@ -5,6 +5,30 @@ import { createIslandNavigator } from '../lib/island-navigation.ts';
 import { createIslandWalker } from '../lib/island-walk.ts';
 import { islandPlaces, menuPlaces } from '../lib/island-commands.ts';
 
+void test('free ground clicks approach the nearest reachable point without crossing barriers', async () => {
+  const navigator = createIslandNavigator(
+    (x, z) => Math.abs(x) < 6 && Math.abs(z) < 6 && Math.abs(x) > 1,
+  );
+  const start = { x: -4, z: 0 },
+    target = { x: 4, z: 0 };
+  assert.equal(navigator.route(start, target, 0.8), null);
+  const route = await navigator.routeAsync(
+    start,
+    target,
+    0.8,
+    () => false,
+    true,
+  );
+  assert.ok(route?.length);
+  let previous = start;
+  for (const next of route) {
+    assert.ok(navigator.clear(previous, next));
+    previous = next;
+  }
+  assert.equal(previous.x, -1.5);
+  assert.equal(previous.z, 0);
+});
+
 void test('Places shows only seven distinct main destinations', () => {
   assert.deepEqual(
     menuPlaces.map((place) => place.id),

@@ -10,5 +10,11 @@
     "title": "SQL",
     "description": "also know about structured query language",
     "color": "coral"
+  },
+  {
+    "id": "html",
+    "title": "HTML",
+    "description": "Building structured web pages with HTML.",
+    "color": "amber"
   }
 ]

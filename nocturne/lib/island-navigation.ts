@@ -76,6 +76,7 @@ export function createIslandNavigator(
     start: Point,
     target: Point,
     snap: number,
+    nearestReachable = false,
   ): Generator<void, THREE.Vector3[] | null> {
     yield;
     if (![start.x, start.z, target.x, target.z].every(Number.isFinite))
@@ -88,7 +89,7 @@ export function createIslandNavigator(
       if (fallback.length) starts.push(...fallback);
     }
     const goals = new Set(nearby(target, snap));
-    if (!starts.length || !goals.size) return null;
+    if (!starts.length || (!goals.size && !nearestReachable)) return null;
 
     const costs = new Float64Array(width * height).fill(Infinity),
       parent = new Int32Array(width * height).fill(-1);
@@ -130,12 +131,19 @@ export function createIslandNavigator(
       push(i, costs[i] + estimate(i));
     }
     let found = -1;
+    let closest = -1,
+      closestDistance = Infinity;
 
     while (heap.length) {
       const { i, cost } = pop();
       if (cost > costs[i] + estimate(i) + 1e-7) continue;
       yield;
       const p = point(i);
+      const distance = Math.hypot(p.x - target.x, p.z - target.z);
+      if (distance < closestDistance) {
+        closest = i;
+        closestDistance = distance;
+      }
       if (goals.has(i)) {
         found = i;
         break;
@@ -161,6 +169,7 @@ export function createIslandNavigator(
       }
     }
 
+    if (found < 0 && nearestReachable) found = closest;
     if (found < 0) return null;
 
     const chain: Point[] = [];
@@ -202,10 +211,11 @@ export function createIslandNavigator(
     target: Point,
     snap = 1.8,
     cancelled = () => false,
+    nearestReachable = false,
   ) {
     // Let React paint the closed menu and progress message before searching.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    const job = search({ ...start }, { ...target }, snap);
+    const job = search({ ...start }, { ...target }, snap, nearestReachable);
     let slice = performance.now();
     while (!cancelled()) {
       const result = job.next();

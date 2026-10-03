@@ -15,6 +15,8 @@ import { islandLamps } from './island-lamps.ts';
 import * as THREE from 'three';
 import type { IslandMode } from './island-mode.ts';
 import { addWinterSurface } from './winter-surface.ts';
+import { createSeasonalTrees } from './seasonal-trees.ts';
+import { createTreeBark } from './tree-bark.ts';
 import { projectSurfaceUV } from './surface-uv.ts';
 import { clearStairScenery } from './stair-clearance.ts';
 import { createShoreCamera } from './shore-camera.ts';
@@ -109,6 +111,7 @@ export function createReferenceEnvironment(
   const wood = material(0x28282b),
     perimeterWood = material(0x4a3024, { roughness: 0.95 }),
     iron = material(0x303c40, { metalness: 0.75, roughness: 0.38 });
+  const bark = createTreeBark(resources);
   const amber = material(0xc49b61, {
     emissive: 0xffaf62,
     emissiveIntensity: 1.45,
@@ -258,7 +261,12 @@ export function createReferenceEnvironment(
     mat: THREE.Material,
   ) {
     const delta = b.clone().sub(a),
-      g = new THREE.CylinderGeometry(end, radius, delta.length(), 6);
+      g = new THREE.CylinderGeometry(
+        end,
+        radius,
+        delta.length(),
+        mat === bark ? (radius > 0.15 ? 12 : 8) : 6,
+      );
     quaternion.setFromUnitVectors(
       new THREE.Vector3(0, 1, 0),
       delta.normalize(),
@@ -702,6 +710,7 @@ export function createReferenceEnvironment(
       scene.add(glow);
     }
   });
+  const branchTips: THREE.Vector3[] = [];
   function tree(x: number, z: number, height: number) {
     function branch(
       start: THREE.Vector3,
@@ -711,24 +720,37 @@ export function createReferenceEnvironment(
       depth: number,
     ) {
       const end = start.clone().addScaledVector(direction, length);
-      beam(start, end, radius, radius * 0.47, wood);
-      if (!depth) return;
+      // Gently crooked limbs, with forks at different heights, avoid repeated umbrellas.
+      const bend = new THREE.Vector3(
+        -direction.z,
+        0.16,
+        direction.x,
+      ).multiplyScalar(length * (0.03 + rand() * 0.045));
+      const middle = start.clone().lerp(end, 0.52).add(bend);
+      beam(start, middle, radius, radius * 0.72, bark);
+      beam(middle, end, radius * 0.72, radius * 0.4, bark);
+      if (!depth) {
+        branchTips.push(end);
+        return;
+      }
       for (let j = 0; j < (depth > 2 ? 3 : 2); j++) {
         const a = rand() * Math.PI * 2;
         branch(
-          end,
+          start
+            .clone()
+            .lerp(end, depth > 2 ? 0.68 + rand() * 0.32 : 0.88 + rand() * 0.12),
           direction
             .clone()
-            .multiplyScalar(0.65)
+            .multiplyScalar(0.5 + rand() * 0.45)
             .add(
               new THREE.Vector3(
-                Math.cos(a) * 0.8,
-                0.18 + rand() * 0.3,
-                Math.sin(a) * 0.8,
+                Math.cos(a) * (0.55 + rand() * 0.45),
+                0.08 + rand() * 0.45,
+                Math.sin(a) * (0.55 + rand() * 0.45),
               ),
             )
             .normalize(),
-          length * (0.56 + rand() * 0.19),
+          length * (0.58 + rand() * 0.23),
           radius * 0.52,
           depth - 1,
         );
@@ -743,6 +765,12 @@ export function createReferenceEnvironment(
     );
   }
   for (const [x, z, h] of cemeteryTrees) if (onIsland(x, z, 2)) tree(x, z, h);
+  const seasonalTrees = createSeasonalTrees(
+    scene,
+    resources,
+    branchTips,
+    mobile,
+  );
   const grassGeo = own(new THREE.BufferGeometry());
   const blades: number[] = [];
   for (let blade = 0; blade < 5; blade++) {
@@ -1210,6 +1238,7 @@ export function createReferenceEnvironment(
     daylight = value !== 'night';
     winterCover.value = value === 'winter' ? 1 : 0;
     weather.setMode(value);
+    seasonalTrees.setMode(value);
     life.setDaylight(daylight);
     haunting.setEnabled(value === 'night');
     life.water.color.setHex(
@@ -1237,6 +1266,10 @@ export function createReferenceEnvironment(
       setMode(enabled ? 'day' : 'night');
     },
     update(time: number, camera?: THREE.Camera) {
+      seasonalTrees.update(
+        time,
+        document.documentElement.dataset.liveEffects === 'off',
+      );
       life.update(time, camera);
       traffic.update(time, camera?.position ?? boat.position, boat.position);
       haunting.update(time, camera);

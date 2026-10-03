@@ -12,7 +12,28 @@ import {
   groundHeight,
   onIsland,
   referenceCameraPose,
+  perimeterFenceSegments,
 } from '../lib/reference-layout.ts';
+import { MANOR_SOLIDS, MANOR_TOWERS } from '../lib/manor-layout.ts';
+
+void test('coastal wooden barriers never intersect the manor or its towers', () => {
+  for (const [ax, az, bx, bz] of perimeterFenceSegments()) {
+    for (let t = 0; t <= 1; t += 0.025) {
+      const x = THREE.MathUtils.lerp(ax, bx, t) - MANOR_ORIGIN.x;
+      const z = THREE.MathUtils.lerp(az, bz, t) - MANOR_ORIGIN.z;
+      for (const solid of MANOR_SOLIDS)
+        assert.ok(
+          Math.abs(x - solid.x) >= solid.width / 2 + 0.7 ||
+            Math.abs(z - solid.z) >= solid.depth / 2 + 0.7,
+          solid.name,
+        );
+      for (const tower of MANOR_TOWERS)
+        assert.ok(
+          Math.hypot(x - tower.x, z - tower.z) >= tower.radius * 1.08 + 0.7,
+        );
+    }
+  }
+});
 import {
   createIslandWalker,
   walkingHeight,

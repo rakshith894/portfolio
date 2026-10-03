@@ -127,3 +127,15 @@ The assistant can show and read published profile, skills and projects, control 
 Copy .env.example to .env.local and set GROQ_API_KEY for AI answers. GROQ_MODEL optionally overrides the default openai/gpt-oss-120b model served by Groq. Local secrets never enter the browser bundle; hosted secrets must be configured separately in Sites. The prior llama-3.3-70b-versatile default was retired for standard Groq accounts. See https://console.groq.com/docs/deprecations.
 
 The API uses server-owned portfolio facts, validates message roles and sizes, rejects cross-origin requests, bounds provider timeouts, and validates every returned action against the same client/server allowlist. It never executes model-generated code or arbitrary URLs. Microphone audio is handled by the browser's speech service; sent text and published portfolio context are sent to Groq. Chat is kept in memory for the current visit.
+
+### October 3 desktop/mobile repairs
+
+Quick Portfolio and the island now use the same published content, including HTML. Local editing must save successfully to the project files before changes appear as saved. Commit and publish those files to share updates across devices. Published pages no longer offer browser-password editing.
+
+Live effects follows the system motion preference by default. Its visible toggle in Quick Portfolio, the contact hologram and the island lets visitors enable or disable decorative animation explicitly, including on Windows. The guided tour sits on the left with progress markers and grouped controls. Buttons have a gentle light sweep.
+
+Day and night share green tree canopies, with drifting and falling leaves; night adds an eerie green glow. Winter alone switches the canopy and falling particles to light pink blossoms. Reduced motion hides falling foliage. Instance counts are lower on mobile, and changing seasons reuses GPU resources.
+
+Ground clicks can approach the nearest reachable point if the target is obstructed; walls, graves and cliff edges remain solid. Wooden perimeter rails and their collisions stay clear of manor foundations and towers. A stalled character download uses the existing animated fallback instead of blocking the island.
+
+See [SECURITY-REVIEW.md](SECURITY-REVIEW.md) for the chat/API repairs and the remaining unpatched dependency advisory.

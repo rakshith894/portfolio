@@ -19,6 +19,7 @@ import {
   validateContactProfile,
   type ContactProfile,
 } from '@/lib/contact-profile';
+import { EffectsToggle } from '@/components/effects-toggle';
 import { ResumeActions } from '@/components/resume-actions';
 import {
   ArrowRight,
@@ -56,46 +57,13 @@ export default function Portfolio({
     section === 'resume' ? 'about' : section,
   );
   const [animKey, setAnimKey] = useState(0);
-  const [profile, setProfile] = useState<ContactProfile>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('nocturne_custom_profile');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const valid = validateContactProfile(parsed);
-          if (valid) return valid;
-        }
-      } catch {}
-    }
-    return savedProfile;
-  });
-  const [skills, setSkills] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('nocturne_custom_skills');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const custom = readSkills(parsed);
-          if (custom && custom.length > 0) return custom;
-        }
-      } catch {}
-    }
-    return readSkills(savedSkills);
-  });
-  const [projects, setProjects] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('nocturne_custom_projects');
-        if (stored) {
-          const custom = readHallProjects(stored);
-          if (custom && custom.length > 0) return custom.filter((p) => p.url);
-        }
-      } catch {}
-    }
-    return readHallProjects(JSON.stringify(savedProjects)).filter(
+  const [profile, setProfile] = useState<ContactProfile>(savedProfile);
+  const [skills, setSkills] = useState(() => readSkills(savedSkills));
+  const [projects, setProjects] = useState(() =>
+    readHallProjects(JSON.stringify(savedProjects)).filter(
       (project) => project.url,
-    );
-  });
+    ),
+  );
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
@@ -162,6 +130,7 @@ export default function Portfolio({
         <div className="portfolio-scroll">
           {/* Header area */}
           <div className="portfolio-header">
+            <EffectsToggle />
             <div className="portfolio-header-badges">
               <div className="portfolio-eyebrow-badge">
                 <span className="portfolio-pulse-dot" />
@@ -179,7 +148,9 @@ export default function Portfolio({
             </DialogTitle>
 
             <DialogDescription className="portfolio-dialog-desc">
-              {profile.location ? `${profile.location} · ` : ''}Explore background, skill stack, contacts, and selected works in one place.
+              {profile.location ? `${profile.location} · ` : ''}Explore
+              background, skill stack, contacts, and selected works in one
+              place.
             </DialogDescription>
           </div>
 
@@ -214,13 +185,22 @@ export default function Portfolio({
 
             {/* Tab: About */}
             <TabsContent className="portfolio-tab-content" value="about">
-              <div key={`about-${animKey}`} className="portfolio-section-reveal">
+              <div
+                key={`about-${animKey}`}
+                className="portfolio-section-reveal"
+              >
                 <div className="portfolio-about-card">
                   <div className="portfolio-about-hero">
                     {profile.photo && (
                       <div className="portfolio-portrait-frame">
-                        <span className="portrait-orbit-ring ring-1" aria-hidden />
-                        <span className="portrait-orbit-ring ring-2" aria-hidden />
+                        <span
+                          className="portrait-orbit-ring ring-1"
+                          aria-hidden
+                        />
+                        <span
+                          className="portrait-orbit-ring ring-2"
+                          aria-hidden
+                        />
                         <Image
                           unoptimized
                           className="quick-portrait"
@@ -232,7 +212,9 @@ export default function Portfolio({
                       </div>
                     )}
                     <div className="portfolio-about-meta">
-                      <span className="section-index">01 / ABOUT THE CREATOR</span>
+                      <span className="section-index">
+                        01 / ABOUT THE CREATOR
+                      </span>
                       <h3>{profile.name}</h3>
                       <div className="portfolio-role-tag">
                         <Sparkles size={12} />
@@ -258,7 +240,10 @@ export default function Portfolio({
 
             {/* Tab: Contact */}
             <TabsContent className="portfolio-tab-content" value="contact">
-              <div key={`contact-${animKey}`} className="portfolio-section-reveal">
+              <div
+                key={`contact-${animKey}`}
+                className="portfolio-section-reveal"
+              >
                 <span className="section-index">02 / START A CONVERSATION</span>
                 <h3>Direct Communications</h3>
                 <p className="portfolio-content-sub">
@@ -305,7 +290,9 @@ export default function Portfolio({
                       </div>
                       <div className="contact-info">
                         <span className="contact-label">Current Location</span>
-                        <span className="contact-value">{profile.location}</span>
+                        <span className="contact-value">
+                          {profile.location}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -331,7 +318,9 @@ export default function Portfolio({
                             <span className="contact-label">
                               {key.toUpperCase()}
                             </span>
-                            <span className="contact-value">{profile[key]}</span>
+                            <span className="contact-value">
+                              {profile[key]}
+                            </span>
                           </div>
                           <ArrowUpRight size={16} className="contact-arrow" />
                         </a>
@@ -343,11 +332,17 @@ export default function Portfolio({
 
             {/* Tab: Skills */}
             <TabsContent className="portfolio-tab-content" value="skills">
-              <div key={`skills-${animKey}`} className="portfolio-section-reveal">
-                <span className="section-index">03 / ARSENAL &amp; CAPABILITIES</span>
+              <div
+                key={`skills-${animKey}`}
+                className="portfolio-section-reveal"
+              >
+                <span className="section-index">
+                  03 / ARSENAL &amp; CAPABILITIES
+                </span>
                 <h3>Tools, ideas, and experience.</h3>
                 <p className="portfolio-content-sub">
-                  Technologies, paradigms, and competencies honed over real-world projects.
+                  Technologies, paradigms, and competencies honed over
+                  real-world projects.
                 </p>
 
                 {skills.length ? (
@@ -356,16 +351,20 @@ export default function Portfolio({
                       <article
                         className="quick-skill-card"
                         key={skill.id}
-                        style={{
-                          borderLeftColor: SKILL_COLORS[skill.color],
-                          '--skill-color': SKILL_COLORS[skill.color],
-                          animationDelay: `${i * 45}ms`,
-                        } as React.CSSProperties}
+                        style={
+                          {
+                            borderLeftColor: SKILL_COLORS[skill.color],
+                            '--skill-color': SKILL_COLORS[skill.color],
+                            animationDelay: `${i * 45}ms`,
+                          } as React.CSSProperties
+                        }
                       >
                         <div className="skill-card-top">
                           <span
                             className="skill-category-dot"
-                            style={{ backgroundColor: SKILL_COLORS[skill.color] }}
+                            style={{
+                              backgroundColor: SKILL_COLORS[skill.color],
+                            }}
                           />
                           <h4>{skill.title}</h4>
                         </div>
@@ -374,14 +373,19 @@ export default function Portfolio({
                     ))}
                   </div>
                 ) : (
-                  <p className="empty-state-text">Skills have not been added yet.</p>
+                  <p className="empty-state-text">
+                    Skills have not been added yet.
+                  </p>
                 )}
               </div>
             </TabsContent>
 
             {/* Tab: Projects */}
             <TabsContent className="portfolio-tab-content" value="projects">
-              <div key={`projects-${animKey}`} className="portfolio-section-reveal">
+              <div
+                key={`projects-${animKey}`}
+                className="portfolio-section-reveal"
+              >
                 <span className="section-index">04 / SELECTED WORKS</span>
                 <h3>Featured Projects</h3>
                 <p className="portfolio-content-sub">
@@ -425,7 +429,9 @@ export default function Portfolio({
                     ))}
                   </div>
                 ) : (
-                  <p className="empty-state-text">Projects have not been added yet.</p>
+                  <p className="empty-state-text">
+                    Projects have not been added yet.
+                  </p>
                 )}
               </div>
             </TabsContent>

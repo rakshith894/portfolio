@@ -14,6 +14,8 @@ import {
   validateContactProfile,
   type ContactProfile,
 } from '@/lib/contact-profile';
+import { EffectsToggle } from '@/components/effects-toggle';
+import { useLiveEffects } from '@/lib/live-effects';
 import { ResumeActions } from '@/components/resume-actions';
 
 type Props = {
@@ -28,6 +30,7 @@ export function ContactApparitionDialog({
   onSave,
   onClose,
 }: Props) {
+  const [liveEffects] = useLiveEffects();
   const [editing, setEditing] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -49,7 +52,7 @@ export function ContactApparitionDialog({
     0,
   );
   useEffect(() => {
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = !liveEffects;
     let frame = 0;
     const start = performance.now();
     // Fixed 60 chars/sec — independent of total length so short and long
@@ -59,12 +62,12 @@ export function ContactApparitionDialog({
       const count = reduced
         ? total
         : Math.min(total, Math.floor(((time - start) / 1000) * speed));
-      setRevealed((current) => Math.max(current, count));
+      setRevealed(count);
       if (count < total) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [profile, total]);
+  }, [profile, total, liveEffects]);
   function typed(key: (typeof fields)[number]) {
     const offset = fields
       .slice(0, fields.indexOf(key))
@@ -108,18 +111,10 @@ export function ContactApparitionDialog({
         setEditing(false);
         return;
       }
-    } catch {
-      // Local server not available (e.g. static hosting on Vercel)
-    }
-
-    try {
-      onSave(value);
-      setEditing(false);
+      throw new Error(result.error || 'Could not save profile to the project.');
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : 'Could not save profile.',
+        error instanceof Error ? error.message : 'Could not save profile.',
       );
     } finally {
       setBusy(false);
@@ -163,9 +158,10 @@ export function ContactApparitionDialog({
           setDraft((current) => ({ ...current, photo: result.photo! }));
           return;
         }
-      } catch {}
-      // Fallback for static hosting: use data URL directly
-      setDraft((current) => ({ ...current, photo: image }));
+        throw new Error(result.error || 'Could not save the uploaded photo.');
+      } catch {
+        throw new Error('Local editor unavailable. Photo was not saved.');
+      }
     } catch {
       setError(
         'That photo could not be opened. Try a different PNG, JPEG, or WebP image.',
@@ -206,9 +202,10 @@ export function ContactApparitionDialog({
           setDraft((current) => ({ ...current, resume: result.resume }));
           return;
         }
-      } catch {}
-      // Fallback for static hosting: use data URL directly
-      setDraft((current) => ({ ...current, resume }));
+        throw new Error(result.error || 'Could not save the uploaded resume.');
+      } catch {
+        throw new Error('Local editor unavailable. Resume was not saved.');
+      }
     } catch (error) {
       setError(
         error instanceof Error
@@ -222,20 +219,29 @@ export function ContactApparitionDialog({
   // Periodically add a glitch class to the dialog for the CSS glitch animation
   const dialogRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
+    if (!liveEffects) return;
+    const effectLayer = dialogRef.current;
     let t: ReturnType<typeof setTimeout>;
+    let removal: ReturnType<typeof setTimeout>;
     const glitch = () => {
       const el = dialogRef.current?.closest(
         '[data-slot="dialog-content"]',
       ) as HTMLElement | null;
       if (el) {
         el.classList.add('holo-glitching');
-        setTimeout(() => el.classList.remove('holo-glitching'), 350);
+        removal = setTimeout(() => el.classList.remove('holo-glitching'), 350);
       }
       t = setTimeout(glitch, 4000 + Math.random() * 5000);
     };
     t = setTimeout(glitch, 2500);
-    return () => clearTimeout(t);
-  }, []);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(removal);
+      effectLayer
+        ?.closest('[data-slot="dialog-content"]')
+        ?.classList.remove('holo-glitching');
+    };
+  }, [liveEffects]);
 
   return (
     <Dialog
@@ -247,6 +253,7 @@ export function ContactApparitionDialog({
       <DialogContent
         className={`contact-apparition-dialog${editing ? ' is-editing' : ''}`}
       >
+        <EffectsToggle />
         {/* ── Live hologram effects layer ── */}
         <div className="holo-fx" aria-hidden="true" ref={dialogRef}>
           <div className="holo-scanline" />
