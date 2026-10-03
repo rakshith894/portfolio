@@ -85,7 +85,9 @@ export function createIslandNavigator(
 
     const starts = nearby(start, 0.9).filter((i) => clear(start, point(i)));
     if (!starts.length) {
-      const fallback = nearby(start, 1.8).filter((i) => clear(start, point(i)));
+      // Widen the fallback to 3 m so navigation still works when the player
+      // is pushed slightly inside a fence, grave, or obstacle hitbox.
+      const fallback = nearby(start, 3.0).filter((i) => clear(start, point(i)));
       if (fallback.length) starts.push(...fallback);
     }
     const goals = new Set(nearby(target, snap));

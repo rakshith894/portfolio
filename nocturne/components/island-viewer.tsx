@@ -751,7 +751,7 @@ export default function IslandViewer({
       const route = await navigator.routeAsync(
         walker.position.clone(),
         point,
-        1.8,
+        2.5,
         () => disposed || request !== navigationRequest,
         name === 'the selected spot',
       );
@@ -759,7 +759,7 @@ export default function IslandViewer({
       if (!route?.length) {
         setJourney(null);
         setVoiceNotice(
-          'Choose a nearby open spot, or use Places to continue exploring.',
+          'That spot is blocked. Try clicking on open ground nearby, or use Places.',
         );
         return;
       }
@@ -824,8 +824,8 @@ export default function IslandViewer({
     // The normal zoom limit is applied below; collisions may shorten the orbit.
     controls.minDistance = 0.4;
     controls.maxDistance = 42;
-    controls.minPolarAngle = Math.PI * 0.06;
-    controls.maxPolarAngle = Math.PI * 0.52;
+    controls.minPolarAngle = Math.PI * 0.04;
+    controls.maxPolarAngle = Math.PI * 0.60;
     controls.addEventListener('start', () => {
       cameraManualUntil = Infinity;
     });
@@ -1673,7 +1673,7 @@ export default function IslandViewer({
         // Only round a corner if the next segment is safe from our actual
         // position. Stopping short of a waypoint can cut into a nearby stone.
         if (
-          remaining < 0.06 &&
+          remaining < 0.28 &&
           (!destinationRoute[0] ||
             navigator.clear(walker.position, destinationRoute[0]))
         ) {
@@ -1746,10 +1746,10 @@ export default function IslandViewer({
       if (hasDestination && !guide.holdingDeparture) {
         if (moved < 0.0001) destinationStuckTime += dt;
         else destinationStuckTime = 0;
-        if (destinationStuckTime > 1.2 && destinationRoute.length > 0) {
+        if (destinationStuckTime > 0.6 && destinationRoute.length > 0) {
           destination.copy(destinationRoute.shift()!);
           destinationStuckTime = 0;
-        } else if (destinationStuckTime > 2.5) {
+        } else if (destinationStuckTime > 1.4) {
           destinationRoute.length = 0;
           destination.set(NaN, NaN, NaN);
           destinationStuckTime = 0;
