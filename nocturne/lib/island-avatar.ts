@@ -408,53 +408,58 @@ export function createIslandAvatar(
     update,
     perform,
     /**
-     * Drive the right arm into a door interaction pose.
-     * Works on both the procedural rig and the loaded GLTF model.
-     *
-     * IMPORTANT: AnimationMixer sets bone.quaternion directly (not bone.rotation).
-     * We use quaternion.premultiply() so the gesture additively composites
-     * on top of whatever the idle/walk clip set — euler += would be silently lost.
-     *
-     * @param mode 'push' = reaching forward to push/open, 'pull' = reaching back to close
-     * @param t    0→1 blend weight for the pose
+     * Drive the right arm toward a door-push or door-pull target using IK.
+     * For the GLTF model, uses the same two-bone IK solver as the rowing
+     * system — guaranteed correct regardless of bone axis orientation.
+     * @param mode 'push' = reaching forward, 'pull' = reaching backward
+     * @param t    0→1 blend (0 = rest, 1 = full reach)
      */
     doorGesture(mode: 'push' | 'pull' | 'none', t: number) {
       if (t <= 0 || lastReduced || mode === 'none') return;
-      const peak = Math.sin(t * Math.PI); // 0→1→0 arc over the gesture
 
-      if (importedModel) {
-        // ── GLTF model: Rocketbox Biped bone names ─────────────────────────
-        const upperArm = importedModel.getObjectByName('Bip01_R_UpperArm');
-        const foreArm  = importedModel.getObjectByName('Bip01_R_Forearm');
-        if (!upperArm || !foreArm) return;
+      if (importedModel && rowingHands) {
+        // ── GLTF model: use the two-bone IK system ─────────────────────
+        // Compute a hand target in the player's local forward direction.
+        // Root faces -Z in world space (model.rotation.y = π makes +Z = back).
+        const forward = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(root.quaternion);
+        const rightSide = new THREE.Vector3(-1, 0, 0)
+          .applyQuaternion(root.quaternion);
 
-        // Build delta quaternions and premultiply onto the mixer-set quaternion
-        const delta = new THREE.Quaternion();
-        if (mode === 'push') {
-          // Raise arm forward (pitch forward ~70° at peak, plus slight Z inward)
-          delta.setFromEuler(new THREE.Euler(-peak * 1.25 * t, 0, -0.18 * t, 'XYZ'));
-          upperArm.quaternion.premultiply(delta);
-          delta.setFromEuler(new THREE.Euler(-peak * 0.55 * t, 0, 0, 'XYZ'));
-          foreArm.quaternion.premultiply(delta);
-        } else {
-          // Reach arm backward (pitch back ~50°) to push door closed
-          delta.setFromEuler(new THREE.Euler(peak * 0.95 * t, 0, 0.22 * t, 'XYZ'));
-          upperArm.quaternion.premultiply(delta);
-          delta.setFromEuler(new THREE.Euler(peak * 0.38 * t, 0, 0, 'XYZ'));
-          foreArm.quaternion.premultiply(delta);
-        }
-      } else {
-        // ── Procedural rig: arms array (body is visible, no mixer) ─────────
-        const arm = arms[1]; // right arm (side === 1, built with side===1 loop)
+        // Base position: right shoulder roughly (offset from player root)
+        const base = root.position.clone().add(
+          new THREE.Vector3(0, 1.35, 0),
+        );
+
+        // Door-push: reach forward and slightly right; door-pull: reach behind
+        const reach = mode === 'push' ? 0.65 * t : -0.55 * t;
+        const sideOffset = 0.28;
+        const handTarget = base
+          .clone()
+          .addScaledVector(forward, reach)
+          .addScaledVector(rightSide, -sideOffset)
+          .add(new THREE.Vector3(0, mode === 'push' ? -0.05 : 0.0, 0));
+
+        // Keep the left hand in a neutral position (same as current)
+        const leftHand = base.clone()
+          .addScaledVector(forward, 0.1)
+          .addScaledVector(rightSide, 0.28)
+          .add(new THREE.Vector3(0, -0.15, 0));
+
+        rowingHands.apply(leftHand, handTarget);
+      } else if (!importedModel) {
+        // ── Procedural rig: drive arm bones directly ────────────────────
+        const arm = arms[1]; // right arm (side === 1)
         if (!arm) return;
+        const peak = Math.sin(t * Math.PI);
         if (mode === 'push') {
           arm.shoulder.rotation.x += -peak * 1.05 * t;
-          arm.shoulder.rotation.z  = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
-          arm.elbow.rotation.x    += -peak * 0.48 * t;
+          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
+          arm.elbow.rotation.x   += -peak * 0.48 * t;
         } else {
           arm.shoulder.rotation.x += peak * 0.85 * t;
-          arm.shoulder.rotation.z  = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.16, t);
-          arm.elbow.rotation.x    += peak * 0.36 * t;
+          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.16, t);
+          arm.elbow.rotation.x   += peak * 0.36 * t;
         }
       }
     },
