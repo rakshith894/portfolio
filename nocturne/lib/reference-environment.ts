@@ -94,7 +94,7 @@ export function createReferenceEnvironment(
     );
     texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
     pending.push(ready);
     const loaded = { texture, ready };
     textures.set(key, loaded);
@@ -796,7 +796,43 @@ export function createReferenceEnvironment(
     new THREE.Float32BufferAttribute(blades, 3),
   );
   grassGeo.computeVertexNormals();
-  const grassMat = material(0x45483a, { side: THREE.DoubleSide });
+  const grassTime = { value: 0 };
+  const grassMat = own(
+    new THREE.MeshStandardMaterial({
+      color: 0x3e4234,
+      roughness: 0.92,
+      side: THREE.DoubleSide,
+    }),
+  );
+  // Animate grass blades with layered wind turbulence: the tip bends more than
+  // the base (height-scaled), producing a convincing organic sway.
+  grassMat.onBeforeCompile = (shader) => {
+    shader.uniforms.grassTime = grassTime;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+uniform float grassTime;`,
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+float tipHeight = clamp(position.y / 0.36, 0.0, 1.0);
+float tipFactor = tipHeight * tipHeight;
+// World-space XZ for per-blade variation
+vec4 worldPos = instanceMatrix * vec4(position, 1.0);
+float wx = worldPos.x, wz = worldPos.z;
+float phase = wx * 0.23 + wz * 0.19;
+float wind1 = sin(grassTime * 1.7 + phase) * 0.11;
+float wind2 = sin(grassTime * 2.9 + phase * 1.4 + 0.8) * 0.048;
+float gust  = smoothstep(0.6, 1.0, sin(grassTime * 0.55 + phase * 0.7)) * 0.14;
+float sway = (wind1 + wind2 + gust) * tipFactor;
+transformed.x += sway;
+transformed.z += sway * 0.38;`,
+      );
+    // Per-instance colors already handle blade variety — no fragment changes needed.
+  };
+  grassMat.customProgramCacheKey = () => 'nocturne-grass-wind-1';
   const grassCount = mobile ? 1100 : 3200,
     grass = own(new THREE.InstancedMesh(grassGeo, grassMat, grassCount));
   let planted = 0;
@@ -811,9 +847,9 @@ export function createReferenceEnvironment(
     grass.setColorAt(
       planted,
       new THREE.Color().setHSL(
-        0.16 + rand() * 0.06,
-        0.14,
-        0.33 + rand() * 0.22,
+        0.26 + rand() * 0.07,
+        0.18 + rand() * 0.08,
+        0.28 + rand() * 0.18,
       ),
     );
     grass.setMatrixAt(planted++, dummy.matrix);
@@ -1191,7 +1227,7 @@ export function createReferenceEnvironment(
       try {
         const target = own(pmrem.fromEquirectangular(sky.texture));
         scene.environment = target.texture;
-        scene.environmentIntensity = daylight ? 0.12 : 0.32;
+        scene.environmentIntensity = daylight ? 0.15 : 0.42;
       } catch {
         /* Direct lighting remains available on limited GPUs. */
       } finally {
@@ -1246,7 +1282,7 @@ export function createReferenceEnvironment(
     );
     mistMat.uniforms.density.value =
       value === 'day' ? 0.15 : value === 'winter' ? 0.75 : 1;
-    scene.environmentIntensity = daylight ? 0.12 : 0.32;
+    scene.environmentIntensity = daylight ? 0.15 : 0.42;
   }
   return {
     constrainShoreCamera: shoreCamera.constrain,
@@ -1303,6 +1339,7 @@ export function createReferenceEnvironment(
         });
       }
       mistTime.value = time;
+      grassTime.value = time;
       fires.forEach((fire, i) => {
         fire.scale.y =
           (fire.scale.x < 0.04 ? 0.1 : 0.17) +

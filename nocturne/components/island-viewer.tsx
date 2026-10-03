@@ -683,16 +683,16 @@ export default function IslandViewer({
     const clickPoint = new THREE.Vector2();
     let clickStart: { x: number; y: number; time: number } | null = null;
     const resources = new Set<{ dispose: () => void }>();
-    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 1.7));
+    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 2.0));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.1;
     renderer.shadowMap.enabled = !mobile;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.shadowMap.autoUpdate = true;
     host.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#0a0f16');
-    scene.fog = new THREE.FogExp2('#27313b', 0.0028);
+    scene.fog = new THREE.FogExp2('#1e2830', 0.0025);
     const walker = createIslandWalker(mobile, startAtHouse, false);
     const destinationRoute: THREE.Vector3[] = [];
     let navigationRequest = 0;
@@ -962,15 +962,15 @@ export default function IslandViewer({
     camera.position.copy(walker.position).add(new THREE.Vector3(3.2, 3.3, 9.5));
     const followOffset = camera.position.clone().sub(controls.target);
     controls.update();
-    const ambientLight = new THREE.HemisphereLight(0xbac9d5, 0x171b1c, 0.7);
+    const ambientLight = new THREE.HemisphereLight(0xb8cad8, 0x22201a, 0.75);
     scene.add(ambientLight);
-    const moon = new THREE.DirectionalLight(0xd3deeb, 2.1);
+    const moon = new THREE.DirectionalLight(0xcdd9ea, 2.1);
     moon.position.set(-38, 75, 22);
     moon.target.position.set(0, 10, -18);
     scene.add(moon, moon.target);
     moon.castShadow = !mobile;
     resources.add(moon.shadow);
-    moon.shadow.mapSize.set(2048, 2048);
+    moon.shadow.mapSize.set(mobile ? 2048 : 4096, mobile ? 2048 : 4096);
     Object.assign(moon.shadow.camera, {
       left: -55,
       right: 55,
@@ -979,8 +979,8 @@ export default function IslandViewer({
       near: 1,
       far: 160,
     });
-    moon.shadow.normalBias = 0.06;
-    const fill = new THREE.DirectionalLight(0xa7b8cc, 0.8);
+    moon.shadow.normalBias = 0.03;
+    const fill = new THREE.DirectionalLight(0x8faac2, 0.9);
     fill.position.set(35, 18, -42);
     scene.add(fill);
     const environment = createReferenceEnvironment(
@@ -1010,24 +1010,29 @@ export default function IslandViewer({
     applyMode.current = (value) => {
       const day = value === 'day',
         winter = value === 'winter';
-      ambientLight.color.setHex(winter ? 0xdcecf4 : day ? 0xc8e5ff : 0xbac9d5);
+      // Sky hemisphere — top: cool daytime azure / cold overcast / cool moonlit
+      ambientLight.color.setHex(winter ? 0xd8ecf5 : day ? 0xcce8ff : 0xb8cad8);
+      // Ground hemisphere — earthy warm bounce for day/winter, dark cool night
       ambientLight.groundColor.setHex(
-        winter ? 0x8299ab : day ? 0x81735b : 0x171b1c,
+        winter ? 0x9aadba : day ? 0x9a8a6e : 0x22201a,
       );
-      ambientLight.intensity = winter ? 1.9 : day ? 2.2 : 0.7;
-      moon.color.setHex(winter ? 0xd6e6ef : day ? 0xffefd4 : 0xd3deeb);
-      moon.intensity = winter ? 1.8 : day ? 3.2 : 2.1;
-      fill.intensity = winter ? 0.9 : day ? 1.1 : 0.8;
+      ambientLight.intensity = winter ? 1.85 : day ? 2.1 : 0.75;
+      // Moon / sun directional light
+      moon.color.setHex(winter ? 0xd6e8f4 : day ? 0xffe9c5 : 0xcdd9ea);
+      moon.intensity = winter ? 1.7 : day ? 3.4 : 2.1;
+      // Rim / fill light
+      fill.color.setHex(winter ? 0xaec8d8 : day ? 0xc4d8f0 : 0x8faac2);
+      fill.intensity = winter ? 0.85 : day ? 1.05 : 0.9;
       const fog = scene.fog as THREE.FogExp2;
-      fog.color.setHex(winter ? 0xb5c7d4 : day ? 0xa9cee4 : 0x27313b);
-      fog.density = winter ? 0.006 : day ? 0.0018 : 0.0028;
+      fog.color.setHex(winter ? 0xb5c7d4 : day ? 0xa9cee4 : 0x1e2830);
+      fog.density = winter ? 0.0055 : day ? 0.0016 : 0.0025;
       environment.setMode(value);
       house.setMode(value);
       audio.current?.setMode(value);
     };
     const resize = () => {
       if (!host.clientWidth || !host.clientHeight) return;
-      renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 1.7));
+      renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 2.0));
       renderer.setSize(host.clientWidth, host.clientHeight);
       camera.aspect = host.clientWidth / host.clientHeight;
       camera.updateProjectionMatrix();
