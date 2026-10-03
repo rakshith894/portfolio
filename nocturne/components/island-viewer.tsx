@@ -781,7 +781,21 @@ export default function IslandViewer({
   useEffect(() => {
     const host = mount.current;
     if (!host) return;
-    const mobile = matchMedia('(max-width:700px)').matches;
+    // Scene recreation (including live edits) must not retain prompts from the
+    // previous avatar position or keep touch input enabled during loading.
+    setReady(false);
+    setFailed(false);
+    setNearHouse(false);
+    setNearBoat(false);
+    setAtDock(false);
+    setBoatMode(false);
+    setHouseStatus(null);
+    setEnteringHouse(false);
+    setJourney(null);
+    setDestinationsOpen(false);
+    overviewRef.current = false;
+    setOverview(false);
+    const mobile = matchMedia('(max-width:700px), (pointer:coarse)').matches;
     const motion = {
       matches: false,
       addEventListener: () => {},
@@ -944,6 +958,8 @@ export default function IslandViewer({
     controls.enableDamping = false;
     controls.dampingFactor = 0.09;
     controls.enablePan = false;
+    // Keep all zoom input in the collision-aware orbit, including touch pinch.
+    controls.enableZoom = false;
     // The normal zoom limit is applied below; collisions may shorten the orbit.
     controls.minDistance = 0.4;
     controls.maxDistance = 42;
@@ -959,22 +975,24 @@ export default function IslandViewer({
     // zoom never triggers those events, so manualCamera() stays false and the
     // viewDistance update inside house-exploration is never reached, making
     // constrainCamera reset the camera distance every frame (zoom is invisible).
-    renderer.domElement.addEventListener(
-      'wheel',
-      (event: WheelEvent) => {
-        cameraManualUntil = Math.max(
-          cameraManualUntil,
-          performance.now() + 600,
-        );
-        const factor = event.deltaY < 0 ? 0.88 : 1.14;
-        if (house.inside) {
-          house.zoom(factor);
-        } else {
-          followOrbit.zoom(factor);
-        }
-      },
-      { passive: true },
-    );
+    const wheelZoom = (event: WheelEvent) => {
+      event.preventDefault();
+      cameraManualUntil = Math.max(cameraManualUntil, performance.now() + 600);
+      const factor = event.deltaY < 0 ? 0.88 : 1.14;
+      if (overviewRef.current) {
+        camera.position
+          .sub(controls.target)
+          .multiplyScalar(factor)
+          .add(controls.target);
+      } else if (house.inside) {
+        house.zoom(factor);
+      } else {
+        followOrbit.zoom(factor);
+      }
+    };
+    renderer.domElement.addEventListener('wheel', wheelZoom, {
+      passive: false,
+    });
     cameraCommand.current = (action) => {
       if (action === 'overview') {
         overviewRef.current = !overviewRef.current;
@@ -1486,7 +1504,44 @@ export default function IslandViewer({
     window.addEventListener('blur', blur);
     document.addEventListener('visibilitychange', visibility);
     renderer.domElement.addEventListener('webglcontextlost', contextLost);
+    const touchPointers = new Map<number, { x: number; y: number }>();
+    let pinchDistance = 0;
+    const touchDistance = () => {
+      const [a, b] = [...touchPointers.values()];
+      return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
+    const pointerMove = (event: PointerEvent) => {
+      if (!touchPointers.has(event.pointerId)) return;
+      touchPointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+      const distance = touchDistance();
+      if (distance > 0 && pinchDistance > 0) {
+        const factor = pinchDistance / distance;
+        if (overviewRef.current) {
+          camera.position
+            .sub(controls.target)
+            .multiplyScalar(factor)
+            .add(controls.target);
+        } else if (house.inside) house.zoom(factor);
+        else followOrbit.zoom(factor);
+        clickStart = null;
+      }
+      pinchDistance = distance;
+    };
+    const releaseTouch = (event: PointerEvent) => {
+      touchPointers.delete(event.pointerId);
+      pinchDistance = touchDistance();
+    };
     const pointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        touchPointers.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+        pinchDistance = touchDistance();
+      }
       if (!event.isPrimary || event.button !== 0) {
         clickStart = null;
         return;
@@ -1498,6 +1553,7 @@ export default function IslandViewer({
       };
     };
     const pointerUp = (event: PointerEvent) => {
+      releaseTouch(event);
       if (!clickStart || performance.now() - clickStart.time > 650) {
         clickStart = null;
         return;
@@ -1604,11 +1660,14 @@ export default function IslandViewer({
         if (point) void navigateTo(point, 'the selected spot');
       }
     };
-    const pointerCancel = () => {
+    const pointerCancel = (event: PointerEvent) => {
+      releaseTouch(event);
       clickStart = null;
     };
     renderer.domElement.addEventListener('pointercancel', pointerCancel);
     renderer.domElement.addEventListener('pointerdown', pointerDown);
+    renderer.domElement.addEventListener('pointermove', pointerMove);
+    renderer.domElement.addEventListener('lostpointercapture', pointerCancel);
     renderer.domElement.addEventListener('pointerup', pointerUp);
     let movementBlend = 0;
     const previousPosition = new THREE.Vector3(),
@@ -2051,6 +2110,12 @@ export default function IslandViewer({
       renderer.domElement.removeEventListener('webglcontextlost', contextLost);
       renderer.domElement.removeEventListener('pointercancel', pointerCancel);
       renderer.domElement.removeEventListener('pointerdown', pointerDown);
+      renderer.domElement.removeEventListener('pointermove', pointerMove);
+      renderer.domElement.removeEventListener(
+        'lostpointercapture',
+        pointerCancel,
+      );
+      renderer.domElement.removeEventListener('wheel', wheelZoom);
       renderer.domElement.removeEventListener('pointerup', pointerUp);
       goToPlace.current = () => {};
       stopNavigation.current = () => {};

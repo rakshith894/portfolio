@@ -97,6 +97,25 @@ for (const mobile of [false, true]) {
         }
       }
       assert.ok(checked > 400);
+      // Several separately sealed rock meshes used to occupy these exact cut
+      // planes, making the wall texture shimmer as the camera moved.
+      for (const z of [-34, -37.4, -40.8, -44.2])
+        for (let x = -27.73; x < -17; x += 0.79)
+          for (const lift of [2.1, 4.7, 7.3])
+            for (const side of [-1, 1]) {
+              ray.set(
+                new THREE.Vector3(x, walkingHeight(x, z) + lift, z),
+                new THREE.Vector3(0, 0, side),
+              );
+              ray.far = 1.56;
+              const faces = ray
+                .intersectObjects(solids, false)
+                .filter((hit) => Math.abs(hit.distance - 1.55) < 0.0001);
+              assert.ok(
+                faces.length <= 1,
+                `Overlapping retaining faces at ${x},${z}, lift ${lift}, side ${side}: ${faces.length}`,
+              );
+            }
       // Regression for the sea-visible strips beside the bridge approach.
       for (let x = -14.3; x <= -8; x += 0.3)
         for (const z of [-32.32, -29.68]) {

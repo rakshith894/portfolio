@@ -467,7 +467,11 @@ export function createReferenceManor(
   const door = new THREE.Group();
   door.name = 'Manor door';
   door.userData.door = true;
-  door.position.set(MANOR_DOOR.x, MANOR_DOOR.y, MANOR_DOOR.z);
+  door.position.set(
+    MANOR_DOOR.x,
+    MANOR_DOOR.y,
+    MANOR_DOOR.z + MANOR_DOOR.hingeOffset,
+  );
   const doorMaterial = own(wood.clone());
   doorMaterial.side = THREE.DoubleSide;
   const leaf = new THREE.Mesh(own(portalShape), doorMaterial);

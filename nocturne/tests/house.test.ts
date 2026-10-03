@@ -10,6 +10,7 @@ import {
   HOUSE_FLOORS,
   type HousePoint,
   houseRoute,
+  HOUSE_DOORS,
   doorSegment,
   HOUSE_RADIUS,
 } from '../lib/house-layout.ts';
@@ -35,6 +36,27 @@ import { HALL_FRAMES } from '../lib/hall-projects.ts';
 const tick = (walker: ReturnType<typeof createHouseWalker>, seconds = 2) => {
   for (let i = 0; i < seconds * 60; i++) walker.update(1 / 60);
 };
+
+void test('the front door swings clear of the foyer walls at every opening angle', () => {
+  const door = HOUSE_DOORS.find((door) => door.id === 'front')!;
+  for (let frame = 0; frame <= 90; frame++) {
+    const { a, b } = doorSegment(door, frame / 90);
+    for (let sample = 0; sample <= 40; sample++) {
+      const x = THREE.MathUtils.lerp(a.x, b.x, sample / 40);
+      const z = THREE.MathUtils.lerp(a.z, b.z, sample / 40);
+      assert.ok(
+        z >= MANOR_DOOR.hingeOffset - 1e-8,
+        'The leaf opens onto the porch',
+      );
+      for (const wall of HOUSE_WALLS.filter((wall) => !wall.y))
+        assert.ok(
+          Math.abs(x - wall.x) > wall.width / 2 + 0.1 ||
+            Math.abs(z - wall.z) > wall.depth / 2 + 0.1,
+          'The leaf and handle must not disappear into the interior masonry',
+        );
+    }
+  }
+});
 function follow(
   walker: ReturnType<typeof createHouseWalker>,
   goal: HousePoint,
@@ -369,7 +391,7 @@ void test('the same avatar walks through an actual open portal, explores, and wa
       );
       if (avatar.position.z < portal.z)
         assert.ok(
-          door.rotation.y > 1.4,
+          door.rotation.y * MANOR_DOOR.swing > 1.4,
           'The door opens before the character crosses it',
         );
     }
@@ -544,7 +566,10 @@ void test('the same avatar walks through an actual open portal, explores, and wa
     for (let frame = 0; frame < 2400 && exploration.active; frame++) {
       exploration.update(1 / 60, 30 + frame / 60, 0, 0, false, false);
       const front = createHouseWalker().doors[0];
-      const { a, b } = doorSegment(front, door.rotation.y / (Math.PI / 2));
+      const { a, b } = doorSegment(
+        front,
+        door.rotation.y / ((MANOR_DOOR.swing * Math.PI) / 2),
+      );
       const leaf = new THREE.Line3(
         new THREE.Vector3(a.x, 0, a.z),
         new THREE.Vector3(b.x, 0, b.z),
@@ -564,6 +589,30 @@ void test('the same avatar walks through an actual open portal, explores, and wa
       `The return walk reaches the island: ${JSON.stringify({ position: avatar.position.toArray(), inside: exploration.inside, angle: door.rotation.y })}`,
     );
     assert.ok(avatar.position.z > portal.z);
+    for (let frame = 0; frame < 120; frame++) {
+      exploration.updateOutside(1 / 60);
+      const { a, b } = doorSegment(
+        HOUSE_DOORS[0],
+        door.rotation.y / ((MANOR_DOOR.swing * Math.PI) / 2),
+      );
+      const local = walker.position.clone().sub(origin).setY(0);
+      const leaf = new THREE.Line3(
+        new THREE.Vector3(a.x, 0, a.z),
+        new THREE.Vector3(b.x, 0, b.z),
+      );
+      assert.ok(
+        leaf
+          .closestPointToPoint(local, true, new THREE.Vector3())
+          .distanceTo(local) >=
+          HOUSE_RADIUS + 0.08,
+        'The closing exterior leaf stays clear after the exit transition',
+      );
+    }
+    assert.equal(
+      door.rotation.y,
+      0,
+      'The door closes once the visitor is clear of its outward sweep',
+    );
     assert.equal(manor.visible, true);
   } finally {
     exploration.dispose();

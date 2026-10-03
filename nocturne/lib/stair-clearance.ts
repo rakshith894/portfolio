@@ -124,6 +124,15 @@ export function clearStairScenery(
         for (let axis = 0; axis < 3 && inside.length >= 3; axis++) {
           for (const greater of [true, false]) {
             const boundary = (greater ? box.min : box.max).getComponent(axis);
+            // A polygon on a cut plane belongs to one side only. Inclusive
+            // clipping on both sides used to emit the same wall/floor twice.
+            if (
+              inside.every((point) => Math.abs(point[axis] - boundary) < 1e-7)
+            ) {
+              next.push(inside);
+              inside = [];
+              break;
+            }
             const outside = halfSpace(inside, axis, boundary, !greater);
             if (outside.length >= 3) next.push(outside);
             inside = halfSpace(inside, axis, boundary, greater);
@@ -159,6 +168,10 @@ export function clearStairScenery(
     }
     for (const polygon of pieces)
       for (let j = 1; j < polygon.length - 1; j++) {
+        const a = new THREE.Vector3(...polygon[0].slice(0, 3)),
+          b = new THREE.Vector3(...polygon[j].slice(0, 3)),
+          c = new THREE.Vector3(...polygon[j + 1].slice(0, 3));
+        if (new THREE.Triangle(a, b, c).getArea() < 1e-9) continue;
         for (const point of [polygon[0], polygon[j], polygon[j + 1]]) {
           let offset = 0;
           for (const layout of layouts) {

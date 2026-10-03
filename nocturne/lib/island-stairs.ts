@@ -49,11 +49,7 @@ export function stairRails(route: readonly StairPoint[]) {
   const rails: { a: StairPoint; b: StairPoint }[] = [];
   // Branch rails begin outside the bridge deck so the viaduct remains open.
   const points: readonly StairPoint[] =
-    route === SHORE_ROUTE
-      ? [[-16, 25.44, -32.15], ...route.slice(2)]
-      : route === TOWER_ROUTE
-        ? [[-46, 25.44, -32.15], ...route.slice(2)]
-        : route;
+    route === SHORE_ROUTE || route === TOWER_ROUTE ? route.slice(1) : route;
   const directions = points.slice(1).map((b, i) => {
     const a = points[i],
       dx = b[0] - a[0],
@@ -76,8 +72,49 @@ export function stairRails(route: readonly StairPoint[]) {
       ];
     });
     for (let i = 1; i < edge.length; i++) {
-      rails.push({ a: edge[i - 1], b: edge[i] });
+      const a = points[i - 1],
+        b = points[i];
+      if (Math.abs(b[1] - a[1]) < 0.001) {
+        rails.push({ a: edge[i - 1], b: edge[i] });
+        continue;
+      }
+      const direction = directions[i - 1];
+      const landing = route === MANOR_ROUTE ? 0.12 : STAIR_WIDTH / 2;
+      const offset = (STAIR_WIDTH / 2 - 0.05) * side;
+      const start: StairPoint = [
+        a[0] + direction.x * landing - direction.z * offset,
+        a[1] + 1,
+        a[2] + direction.z * landing + direction.x * offset,
+      ];
+      const end: StairPoint = [
+        b[0] - direction.x * landing - direction.z * offset,
+        b[1] + 1,
+        b[2] - direction.z * landing + direction.x * offset,
+      ];
+      rails.push(
+        { a: edge[i - 1], b: start },
+        { a: start, b: end },
+        { a: end, b: edge[i] },
+      );
     }
+  }
+  if (route === SHORE_ROUTE || route === TOWER_ROUTE) {
+    const openingZ = -32.05;
+    return rails.flatMap(({ a, b }) => {
+      if (Math.abs(a[1] - 26.44) > 1e-6 || Math.abs(b[1] - 26.44) > 1e-6)
+        return [{ a, b }];
+      if (a[2] > openingZ && b[2] > openingZ) return [];
+      const clip = (from: StairPoint, to: StairPoint): StairPoint => {
+        const t = (openingZ - from[2]) / (to[2] - from[2]);
+        return [from[0] + (to[0] - from[0]) * t, from[1], openingZ];
+      };
+      return [
+        {
+          a: a[2] > openingZ ? clip(a, b) : a,
+          b: b[2] > openingZ ? clip(b, a) : b,
+        },
+      ];
+    });
   }
   return rails;
 }
@@ -167,7 +204,7 @@ export function stairTreads(route: readonly StairPoint[]) {
         y: a[1] + ((b[1] - a[1]) * j) / count,
         z: a[2] + (dz * (landing + (run * (j + 0.5)) / count)) / length,
         width: route === MANOR_ROUTE ? 5.1 : STAIR_WIDTH,
-        depth: run / count + 0.025,
+        depth: run / count,
         angle: Math.atan2(dx, dz),
       });
   }
@@ -181,5 +218,55 @@ export function stairTreads(route: readonly StairPoint[]) {
       depth: route === MANOR_ROUTE ? 0.24 : STAIR_WIDTH,
       angle: 0,
     });
-  return treads;
+  // Partition coplanar landing/connector rectangles instead of stacking their
+  // top faces. Short switchback connectors are already covered by the landings.
+  const disjoint: typeof treads = [];
+  for (const tread of treads.reverse()) {
+    const alongX = Math.abs(Math.sin(tread.angle)) > 0.5;
+    const width = alongX ? tread.depth : tread.width;
+    const depth = alongX ? tread.width : tread.depth;
+    let pieces = [
+      {
+        left: tread.x - width / 2,
+        right: tread.x + width / 2,
+        back: tread.z - depth / 2,
+        front: tread.z + depth / 2,
+      },
+    ];
+    for (const placed of disjoint) {
+      if (Math.abs(placed.y - tread.y) > 1e-6) continue;
+      const rotated = Math.abs(Math.sin(placed.angle)) > 0.5;
+      const w = rotated ? placed.depth : placed.width;
+      const d = rotated ? placed.width : placed.depth;
+      const left = placed.x - w / 2,
+        right = placed.x + w / 2;
+      const back = placed.z - d / 2,
+        front = placed.z + d / 2;
+      pieces = pieces.flatMap((p) => {
+        const l = Math.max(p.left, left),
+          r = Math.min(p.right, right);
+        const b = Math.max(p.back, back),
+          f = Math.min(p.front, front);
+        if (r - l < 1e-7 || f - b < 1e-7) return [p];
+        return [
+          { ...p, right: l },
+          { ...p, left: r },
+          { left: l, right: r, back: p.back, front: b },
+          { left: l, right: r, back: f, front: p.front },
+        ].filter(
+          (part) =>
+            part.right - part.left > 1e-7 && part.front - part.back > 1e-7,
+        );
+      });
+    }
+    for (const p of pieces)
+      disjoint.push({
+        ...tread,
+        x: (p.left + p.right) / 2,
+        z: (p.back + p.front) / 2,
+        width: alongX ? p.front - p.back : p.right - p.left,
+        depth: alongX ? p.right - p.left : p.front - p.back,
+      });
+  }
+  return disjoint.reverse();
 }

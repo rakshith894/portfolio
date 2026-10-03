@@ -218,7 +218,9 @@ export function createReferenceEnvironment(
       new THREE.Vector3(sx, sy, sz),
     );
     copy.applyMatrix4(matrix);
-    if (mat === rock) clearStairScenery(copy, true);
+    // The headland supplies one continuous retaining shell. Sealing every rock
+    // as well creates overlapping walls on the same cut plane (visible flicker).
+    if (mat === rock) clearStairScenery(copy);
     const list = groups.get(mat) ?? [];
     list.push(copy);
     groups.set(mat, list);
@@ -287,7 +289,7 @@ export function createReferenceEnvironment(
     geo.setIndex(indices);
     geo.computeVertexNormals();
     // Sampled terrain and cliff triangles must leave the same corridor as rocks.
-    clearStairScenery(geo, true);
+    clearStairScenery(geo, name === 'Sloping cemetery headland');
     shoreCamera.add(geo);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = name;
@@ -911,14 +913,14 @@ export function createReferenceEnvironment(
         step.depth,
         step.angle,
       );
-      // Subtle inset tread caps have exactly the same top as the walking surface.
+      // Raised nosing stays clear of the tread's top face.
       box(
         edge,
         step.x,
-        step.y - 0.035,
+        step.y + 0.008,
         step.z,
         step.width - 0.08,
-        0.07,
+        0.016,
         Math.min(step.depth, 0.08),
         step.angle,
       );
@@ -929,8 +931,11 @@ export function createReferenceEnvironment(
       const start = new THREE.Vector3(...a),
         end = new THREE.Vector3(...b);
       beam(start, end, 0.065, 0.065, iron);
-      for (const point of [start, end])
-        box(iron, point.x, point.y - 0.5, point.z, 0.07, 1, 0.07);
+      const posts = Math.ceil(Math.hypot(b[0] - a[0], b[2] - a[2]) / 0.8);
+      for (let i = 0; i <= posts; i++) {
+        const point = start.clone().lerp(end, i / posts);
+        box(iron, point.x, point.y - 0.5, point.z, 0.055, 1, 0.055);
+      }
     }
   }
   buildStairRoute(SHORE_ROUTE);

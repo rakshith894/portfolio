@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SHORE_ROUTE, sampleStairRoute } from './island-stairs.ts';
+import { SHORE_ROUTE, STAIR_WIDTH, sampleStairRoute } from './island-stairs.ts';
 
 export const MANOR_ORIGIN = new THREE.Vector3(10, 25, -10);
 export const REFERENCE_VIEWS = {
@@ -135,11 +135,17 @@ export const cemeteryFences: [number, number][][] = [
   ],
 ];
 export const HOUSE_SIDE_PASSAGE = { x: 27.5, z: -13.5 };
-export const bridgeParapets = [-1, 1].map((side) => ({
-  ax: side < 0 ? -44.8 : -47.1,
-  az: -31 + side * 1.48,
-  bx: side < 0 ? -17.2 : -16.1,
-  bz: -31 + side * 1.48,
+// Join the stair handrails on the same edge, leaving only the two branch openings.
+export const bridgeParapets = [
+  { side: 1, ax: -47.7, bx: -14.3 },
+  { side: -1, ax: -47.7, bx: -47.05 },
+  { side: -1, ax: -44.95, bx: -17.05 },
+  { side: -1, ax: -14.95, bx: -14.3 },
+].map(({ side, ax, bx }) => ({
+  ax,
+  az: -31 + side * (STAIR_WIDTH / 2 - 0.05),
+  bx,
+  bz: -31 + side * (STAIR_WIDTH / 2 - 0.05),
   floor: 25.4,
   thickness: 0.34,
 }));

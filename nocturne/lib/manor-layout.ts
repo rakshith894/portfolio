@@ -157,6 +157,9 @@ export const MANOR_DOOR = {
   z: -14.65,
   width: 2.2,
   height: 3.6,
+  // Hinge in front of the projecting arch; open onto the porch, clear of the foyer.
+  hingeOffset: 0.45,
+  swing: -1,
 };
 
 export const MANOR_ENTRY_ARCHES = [

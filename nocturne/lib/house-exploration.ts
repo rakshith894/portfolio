@@ -448,7 +448,16 @@ export function createHouseExploration(
       old.copy(walker.position);
       elapsed += dt;
       if (phase === 'approach') {
-        target.copy(origin).add(new THREE.Vector3(0, 0, 0.96));
+        // Wait beyond the outward leaf's sweep before walking through it.
+        target
+          .copy(origin)
+          .add(
+            new THREE.Vector3(
+              0,
+              0,
+              MANOR_DOOR.hingeOffset + MANOR_DOOR.width + 0.75,
+            ),
+          );
         if (moveTo(target, 2, dt, true)) {
           phase = 'opening';
           elapsed = 0;
@@ -490,7 +499,15 @@ export function createHouseExploration(
         controls.enabled = false;
         doorProgress = Math.min(1, doorProgress + dt / 1.1);
         if (doorProgress === 1) {
-          target.copy(origin).add(new THREE.Vector3(0, 0, 1.5));
+          target
+            .copy(origin)
+            .add(
+              new THREE.Vector3(
+                0,
+                0,
+                MANOR_DOOR.hingeOffset + MANOR_DOOR.width + 0.75,
+              ),
+            );
           if (moveTo(target, 1.65, dt, false)) {
             phase = 'outside';
             manor.visible = true;
@@ -623,7 +640,8 @@ export function createHouseExploration(
         }
         doorProgress = indoor.doors[0].progress;
       }
-      exteriorDoor.rotation.y = (doorProgress * Math.PI) / 2;
+      exteriorDoor.rotation.y =
+        (doorProgress * MANOR_DOOR.swing * Math.PI) / 2 || 0;
       for (const door of indoor.doors)
         world.doors.get(door.id)!.rotation.y =
           (door.progress * door.swing * Math.PI) / 2;
@@ -688,8 +706,18 @@ export function createHouseExploration(
     },
     updateOutside(dt: number) {
       if (phase === 'outside') {
+        const occupied = [walker.position, ...followers()].some(
+          (point) =>
+            Math.hypot(
+              point.x - exteriorDoor.position.x,
+              point.z - exteriorDoor.position.z,
+            ) <
+            MANOR_DOOR.width + HOUSE_RADIUS + 0.45,
+        );
+        if (occupied) return;
         doorProgress = Math.max(0, doorProgress - dt / 1.1);
-        exteriorDoor.rotation.y = (doorProgress * Math.PI) / 2;
+        exteriorDoor.rotation.y =
+          (doorProgress * MANOR_DOOR.swing * Math.PI) / 2 || 0;
       }
     },
     dispose() {

@@ -72,13 +72,15 @@ const MANOR_BOUNDS = MANOR_SOLIDS.map(
 // The closed exterior door is a boundary; entering opens the separate house scene.
 MANOR_BOUNDS.push(
   new THREE.Box3(
-    new THREE.Vector3(MANOR_DOOR.x, MANOR_DOOR.y, MANOR_DOOR.z - 0.04).add(
-      MANOR_ORIGIN,
-    ),
+    new THREE.Vector3(
+      MANOR_DOOR.x,
+      MANOR_DOOR.y,
+      MANOR_DOOR.z + MANOR_DOOR.hingeOffset - 0.04,
+    ).add(MANOR_ORIGIN),
     new THREE.Vector3(
       MANOR_DOOR.x + MANOR_DOOR.width,
       MANOR_DOOR.y + MANOR_DOOR.height,
-      MANOR_DOOR.z + 0.04,
+      MANOR_DOOR.z + MANOR_DOOR.hingeOffset + 0.04,
     ).add(MANOR_ORIGIN),
   ),
 );

@@ -3669,6 +3669,10 @@ a {
 }
 .walk-pad {
   display: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
   grid-template-columns: repeat(3, 46px);
   grid-template-rows: repeat(2, 46px);
   gap: 5px;
@@ -4654,5 +4658,77 @@ a {
     left: 12px;
     padding: 5px 10px;
     font-size: 11px;
+  }
+}
+
+/* Keep the local editing controls clear of the movement pad on touch screens. */
+@media (max-width: 700px), (any-pointer: coarse) {
+  .island-viewer .admin-status-bar {
+    left: auto;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+    max-width: calc(100% - 196px);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 12px;
+  }
+  .island-viewer .admin-status-badge {
+    display: none;
+  }
+  .island-viewer .admin-switch-btn {
+    min-height: 44px;
+  }
+  .island-destinations-toggle {
+    min-height: 44px;
+  }
+  .island-destinations-menu {
+    bottom: calc(100% + 8px);
+  }
+  .island-header {
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+@media (max-width: 700px) {
+  .island-header {
+    position: relative;
+  }
+  .island-viewer .house-sidebar-nav {
+    position: relative;
+    inset: auto;
+    margin: 4px 14px 0;
+    width: calc(100% - 28px);
+    max-height: min(32dvh, 180px);
+    overflow-y: auto;
+  }
+  .island-viewer .house-sidebar-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .island-viewer .house-sidebar-btn {
+    min-height: 44px !important;
+  }
+  .island-destinations {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    padding: 5px;
+    border-radius: 999px;
+  }
+  .tour-start[data-slot='button'] {
+    top: max(160px, calc(env(safe-area-inset-top) + 146px));
+    left: max(16px, env(safe-area-inset-left));
+    min-height: 44px;
+  }
+}
+
+@media (any-pointer: coarse) and (min-width: 701px) {
+  .island-viewer .admin-status-bar {
+    right: max(90px, calc(env(safe-area-inset-right) + 72px));
+    max-width: calc(100% - 300px);
   }
 }
