@@ -409,24 +409,44 @@ export function createIslandAvatar(
     perform,
     /**
      * Drive the right arm into a door interaction pose.
+     * Works on both the procedural rig and the loaded GLTF model.
      * @param mode 'push' = reaching forward to push/open, 'pull' = reaching back to close
-     * @param t    0→1 blend weight for the pose (0 = rest, 1 = full reach)
+     * @param t    0→1 blend weight for the pose
      */
     doorGesture(mode: 'push' | 'pull' | 'none', t: number) {
-      const arm = arms[1]; // right arm (side === 1)
-      if (!arm || t <= 0 || lastReduced) return;
-      if (mode === 'push') {
-        // Reach arm forward-down, then straighten at peak (door fully open)
+      if (t <= 0 || lastReduced || mode === 'none') return;
+
+      if (importedModel) {
+        // ── GLTF model: Rocketbox bone naming ──────────────────────────────
+        const upperArm = importedModel.getObjectByName('Bip01_R_UpperArm');
+        const foreArm  = importedModel.getObjectByName('Bip01_R_Forearm');
+        if (!upperArm || !foreArm) return;
         const peak = Math.sin(t * Math.PI);
-        arm.shoulder.rotation.x += -peak * 0.9 * t;
-        arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
-        arm.elbow.rotation.x += -peak * 0.4 * t;
-      } else if (mode === 'pull') {
-        // Reach arm back and slightly out to grab/push door closed
-        const peak = Math.sin(t * Math.PI * 0.8);
-        arm.shoulder.rotation.x += peak * 0.7 * t;
-        arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.14, t);
-        arm.elbow.rotation.x += peak * 0.3 * t;
+        if (mode === 'push') {
+          // Forward raise — rotate upper arm forward (negative X in Bip space)
+          upperArm.rotation.x += -peak * 1.1 * t;
+          upperArm.rotation.z = THREE.MathUtils.lerp(upperArm.rotation.z, -0.12, t * 0.6);
+          foreArm.rotation.x  += -peak * 0.45 * t;
+        } else {
+          // Reach back — rotate upper arm backward (positive X)
+          upperArm.rotation.x += peak * 0.8 * t;
+          upperArm.rotation.z = THREE.MathUtils.lerp(upperArm.rotation.z, 0.18, t * 0.6);
+          foreArm.rotation.x  += peak * 0.32 * t;
+        }
+      } else {
+        // ── Procedural rig: arms array ─────────────────────────────────────
+        const arm = arms[1]; // right arm (side === 1)
+        if (!arm) return;
+        const peak = Math.sin(t * Math.PI);
+        if (mode === 'push') {
+          arm.shoulder.rotation.x += -peak * 0.9 * t;
+          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
+          arm.elbow.rotation.x   += -peak * 0.4 * t;
+        } else {
+          arm.shoulder.rotation.x += peak * 0.7 * t;
+          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.14, t);
+          arm.elbow.rotation.x   += peak * 0.3 * t;
+        }
       }
     },
     setRowingTargets(left?: THREE.Vector3, right?: THREE.Vector3) {
