@@ -275,21 +275,6 @@ export function ContactApparitionDialog({
         </div>
 
         <div className="apparition-scroll">
-          <div className="hologram-transmission">
-            <span className={revealed < total ? 'is-transmitting' : ''} />
-            {revealed < total
-              ? 'ESTABLISHING CONTACT'
-              : 'TRANSMISSION COMPLETE'}
-            {revealed < total && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setRevealed(total)}
-              >
-                Show all
-              </Button>
-            )}
-          </div>
           {(editing ? draft.photo : profile.photo) && (
             <div className="apparition-portrait">
               <Image

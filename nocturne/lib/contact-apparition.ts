@@ -135,52 +135,6 @@ export function createContactApparition(
   scan.rotation.x = -Math.PI / 2;
   root.add(scan);
 
-  // Orbiting arcs
-  const orbit = new THREE.Group();
-  orbit.position.y = 1.8;
-  root.add(orbit);
-  for (let i = 0; i < 3; i++) {
-    const arc = new THREE.Mesh(
-      own(
-        new THREE.TorusGeometry(0.9 + i * 0.05, 0.008, 6, 80, Math.PI * 0.72),
-      ),
-      scanMaterial,
-    );
-    arc.rotation.set(Math.PI / 2 + 0.25, i * 0.42, (i * Math.PI * 2) / 3);
-    orbit.add(arc);
-  }
-
-  // Extra energy rings at different heights that spin on different axes
-  const energyRings: THREE.Mesh[] = [];
-  for (let i = 0; i < 4; i++) {
-    const energyMat = own(
-      new THREE.ShaderMaterial({
-        uniforms: { ...colorUniforms, offset: { value: i * 0.25 } },
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        vertexShader: `void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-        fragmentShader: `
-        uniform float strength; uniform float hue; uniform float offset;
-        vec3 hsl2rgb(float h,float s,float l){
-          vec3 rgb=clamp(abs(mod(h*6.+vec3(0,4,2),6.)-3.)-1.,0.,1.);
-          return l+s*(rgb-.5)*(1.-abs(2.*l-1.));
-        }
-        void main(){
-          vec3 col=hsl2rgb(fract(hue+offset),0.9,0.7);
-          gl_FragColor=vec4(col, 0.35*strength);
-        }`,
-      }),
-    );
-    const er = new THREE.Mesh(
-      own(new THREE.TorusGeometry(0.55 + i * 0.08, 0.007, 6, 64)),
-      energyMat,
-    );
-    er.position.y = 1.2 + i * 0.4;
-    root.add(er);
-    energyRings.push(er);
-  }
-
   // DNA-helix style motes (200 particles in a double helix)
   const moteCount = 200;
   const motePositions = new Float32Array(moteCount * 3);
@@ -411,15 +365,6 @@ export function createContactApparition(
       colorUniforms.strength.value = strength;
       colorUniforms.hue.value = hue;
 
-      // Sync energy ring materials with same uniforms
-      for (const [i, er] of energyRings.entries()) {
-        (er.material as THREE.ShaderMaterial).uniforms.hue.value = hue;
-        (er.material as THREE.ShaderMaterial).uniforms.strength.value =
-          strength;
-        er.rotation.x = time * (0.6 + i * 0.15);
-        er.rotation.z = time * (0.4 + i * 0.1);
-      }
-
       // Body float and billboard
       person.update(0, false, dt, reduced);
       person.root.position.y =
@@ -445,7 +390,6 @@ export function createContactApparition(
       scan.position.y = reduced
         ? 1.5
         : 0.6 + (Math.sin(time * 0.65) * 0.5 + 0.5) * 2.4;
-      orbit.rotation.y = reduced ? 0 : time * 0.5;
 
       // Double-helix motes animate + colour-shift
       for (let i = 0; i < moteCount; i++) {
