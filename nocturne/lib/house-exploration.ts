@@ -687,17 +687,21 @@ export function createHouseExploration(
         }
         camera.lookAt(controls.target);
       } else {
-        const offset =
-          phase === 'leaving'
-            ? new THREE.Vector3(0.35, 1.9, 3.1)
-            : new THREE.Vector3(0.35, 1.9, 2.4);
+        // Cinematic camera for approach, crossing, and leaving:
+        // – entering: low close angle behind the player, easing in
+        // – leaving: wider pull-back with higher vantage
+        const entering = phase !== 'leaving';
+        const offset = entering
+          ? new THREE.Vector3(0.15, 1.55, 2.0)
+          : new THREE.Vector3(0.4, 2.2, 3.8);
+        const lerpRate = entering ? 2.8 : 3.5;
         camera.position.lerp(
           walker.position.clone().add(offset),
-          1 - Math.exp(-dt * 5),
+          1 - Math.exp(-dt * lerpRate),
         );
         controls.target
           .copy(walker.position)
-          .add(new THREE.Vector3(0, 1.25, -0.35));
+          .add(new THREE.Vector3(0, 1.1, -0.2));
         camera.lookAt(controls.target);
       }
       // The hollow exterior and its furnished rooms stay in the same world.

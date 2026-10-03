@@ -64,7 +64,6 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowRight,
-  Square,
   DoorOpen,
   Mic,
   Sun,
@@ -451,7 +450,7 @@ export default function IslandViewer({
     applyHallSettings.current(settings);
   }
   const requestHouse = useRef<() => void>(() => {});
-  const [enteringHouse, setEnteringHouse] = useState(false);
+  const [_enteringHouse, setEnteringHouse] = useState(false);
   const overviewRef = useRef(false);
   const [ready, setReady] = useState(false),
     [failed, setFailed] = useState(false);
@@ -459,7 +458,7 @@ export default function IslandViewer({
   const [nearBoat, setNearBoat] = useState(false);
   const [atDock, setAtDock] = useState(false);
   const [_overview, setOverview] = useState(false);
-  const [nearHouse, setNearHouse] = useState(false);
+  const [_nearHouse, setNearHouse] = useState(false);
   const [destinationsOpen, setDestinationsOpen] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
   const [speechText, setSpeechText] = useState('');
@@ -741,13 +740,6 @@ export default function IslandViewer({
       destination.set(NaN, NaN, NaN);
       destinationStuckTime = 0;
       setDestinationsOpen(false);
-      if (name !== 'the selected spot') {
-        setJourney({
-          name: `Finding a path to ${name}…`,
-          moving: true,
-          planning: true,
-        });
-      }
       const route = await navigator.routeAsync(
         walker.position.clone(),
         point,
@@ -763,20 +755,10 @@ export default function IslandViewer({
         );
         return;
       }
-      const endpoint = route.at(-1)!;
-      if (
-        name === 'the selected spot' &&
-        Math.hypot(endpoint.x - point.x, endpoint.z - point.z) > 1.8
-      )
-        setVoiceNotice('Walking to the nearest reachable ground.');
       journeyName = name;
       destination.copy(route[0]);
       destinationRoute.push(...route.slice(1));
-      if (name !== 'the selected spot') {
-        setJourney({ name: `Running to ${name}`, moving: true });
-      } else {
-        setJourney(null);
-      }
+      setJourney(null);
       if (narrate) guide.announce('departure', name);
     };
     goToPlace.current = (id) => {
@@ -1681,11 +1663,7 @@ export default function IslandViewer({
           if (next) destination.copy(next);
           else {
             destination.set(NaN, NaN, NaN);
-            setJourney(
-              narratedJourney
-                ? null
-                : { name: `Arrived at ${journeyName}`, moving: false },
-            );
+            setJourney(null);
             if (narratedJourney) guide.announce('arrival', journeyName);
             narratedJourney = false;
           }
@@ -2154,21 +2132,10 @@ export default function IslandViewer({
         </output>
       )}
       {!houseStatus &&
-        (journey || voiceNotice || nearHouse || nearBoat || boatMode) && (
+        (voiceNotice || nearBoat || boatMode) && (
           <div className="walk-objective" aria-live="polite">
-            {journey && (!journey.moving || journey.planning) && (
-              <p>{journey.name}</p>
-            )}
             {voiceNotice && (
               <output className="voice-feedback">{voiceNotice}</output>
-            )}
-            {journey?.moving && (
-              <Button
-                variant="outline"
-                onClick={() => stopNavigation.current()}
-              >
-                <Square /> Stop travelling <kbd>Esc</kbd>
-              </Button>
             )}
             {nearBoat && (
               <Button
@@ -2195,18 +2162,6 @@ export default function IslandViewer({
                   </Button>
                 )}
               </>
-            )}
-            {nearHouse && !boatMode && (
-              <Button
-                variant="outline"
-                onClick={() => requestHouse.current()}
-                className="island-enter-house"
-                disabled={!ready || failed || enteringHouse}
-              >
-                <DoorOpen />{' '}
-                {enteringHouse ? 'Opening the front door…' : 'Enter the house'}{' '}
-                <kbd>E</kbd>
-              </Button>
             )}
           </div>
         )}
@@ -2280,17 +2235,6 @@ export default function IslandViewer({
               </Button>
             )}
 
-            {houseStatus.travelling && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="house-sidebar-btn house-stop-btn"
-                onClick={() => stopNavigation.current()}
-              >
-                <Square size={13} />
-                <span>Stop walking</span>
-              </Button>
-            )}
           </div>
 
           {houseStatus.masterHall && canEditProjects && (
