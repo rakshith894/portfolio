@@ -178,6 +178,18 @@ export default function IslandViewer({
   function toggleAdminMode() {
     if (localEditor) setAdminMode((value) => !value);
   }
+  // Ctrl+Shift+A — toggle admin / guest-preview mode (local editor only)
+  useEffect(() => {
+    if (!localEditor) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'KeyA' && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        setAdminMode((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [localEditor]);
   const [profile, setProfile] = useState<ContactProfile>(savedProfile);
   const profileRef = useRef(profile);
   const [contactOpen, setContactOpen] = useState(false);
@@ -1298,6 +1310,7 @@ export default function IslandViewer({
         clearInput();
         return;
       }
+
       if (
         !activeScene.current ||
         !interactive ||

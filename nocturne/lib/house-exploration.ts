@@ -290,15 +290,24 @@ export function createHouseExploration(
           : passageHeight(x, z),
     );
 
-    // Door-push/pull arm gesture — applied after update() so it overlays the idle pose
-    if (phase === 'opening') {
-      // Reach forward and push as door swings open
+    // Door-push/pull arm gesture — applied after update() so it overlays the idle/walk pose.
+    // For GLTF: uses quaternion.premultiply() to additively compose on mixer output.
+    if (phase === 'approach') {
+      // Begin reaching as the player closes to within ~1.5 m of the door
+      const distToDoor = Math.hypot(
+        walker.position.x - origin.x,
+        walker.position.z - (origin.z + MANOR_DOOR.hingeOffset + MANOR_DOOR.width + 0.75),
+      );
+      const approachT = THREE.MathUtils.clamp((1.5 - distToDoor) / 1.5, 0, 0.55);
+      if (approachT > 0) player.doorGesture('push', approachT);
+    } else if (phase === 'opening') {
+      // Full push gesture while door swings open
       player.doorGesture('push', THREE.MathUtils.clamp(doorProgress * 1.5, 0, 1));
     } else if (phase === 'crossing' && elapsed < 0.5) {
-      // Hold the push briefly as character steps through
+      // Hold the push briefly as character steps through, then release
       player.doorGesture('push', THREE.MathUtils.clamp(1 - elapsed / 0.5, 0, 1));
     } else if (phase === 'leaving') {
-      // Reach back to grab/guide the door closed
+      // Reach back to grab/guide the door closed while walking out
       player.doorGesture('pull', THREE.MathUtils.clamp(doorProgress * 1.3, 0, 1));
     }
   }

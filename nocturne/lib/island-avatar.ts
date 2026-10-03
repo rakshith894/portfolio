@@ -410,42 +410,51 @@ export function createIslandAvatar(
     /**
      * Drive the right arm into a door interaction pose.
      * Works on both the procedural rig and the loaded GLTF model.
+     *
+     * IMPORTANT: AnimationMixer sets bone.quaternion directly (not bone.rotation).
+     * We use quaternion.premultiply() so the gesture additively composites
+     * on top of whatever the idle/walk clip set — euler += would be silently lost.
+     *
      * @param mode 'push' = reaching forward to push/open, 'pull' = reaching back to close
      * @param t    0→1 blend weight for the pose
      */
     doorGesture(mode: 'push' | 'pull' | 'none', t: number) {
       if (t <= 0 || lastReduced || mode === 'none') return;
+      const peak = Math.sin(t * Math.PI); // 0→1→0 arc over the gesture
 
       if (importedModel) {
-        // ── GLTF model: Rocketbox bone naming ──────────────────────────────
+        // ── GLTF model: Rocketbox Biped bone names ─────────────────────────
         const upperArm = importedModel.getObjectByName('Bip01_R_UpperArm');
         const foreArm  = importedModel.getObjectByName('Bip01_R_Forearm');
         if (!upperArm || !foreArm) return;
-        const peak = Math.sin(t * Math.PI);
+
+        // Build delta quaternions and premultiply onto the mixer-set quaternion
+        const delta = new THREE.Quaternion();
         if (mode === 'push') {
-          // Forward raise — rotate upper arm forward (negative X in Bip space)
-          upperArm.rotation.x += -peak * 1.1 * t;
-          upperArm.rotation.z = THREE.MathUtils.lerp(upperArm.rotation.z, -0.12, t * 0.6);
-          foreArm.rotation.x  += -peak * 0.45 * t;
+          // Raise arm forward (pitch forward ~70° at peak, plus slight Z inward)
+          delta.setFromEuler(new THREE.Euler(-peak * 1.25 * t, 0, -0.18 * t, 'XYZ'));
+          upperArm.quaternion.premultiply(delta);
+          delta.setFromEuler(new THREE.Euler(-peak * 0.55 * t, 0, 0, 'XYZ'));
+          foreArm.quaternion.premultiply(delta);
         } else {
-          // Reach back — rotate upper arm backward (positive X)
-          upperArm.rotation.x += peak * 0.8 * t;
-          upperArm.rotation.z = THREE.MathUtils.lerp(upperArm.rotation.z, 0.18, t * 0.6);
-          foreArm.rotation.x  += peak * 0.32 * t;
+          // Reach arm backward (pitch back ~50°) to push door closed
+          delta.setFromEuler(new THREE.Euler(peak * 0.95 * t, 0, 0.22 * t, 'XYZ'));
+          upperArm.quaternion.premultiply(delta);
+          delta.setFromEuler(new THREE.Euler(peak * 0.38 * t, 0, 0, 'XYZ'));
+          foreArm.quaternion.premultiply(delta);
         }
       } else {
-        // ── Procedural rig: arms array ─────────────────────────────────────
-        const arm = arms[1]; // right arm (side === 1)
+        // ── Procedural rig: arms array (body is visible, no mixer) ─────────
+        const arm = arms[1]; // right arm (side === 1, built with side===1 loop)
         if (!arm) return;
-        const peak = Math.sin(t * Math.PI);
         if (mode === 'push') {
-          arm.shoulder.rotation.x += -peak * 0.9 * t;
-          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
-          arm.elbow.rotation.x   += -peak * 0.4 * t;
+          arm.shoulder.rotation.x += -peak * 1.05 * t;
+          arm.shoulder.rotation.z  = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
+          arm.elbow.rotation.x    += -peak * 0.48 * t;
         } else {
-          arm.shoulder.rotation.x += peak * 0.7 * t;
-          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.14, t);
-          arm.elbow.rotation.x   += peak * 0.3 * t;
+          arm.shoulder.rotation.x += peak * 0.85 * t;
+          arm.shoulder.rotation.z  = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.16, t);
+          arm.elbow.rotation.x    += peak * 0.36 * t;
         }
       }
     },
