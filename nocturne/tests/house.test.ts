@@ -348,7 +348,6 @@ void test('the same avatar walks through an actual open portal, explores, and wa
     update: (_distance: number, moving: boolean) => {
       if (moving) walkingFrames.push(avatar.position.z);
     },
-    doorGesture: () => {},
   } as unknown as ReturnType<typeof createIslandAvatar>;
   const camera = new THREE.PerspectiveCamera(50, 1.6, 0.12, 1600);
   camera.position.set(11, 29, -15);

@@ -165,7 +165,6 @@ export function createIslandAvatar(
   let importedModelBaseY = 0;
   let captureScale = 1;
   let runningGait = false;
-  let lastReduced = false; // tracked so doorGesture() can respect reduce-motion
   const modelLoader = new GLTFLoader();
   if (typeof window !== 'undefined') {
     // Choose the fallback once on a stalled connection; never swap mid-walk.
@@ -277,7 +276,6 @@ export function createIslandAvatar(
     rowingHands?.restore();
     const changed = modelChanged;
     modelChanged = false;
-    lastReduced = reducedMotion;
     const speed =
       dt > 0 && moving ? Math.max(0, distance - previousDistance) / dt : 0;
     previousDistance = distance;
@@ -407,62 +405,6 @@ export function createIslandAvatar(
     },
     update,
     perform,
-    /**
-     * Drive the right arm toward a door-push or door-pull target using IK.
-     * For the GLTF model, uses the same two-bone IK solver as the rowing
-     * system — guaranteed correct regardless of bone axis orientation.
-     * @param mode 'push' = reaching forward, 'pull' = reaching backward
-     * @param t    0→1 blend (0 = rest, 1 = full reach)
-     */
-    doorGesture(mode: 'push' | 'pull' | 'none', t: number) {
-      if (t <= 0 || lastReduced || mode === 'none') return;
-
-      if (importedModel && rowingHands) {
-        // ── GLTF model: use the two-bone IK system ─────────────────────
-        // Compute a hand target in the player's local forward direction.
-        // Root faces -Z in world space (model.rotation.y = π makes +Z = back).
-        const forward = new THREE.Vector3(0, 0, -1)
-          .applyQuaternion(root.quaternion);
-        const rightSide = new THREE.Vector3(-1, 0, 0)
-          .applyQuaternion(root.quaternion);
-
-        // Base position: right shoulder roughly (offset from player root)
-        const base = root.position.clone().add(
-          new THREE.Vector3(0, 1.35, 0),
-        );
-
-        // Door-push: reach forward and slightly right; door-pull: reach behind
-        const reach = mode === 'push' ? 0.65 * t : -0.55 * t;
-        const sideOffset = 0.28;
-        const handTarget = base
-          .clone()
-          .addScaledVector(forward, reach)
-          .addScaledVector(rightSide, -sideOffset)
-          .add(new THREE.Vector3(0, mode === 'push' ? -0.05 : 0.0, 0));
-
-        // Keep the left hand in a neutral position (same as current)
-        const leftHand = base.clone()
-          .addScaledVector(forward, 0.1)
-          .addScaledVector(rightSide, 0.28)
-          .add(new THREE.Vector3(0, -0.15, 0));
-
-        rowingHands.apply(leftHand, handTarget);
-      } else if (!importedModel) {
-        // ── Procedural rig: drive arm bones directly ────────────────────
-        const arm = arms[1]; // right arm (side === 1)
-        if (!arm) return;
-        const peak = Math.sin(t * Math.PI);
-        if (mode === 'push') {
-          arm.shoulder.rotation.x += -peak * 1.05 * t;
-          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
-          arm.elbow.rotation.x   += -peak * 0.48 * t;
-        } else {
-          arm.shoulder.rotation.x += peak * 0.85 * t;
-          arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.16, t);
-          arm.elbow.rotation.x   += peak * 0.36 * t;
-        }
-      }
-    },
     setRowingTargets(left?: THREE.Vector3, right?: THREE.Vector3) {
       rowingTargets = left && right ? { left, right } : null;
     },

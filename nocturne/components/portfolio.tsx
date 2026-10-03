@@ -19,7 +19,6 @@ import {
   validateContactProfile,
   type ContactProfile,
 } from '@/lib/contact-profile';
-import { EffectsToggle } from '@/components/effects-toggle';
 import { ResumeActions } from '@/components/resume-actions';
 import {
   ArrowRight,
@@ -105,32 +104,27 @@ export default function Portfolio({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="portfolio-dialog">
-        {/* ── Live Hologram & Atmospheric Layer ── */}
+        {/* ── Subtle Atmospheric Layer ── */}
         <div className="holo-fx" aria-hidden="true">
-          <div className="holo-scanline" />
           <div className="holo-shimmer" />
           {/* Corner brackets */}
           <span className="holo-corner hc-tl" />
           <span className="holo-corner hc-tr" />
           <span className="holo-corner hc-bl" />
           <span className="holo-corner hc-br" />
-          {/* Rising ambient neon particles */}
-          {Array.from({ length: 12 }, (_, i) => (
+          {/* Fewer ambient particles */}
+          {Array.from({ length: 4 }, (_, i) => (
             <span
               key={i}
               className="holo-particle"
-              style={{ '--hi': i } as React.CSSProperties}
+              style={{ '--hi': i * 3 } as React.CSSProperties}
             />
           ))}
-          {/* Horizontal data traces */}
-          <span className="holo-trace holo-trace-1" />
-          <span className="holo-trace holo-trace-2" />
         </div>
 
         <div className="portfolio-scroll">
           {/* Header area */}
           <div className="portfolio-header">
-            <EffectsToggle />
             <div className="portfolio-header-badges">
               <div className="portfolio-eyebrow-badge">
                 <span className="portfolio-pulse-dot" />
