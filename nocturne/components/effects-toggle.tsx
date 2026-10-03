@@ -3,13 +3,13 @@ import { Sparkles } from 'lucide-react';
 import { useLiveEffects } from '@/lib/live-effects';
 
 export function EffectsToggle() {
-  const [enabled, toggle] = useLiveEffects();
+  const [enabled] = useLiveEffects();
   return (
     <button
       type="button"
       className="effects-toggle"
       aria-pressed={enabled}
-      onClick={toggle}
+      aria-disabled="true"
     >
       <Sparkles size={13} /> Live effects: {enabled ? 'on' : 'off'}
     </button>

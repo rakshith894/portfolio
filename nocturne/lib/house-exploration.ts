@@ -355,7 +355,9 @@ export function createHouseExploration(
       blocked = 0;
       route = [];
       distance = walker.distance;
-      controls.enabled = false;
+      // Keep controls.enabled = true so the player can still rotate the camera
+      // while the door approach/crossing animation plays. The camera position is
+      // driven by the constraint system anyway, so only rotation matters here.
       emit();
       return true;
     },
@@ -496,7 +498,8 @@ export function createHouseExploration(
           front.hold = 0.5;
         }
       } else if (phase === 'leaving') {
-        controls.enabled = false;
+        // Do NOT disable controls.enabled here — the player should be able to
+        // rotate the camera while the exit animation plays.
         doorProgress = Math.min(1, doorProgress + dt / 1.1);
         if (doorProgress === 1) {
           target

@@ -42,7 +42,7 @@ import {
   type AssistantHandle,
 } from '@/components/island-chat-widget';
 import type { AssistantAction } from '@/lib/portfolio-assistant';
-import { EffectsToggle } from '@/components/effects-toggle';
+
 import savedSkills from '@/content/skills.json';
 import {
   createPortfolioTour,
@@ -2023,7 +2023,7 @@ export default function IslandViewer({
       <header className="island-header">
         <div>
           <span>NOCTURNE.</span>
-          <h1>{houseStatus ? houseStatus.room : profile.name}</h1>
+          {houseStatus && <h1>{houseStatus.room}</h1>}
         </div>
         <div className="island-toolbar">
           {houseStatus ? (
@@ -2372,25 +2372,6 @@ export default function IslandViewer({
             onClose={() => chooseProject(null)}
           />
         )}
-      {ready && (
-        <div className="island-effects">
-          <EffectsToggle />
-        </div>
-      )}
-      {ready && !tourStatus && !houseStatus && (
-        <Button
-          className="tour-start"
-          variant="outline"
-          onClick={() => {
-            showContact(false);
-            showSkills(false);
-            chooseProject(null);
-            tourControl.current?.start();
-          }}
-        >
-          Guided portfolio tour
-        </Button>
-      )}
       {tourStatus && (
         <section className="portfolio-tour" aria-label="Guided portfolio tour">
           <div className="tour-heading">
