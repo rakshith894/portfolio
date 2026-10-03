@@ -159,6 +159,20 @@ void test('door leaves stay open at occupied thresholds and all solid furniture 
     assert.equal(walker.canStand(solid), false);
 });
 
+void test('an unused open door closes after the visitor walks away on the same side', () => {
+  const walker = createHouseWalker();
+  walker.position.x = -1.5;
+  walker.position.z = -4.8;
+  walker.open('library');
+  tick(walker, 2);
+  const door = walker.doors.find((entry) => entry.id === 'library')!;
+  assert.equal(door.progress, 1);
+  walker.position.x = 0;
+  walker.position.z = -2.8;
+  tick(walker, 6);
+  assert.equal(door.progress, 0);
+});
+
 void test('the west stairs and side door reach the master hall and return without floor jumps', () => {
   const walker = createHouseWalker();
   follow(walker, { x: 5, z: -5, y: UPPER_HALL.y });
@@ -343,7 +357,11 @@ void test('the same avatar walks through an actual open portal, explores, and wa
   avatar.position.copy(walker.position);
   scene.add(avatar);
   const walkingFrames: number[] = [];
+  const reaches: THREE.Vector3[] = [];
   const player = {
+    setDoorReach: (target?: THREE.Vector3, weight = 1) => {
+      if (target && weight > 0.5) reaches.push(target.clone());
+    },
     root: avatar,
     update: (_distance: number, moving: boolean) => {
       if (moving) walkingFrames.push(avatar.position.z);
@@ -377,6 +395,24 @@ void test('the same avatar walks through an actual open portal, explores, and wa
     for (let frame = 0; frame < 1200 && !exploration.inside; frame++) {
       const previous = avatar.position.clone();
       exploration.update(1 / 60, frame / 60, 0, 0, false, false);
+      const hinge = door.getWorldPosition(new THREE.Vector3());
+      const latch = door.localToWorld(
+        new THREE.Vector3(MANOR_DOOR.width, 0, 0),
+      );
+      const edge = latch.clone().sub(hinge);
+      const along = THREE.MathUtils.clamp(
+        avatar.position.clone().sub(hinge).dot(edge) / edge.lengthSq(),
+        0,
+        1,
+      );
+      const closest = hinge.addScaledVector(edge, along);
+      assert.ok(
+        Math.hypot(
+          avatar.position.x - closest.x,
+          avatar.position.z - closest.z,
+        ) > 0.42,
+        `Pulling the front door never sweeps its leaf through the traveller: frame=${frame}, position=${avatar.position.toArray().join(',')}, angle=${door.rotation.y}`,
+      );
       assert.equal(
         manor.visible,
         true,
@@ -396,6 +432,10 @@ void test('the same avatar walks through an actual open portal, explores, and wa
         );
     }
     assert.ok(exploration.inside, 'The walk reaches the interior');
+    assert.ok(
+      reaches.length > 0,
+      'The character reaches for the latch before entering',
+    );
     assert.equal(avatar.parent, scene, 'Entry keeps the same player and scene');
     assert.ok(
       walkingFrames.some((z) => z > portal.z) &&

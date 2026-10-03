@@ -73,6 +73,8 @@ import {
   FolderGit2,
   Sparkles,
   Compass,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createReferenceEnvironment } from '@/lib/reference-environment';
@@ -92,7 +94,6 @@ import {
   menuPlaces,
   speakIsland,
   setNarrationEnabled,
-  chooseMaleVoice,
   stopIslandSpeech,
   type PlaceId,
 } from '@/lib/island-commands';
@@ -470,7 +471,7 @@ export default function IslandViewer({
   const [nearBoat, setNearBoat] = useState(false);
   const [atDock, setAtDock] = useState(false);
   const [_overview, setOverview] = useState(false);
-  const [_nearHouse, setNearHouse] = useState(false);
+  const [nearHouse, setNearHouse] = useState(false);
   const [destinationsOpen, setDestinationsOpen] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
   const [speechText, setSpeechText] = useState('');
@@ -484,7 +485,7 @@ export default function IslandViewer({
   useEffect(() => {
     setNarrationEnabled(narration);
   }, [narration]);
-  function _toggleNarration() {
+  function toggleNarration() {
     const enabled = !narration;
     setNarration(enabled);
     setNarrationEnabled(enabled);
@@ -719,6 +720,7 @@ export default function IslandViewer({
       wasAtDock = false;
     let journeyName = '';
     let narratedJourney = false;
+    let enterOnArrival = false;
     const guide = createJourneyGuide(
       (text, onEnd) =>
         speakIsland(text, {
@@ -726,7 +728,7 @@ export default function IslandViewer({
           rate: 1.05,
           onUnavailable: () =>
             setVoiceNotice(
-              'No male narration voice is installed. Journey captions are still available.',
+              'Voice playback is unavailable. Journey captions are still available; try selecting a place again.',
             ),
         }),
       stopIslandSpeech,
@@ -737,6 +739,7 @@ export default function IslandViewer({
       point: { x: number; z: number },
       name: string,
       narrate = false,
+      enterHouse = false,
     ) => {
       if (inBoat) {
         setDestinationsOpen(false);
@@ -745,6 +748,7 @@ export default function IslandViewer({
       }
       guide.cancel();
       narratedJourney = narrate;
+      enterOnArrival = enterHouse;
       const request = ++navigationRequest;
       keys.clear();
       touchKeys.clear();
@@ -752,15 +756,21 @@ export default function IslandViewer({
       destination.set(NaN, NaN, NaN);
       destinationStuckTime = 0;
       setDestinationsOpen(false);
+      setVoiceNotice('');
+      setJourney({ name: `Finding a path to ${name}`, moving: true });
+      // Speak before route planning yields, while the destination click is active.
+      if (narrate) guide.announce('departure', name);
       const route = await navigator.routeAsync(
         walker.position.clone(),
         point,
-        2.5,
+        name === 'the selected spot' ? 1 : 0.8,
         () => disposed || request !== navigationRequest,
         name === 'the selected spot',
       );
       if (disposed || request !== navigationRequest) return;
       if (!route?.length) {
+        guide.cancel();
+        narratedJourney = false;
         setJourney(null);
         setVoiceNotice(
           'That spot is blocked. Try clicking on open ground nearby, or use Places.',
@@ -770,8 +780,7 @@ export default function IslandViewer({
       journeyName = name;
       destination.copy(route[0]);
       destinationRoute.push(...route.slice(1));
-      setJourney(null);
-      if (narrate) guide.announce('departure', name);
+      setJourney({ name, moving: true });
     };
     goToPlace.current = (id) => {
       tourControl.current?.stop();
@@ -819,7 +828,7 @@ export default function IslandViewer({
     controls.minDistance = 0.4;
     controls.maxDistance = 42;
     controls.minPolarAngle = Math.PI * 0.04;
-    controls.maxPolarAngle = Math.PI * 0.60;
+    controls.maxPolarAngle = Math.PI * 0.6;
     controls.addEventListener('start', () => {
       cameraManualUntil = Infinity;
     });
@@ -1038,6 +1047,7 @@ export default function IslandViewer({
       sailing.stop();
       guide.cancel();
       narratedJourney = false;
+      enterOnArrival = false;
       keys.clear();
       touchKeys.clear();
       setJourney(null);
@@ -1150,11 +1160,6 @@ export default function IslandViewer({
         }),
       stopTravel: stopTourTravel,
       speak: (text, done) => {
-        if (
-          !('speechSynthesis' in window) ||
-          !chooseMaleVoice(window.speechSynthesis.getVoices())
-        )
-          return false;
         return speakIsland(text, { rate: 1, onEnd: done });
       },
       silence: stopIslandSpeech,
@@ -1477,7 +1482,7 @@ export default function IslandViewer({
           if (walker.nearHouse) {
             requestHouse.current();
           } else {
-            void navigateTo({ x: 10, z: -23.8 }, 'the front door');
+            void navigateTo({ x: 10, z: -23.8 }, 'the front door', false, true);
           }
           return;
         }
@@ -1495,7 +1500,9 @@ export default function IslandViewer({
         } else setVoiceNotice('Choose open water away from the shore.');
         return;
       }
-      const clickTargets: THREE.Object3D[] = [environment.ground];
+      const clickTargets: THREE.Object3D[] = [
+        ...environment.navigationSurfaces,
+      ];
       if (environment.manor) clickTargets.push(environment.manor);
       const hit = clickRay.intersectObjects(clickTargets, true)[0];
       // A terrain or scenery hit is authoritative; never project a blocked hit through scenery.
@@ -1679,6 +1686,10 @@ export default function IslandViewer({
             setJourney(null);
             if (narratedJourney) guide.announce('arrival', journeyName);
             narratedJourney = false;
+            if (enterOnArrival) {
+              enterOnArrival = false;
+              requestHouse.current();
+            }
           }
         } else {
           direction.set(
@@ -1737,7 +1748,11 @@ export default function IslandViewer({
       if (hasDestination && !guide.holdingDeparture) {
         if (moved < 0.0001) destinationStuckTime += dt;
         else destinationStuckTime = 0;
-        if (destinationStuckTime > 0.6 && destinationRoute.length > 0) {
+        if (
+          destinationStuckTime > 0.6 &&
+          destinationRoute.length > 0 &&
+          navigator.clear(walker.position, destinationRoute[0])
+        ) {
           destination.copy(destinationRoute.shift()!);
           destinationStuckTime = 0;
         } else if (destinationStuckTime > 1.4) {
@@ -1747,6 +1762,9 @@ export default function IslandViewer({
           guide.cancel();
           narratedJourney = false;
           setJourney(null);
+          setVoiceNotice(
+            'The path is blocked. Select another spot or destination to continue.',
+          );
         }
       }
       if (inBoat) {
@@ -2078,15 +2096,25 @@ export default function IslandViewer({
                 <Lightbulb />
               </Button>
             )}
-            {houseStatus && onPortfolio && (
+            {onPortfolio && (
               <Button
                 className="island-portfolio-link"
                 variant="ghost"
                 onClick={onPortfolio}
               >
-                Portfolio
+                Quick portfolio
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleNarration}
+              aria-pressed={narration}
+              aria-label={narration ? 'Mute narration' : 'Enable narration'}
+              title={narration ? 'Mute narration' : 'Enable narration'}
+            >
+              {narration ? <Volume2 /> : <VolumeX />}
+            </Button>
             {onExit && (
               <Button
                 variant="ghost"
@@ -2145,10 +2173,26 @@ export default function IslandViewer({
         </output>
       )}
       {!houseStatus &&
-        (voiceNotice || nearBoat || boatMode) && (
+        (voiceNotice || journey || nearHouse || nearBoat || boatMode) && (
           <div className="walk-objective" aria-live="polite">
+            {journey && (
+              <div className="journey-status">
+                <output>{journey.name}</output>
+                <Button
+                  variant="outline"
+                  onClick={() => stopNavigation.current()}
+                >
+                  Stop travelling
+                </Button>
+              </div>
+            )}
             {voiceNotice && (
               <output className="voice-feedback">{voiceNotice}</output>
+            )}
+            {nearHouse && !boatMode && (
+              <Button variant="outline" onClick={() => requestHouse.current()}>
+                <DoorOpen size={16} /> Enter the house
+              </Button>
             )}
             {nearBoat && (
               <Button
@@ -2247,7 +2291,6 @@ export default function IslandViewer({
                 <kbd>E</kbd>
               </Button>
             )}
-
           </div>
 
           {houseStatus.masterHall && canEditProjects && (

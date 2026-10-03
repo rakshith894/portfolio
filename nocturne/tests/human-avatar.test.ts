@@ -36,6 +36,56 @@ async function loadHuman() {
   return { ...gltf, json, bytes };
 }
 
+void test('the human hand reaches a door handle at different headings and releases the pose', async (context) => {
+  const gltf = await loadHuman();
+  const resources = new Set<{ dispose: () => void }>();
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  try {
+    Object.defineProperty(globalThis, 'window', {
+      value: {},
+      configurable: true,
+    });
+    context.mock.method(
+      GLTFLoader.prototype,
+      'load',
+      (_url: string, onLoad: (value: typeof gltf) => void) => onLoad(gltf),
+    );
+    const avatar = createIslandAvatar(resources, false);
+    const hand = gltf.scene.getObjectByName('Bip01_R_Hand')!;
+    const shoulder = gltf.scene.getObjectByName('Bip01_R_UpperArm')!;
+    for (const heading of [0, Math.PI / 2, Math.PI]) {
+      avatar.root.rotation.y = heading;
+      avatar.setDoorReach();
+      avatar.update(0, false, 0, true);
+      avatar.root.updateMatrixWorld(true);
+      const resting = hand.getWorldPosition(new THREE.Vector3());
+      const target = shoulder
+        .getWorldPosition(new THREE.Vector3())
+        .add(
+          new THREE.Vector3(0.05, -0.22, -0.4).applyAxisAngle(
+            new THREE.Vector3(0, 1, 0),
+            heading,
+          ),
+        );
+      avatar.setDoorReach(target);
+      avatar.update(0, false, 0, true);
+      assert.ok(
+        hand.getWorldPosition(new THREE.Vector3()).distanceTo(target) < 0.025,
+      );
+      avatar.setDoorReach();
+      avatar.update(0, false, 0, true);
+      assert.ok(
+        hand.getWorldPosition(new THREE.Vector3()).distanceTo(resting) < 0.001,
+      );
+    }
+  } finally {
+    resources.forEach((resource) => resource.dispose());
+    if (originalWindow)
+      Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
 void test('the seated traveller grips both moving oars and releases them on disembark', async (context) => {
   const gltf = await loadHuman(),
     resources = new Set<{ dispose: () => void }>();

@@ -10,6 +10,7 @@ import {
   createHouseWalker,
   houseRoute,
   HOUSE_RADIUS,
+  doorSegment,
   type HousePoint,
 } from './house-layout.ts';
 import { createHouseScene } from './house-scene.ts';
@@ -17,6 +18,7 @@ import { houseSurface } from './house-stairs.ts';
 import { createHouseCamera } from './house-camera.ts';
 import { DEFAULT_HALL_SETTINGS, type HallSettings } from './master-hall.ts';
 import type { HallFrameId, HallProject } from './hall-projects.ts';
+import { easeDoor } from './door-gesture.ts';
 
 export type HouseStatus = {
   inside: boolean;
@@ -75,6 +77,44 @@ export function createHouseExploration(
     arrivalDoor: string | null = null,
     routeBlocked = 0;
   const velocity = new THREE.Vector3();
+  const handleTarget = new THREE.Vector3();
+  let reachDoor: string | null = null;
+  let reachTime = 0;
+  let leaveStage: 'approach' | 'opening' | 'crossing' = 'approach';
+  function openFrontDoor(dt: number) {
+    const next = Math.min(1, doorProgress + dt / 1.3);
+    const steps = Math.max(1, Math.ceil((next - doorProgress) / 0.02));
+    const initial = doorProgress;
+    for (let sample = 1; sample <= steps; sample++) {
+      const progress = initial + ((next - initial) * sample) / steps;
+      const { a, b } = doorSegment(indoor.doors[0], progress);
+      const dx = b.x - a.x,
+        dz = b.z - a.z;
+      const occupied = [walker.position, ...followers()].some((point) => {
+        if (point.y + 1.82 < origin.y || point.y > origin.y + MANOR_DOOR.height)
+          return false;
+        const x = point.x - origin.x - a.x,
+          z = point.z - origin.z - a.z;
+        const along = THREE.MathUtils.clamp(
+          (x * dx + z * dz) / (dx * dx + dz * dz),
+          0,
+          1,
+        );
+        return Math.hypot(x - dx * along, z - dz * along) < 0.52;
+      });
+      if (occupied) break;
+      doorProgress = progress;
+    }
+  }
+  function openRoomDoor(id: string) {
+    const door = indoor.doors.find((entry) => entry.id === id);
+    if (!door || door.target) return;
+    indoor.open(id);
+    door.hold = 0.35;
+    reachDoor = id;
+    reachTime = 0;
+    creak();
+  }
   const walkSpeed = 1.45;
   let hallSettings = { ...DEFAULT_HALL_SETTINGS };
   const markerGeometry = new THREE.RingGeometry(0.16, 0.23, 32);
@@ -171,10 +211,9 @@ export function createHouseExploration(
   };
   function startLeaving() {
     phase = 'leaving';
+    leaveStage = 'approach';
     elapsed = 0;
     route = [];
-    creak();
-    indoor.open('front');
   }
   function returnToDoor() {
     if (phase !== 'inside') return;
@@ -269,7 +308,7 @@ export function createHouseExploration(
       );
       change.y = player.root.position.y - visualY;
     }
-    if (travelled > 0.00001) {
+    if (travelled > 0.00001 && phase !== 'opening') {
       const heading = Math.atan2(-change.x, -change.z);
       const turn = Math.atan2(
         Math.sin(heading - player.root.rotation.y),
@@ -368,8 +407,7 @@ export function createHouseExploration(
       if (!door) return;
       if (door.id === 'front') returnToDoor();
       else {
-        indoor.open(door.id);
-        creak();
+        openRoomDoor(door.id);
       }
     },
     returnToDoor,
@@ -410,8 +448,7 @@ export function createHouseExploration(
           }
           if (indoor.nearestDoor()?.id === door.id) {
             stop();
-            indoor.open(door.id);
-            creak();
+            openRoomDoor(door.id);
             return true;
           }
           const nearSide = Math.sign(indoor.position.x - door.x) || 1;
@@ -449,18 +486,13 @@ export function createHouseExploration(
     ) {
       if (phase === 'outside') return false;
       old.copy(walker.position);
+      player.setDoorReach();
       elapsed += dt;
       if (phase === 'approach') {
-        // Wait beyond the outward leaf's sweep before walking through it.
+        // Approach the latch first; the opening phase steps back with the leaf.
         target
           .copy(origin)
-          .add(
-            new THREE.Vector3(
-              0,
-              0,
-              MANOR_DOOR.hingeOffset + MANOR_DOOR.width + 0.75,
-            ),
-          );
+          .add(new THREE.Vector3(0.35, 0, MANOR_DOOR.hingeOffset + 0.53));
         if (moveTo(target, 2, dt, true)) {
           phase = 'opening';
           elapsed = 0;
@@ -475,8 +507,27 @@ export function createHouseExploration(
           return false;
         }
       } else if (phase === 'opening') {
-        doorProgress = Math.min(1, doorProgress + dt / 1.1);
-        if (doorProgress === 1) {
+        const retreat = easeDoor((elapsed - 0.35) / 1.5);
+        target
+          .copy(origin)
+          .add(
+            new THREE.Vector3(
+              0.35 * (1 - retreat),
+              0,
+              MANOR_DOOR.hingeOffset +
+                0.53 +
+                retreat * (MANOR_DOOR.width + 0.22),
+            ),
+          );
+        moveTo(target, 2.5, dt, true);
+        if (elapsed > 0.4) openFrontDoor(dt);
+        player.root.rotation.y = THREE.MathUtils.damp(
+          player.root.rotation.y,
+          0,
+          12,
+          dt,
+        );
+        if (doorProgress === 1 && elapsed >= 2.1) {
           phase = 'crossing';
           elapsed = 0;
         }
@@ -501,8 +552,17 @@ export function createHouseExploration(
       } else if (phase === 'leaving') {
         // Do NOT disable controls.enabled here — the player should be able to
         // rotate the camera while the exit animation plays.
-        doorProgress = Math.min(1, doorProgress + dt / 1.1);
-        if (doorProgress === 1) {
+        if (leaveStage === 'approach') {
+          target.copy(origin).add(new THREE.Vector3(0.35, 0, -0.12));
+          if (moveTo(target, 1.45, dt, false)) {
+            leaveStage = 'opening';
+            elapsed = 0;
+            creak();
+          }
+        } else if (leaveStage === 'opening') {
+          if (elapsed > 0.35) openFrontDoor(dt);
+          if (doorProgress === 1) leaveStage = 'crossing';
+        } else {
           target
             .copy(origin)
             .add(
@@ -566,8 +626,7 @@ export function createHouseExploration(
               path.visible = false;
               if (exitAfterRoute) startLeaving();
               else if (arrivalDoor) {
-                indoor.open(arrivalDoor);
-                creak();
+                openRoomDoor(arrivalDoor);
                 arrivalDoor = null;
               }
             }
@@ -590,8 +649,7 @@ export function createHouseExploration(
             Math.sign(indoor.position.x - door.x) !==
               Math.sign(ahead.x - door.x)
           ) {
-            indoor.open(door.id);
-            creak();
+            openRoomDoor(door.id);
           }
           if (door?.target && door.progress < 1) break;
           if (remainingStep <= 0.000001) break;
@@ -606,7 +664,7 @@ export function createHouseExploration(
           remainingStep -= step;
           if (moved < 0.000001 || moved < step * 0.99) break;
         }
-        if (!following) {
+        if (!following && !(reachDoor && reachTime < 0.95)) {
           // Releasing the controls stops precisely, without drifting into walls.
           if (!forward && !side) velocity.set(0, 0, 0);
           indoor.move(velocity.x * dt, velocity.z * dt);
@@ -645,11 +703,46 @@ export function createHouseExploration(
         doorProgress = indoor.doors[0].progress;
       }
       exteriorDoor.rotation.y =
-        (doorProgress * MANOR_DOOR.swing * Math.PI) / 2 || 0;
+        (easeDoor(doorProgress) * MANOR_DOOR.swing * Math.PI) / 2 || 0;
       for (const door of indoor.doors)
         world.doors.get(door.id)!.rotation.y =
-          (door.progress * door.swing * Math.PI) / 2;
+          (easeDoor(door.progress) * door.swing * Math.PI) / 2;
+      if (
+        phase === 'opening' ||
+        (phase === 'leaving' && leaveStage === 'opening')
+      ) {
+        handleTarget.set(1.88, 1.05, phase === 'opening' ? 0.1 : -0.1);
+        exteriorDoor.localToWorld(handleTarget);
+        player.setDoorReach(
+          handleTarget,
+          easeDoor(elapsed / 0.35) * (1 - easeDoor((elapsed - 0.6) / 0.4)),
+        );
+      } else if (reachDoor) {
+        reachTime += dt;
+        const door = indoor.doors.find((entry) => entry.id === reachDoor)!;
+        const leaf = world.doors.get(reachDoor)!.children[0];
+        const side =
+          Math.sign(leaf.worldToLocal(walker.position.clone()).z) || 1;
+        handleTarget.set(door.width - 0.3, 1.42, side * 0.14);
+        leaf.localToWorld(handleTarget);
+        const heading = Math.atan2(
+          walker.position.x - handleTarget.x,
+          walker.position.z - handleTarget.z,
+        );
+        const turn = Math.atan2(
+          Math.sin(heading - player.root.rotation.y),
+          Math.cos(heading - player.root.rotation.y),
+        );
+        player.root.rotation.y += turn * (1 - Math.exp(-dt * 12));
+        player.setDoorReach(
+          handleTarget,
+          easeDoor(reachTime / 0.35) * (1 - easeDoor((reachTime - 0.6) / 0.4)),
+        );
+        if (reachTime >= 1) reachDoor = null;
+      }
       animateAvatar(dt, reduced, old);
+      // Backing away from a pulled door keeps the torso facing the handle.
+      if (phase === 'opening') player.root.rotation.y = 0;
       if (phase === 'inside') {
         target.copy(player.root.position).add(new THREE.Vector3(0, 1.35, 0));
         camera.position.add(target.clone().sub(controls.target));
@@ -725,7 +818,7 @@ export function createHouseExploration(
         if (occupied) return;
         doorProgress = Math.max(0, doorProgress - dt / 1.1);
         exteriorDoor.rotation.y =
-          (doorProgress * MANOR_DOOR.swing * Math.PI) / 2 || 0;
+          (easeDoor(doorProgress) * MANOR_DOOR.swing * Math.PI) / 2 || 0;
       }
     },
     dispose() {

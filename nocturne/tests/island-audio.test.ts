@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseMaleVoice } from '../lib/island-commands.ts';
+import {
+  chooseMaleVoice,
+  chooseNarrationVoice,
+  speakIsland,
+  stopIslandSpeech,
+} from '../lib/island-commands.ts';
 import { createIslandSoundCues } from '../lib/island-sound-cues.ts';
 
 void test('narration selects an identified English male voice and never a female default', () => {
@@ -16,6 +21,79 @@ void test('narration selects an identified English male voice and never a female
     undefined,
   );
   assert.equal(chooseMaleVoice([{ name: 'Thomas', lang: 'fr-FR' }]), undefined);
+});
+
+void test('journey narration prefers the male voice and falls back to available English voices', () => {
+  const phone = { name: 'Google US English', lang: 'en-US' };
+  const male = { name: 'Microsoft David Desktop', lang: 'en-US' };
+  assert.equal(chooseNarrationVoice([phone, male]), male);
+  assert.equal(chooseNarrationVoice([phone]), phone);
+  assert.equal(chooseNarrationVoice([]), undefined);
+});
+
+void test('cold voice lists speak immediately and cancelled utterances cannot finish a new journey', (context) => {
+  const played: {
+    text: string;
+    onend: (() => void) | null;
+    onerror: (() => void) | null;
+  }[] = [];
+  let resumed = 0,
+    finished = 0,
+    unavailable = 0;
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const originalUtterance = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'SpeechSynthesisUtterance',
+  );
+  context.after(() => {
+    stopIslandSpeech();
+    for (const [key, descriptor] of [
+      ['window', originalWindow],
+      ['SpeechSynthesisUtterance', originalUtterance],
+    ] as const) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      speechSynthesis: {
+        getVoices: () => [],
+        cancel: () => {},
+        resume: () => resumed++,
+        speak: (voice: (typeof played)[number]) => played.push(voice),
+      },
+    },
+  });
+  Object.defineProperty(globalThis, 'SpeechSynthesisUtterance', {
+    configurable: true,
+    value: class {
+      text: string;
+      constructor(text: string) {
+        this.text = text;
+      }
+    },
+  });
+  assert.equal(speakIsland('First place', { onEnd: () => finished++ }), true);
+  assert.equal(
+    played.length,
+    1,
+    'Speech queues in the user gesture without waiting for voiceschanged',
+  );
+  const stale = played[0].onend;
+  speakIsland('Second place', {
+    onEnd: () => finished++,
+    onUnavailable: () => unavailable++,
+  });
+  stale?.();
+  assert.equal(finished, 0);
+  assert.equal(played[0].onend, null);
+  played[1].onerror?.();
+  assert.equal(finished, 1);
+  assert.equal(unavailable, 1);
+  assert.equal(resumed, 2);
+  stopIslandSpeech();
 });
 
 void test('footsteps follow distance, gates sound on transitions, and nearby ghosts have cooldowns', () => {

@@ -1,6 +1,7 @@
 import { MANOR_DOOR, MANOR_SOLIDS } from './manor-layout.ts';
 import { houseSurface, UPPER_HALL } from './house-stairs.ts';
 import { MASTER_HALL, HALL_GATE } from './master-hall.ts';
+import { easeDoor } from './door-gesture.ts';
 export type HousePoint = { x: number; z: number; y?: number };
 export type HouseSolid = HousePoint & {
   width: number;
@@ -187,8 +188,7 @@ export const HOUSE_FIXTURES: HouseSolid[] = [
   ),
 ];
 export function doorSegment(door: HouseDoor, progress: number) {
-  const angle =
-    ((Math.max(0, Math.min(1, progress)) * Math.PI) / 2) * door.swing;
+  const angle = ((easeDoor(progress) * Math.PI) / 2) * door.swing;
   const dx = door.axis === 'x' ? door.width : 0;
   const dz = door.axis === 'z' ? door.width : 0;
   return {
@@ -220,6 +220,7 @@ export function createHouseWalker() {
     crossed: door.id === 'front',
     side: 0,
     hold: door.id === 'front' ? 0.8 : 0,
+    openTime: 0,
   }));
   const side = (door: HouseDoor) =>
     Math.sign(door.axis === 'z' ? position.x - door.x : position.z - door.z);
@@ -291,6 +292,7 @@ export function createHouseWalker() {
       door.crossed = false;
       door.side = side(door);
       door.hold = 0;
+      door.openTime = 0;
     },
     nearestDoor() {
       return doors
@@ -308,10 +310,16 @@ export function createHouseWalker() {
     update(dt: number, followers: HousePoint[] = []) {
       occupants = followers;
       for (const door of doors) {
+        if (door.target) door.openTime += Math.max(0, dt);
         door.hold = Math.max(0, door.hold - dt);
         if (door.target && side(door) !== door.side && side(door) !== 0)
           door.crossed = true;
-        if (door.crossed && !door.hold && safeToClose(door)) door.target = 0;
+        if (
+          (door.crossed || door.openTime > 4) &&
+          !door.hold &&
+          safeToClose(door)
+        )
+          door.target = 0;
         // Do not sweep a closing leaf through the traveller.
         if (!door.target && !safeToClose(door)) continue;
         if (door.hold) continue;

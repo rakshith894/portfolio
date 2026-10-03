@@ -281,6 +281,7 @@ export function createReferenceEnvironment(
     list.push(g);
     groups.set(mat, list);
   }
+  const navigationSurfaces: THREE.Object3D[] = [];
   function meshGeometry(
     positions: number[],
     uv: number[],
@@ -303,6 +304,7 @@ export function createReferenceEnvironment(
     mesh.name = name;
     mesh.receiveShadow = true;
     scene.add(mesh);
+    navigationSurfaces.push(mesh);
     return mesh;
   }
 
@@ -1191,6 +1193,7 @@ transformed.z += sway * 0.38;`,
       mesh.castShadow = !mobile;
       mesh.receiveShadow = true;
       scene.add(mesh);
+      navigationSurfaces.push(mesh);
     }
   }
   const life = createIslandLife(scene, resources, mobile, {
@@ -1287,6 +1290,7 @@ transformed.z += sway * 0.38;`,
   return {
     constrainShoreCamera: shoreCamera.constrain,
     ground,
+    navigationSurfaces,
     manor,
     boat,
     rowing,

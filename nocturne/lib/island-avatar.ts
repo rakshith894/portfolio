@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createFootPlacement, locomotionPace } from './human-locomotion.ts';
 import { createRowingHands } from './island-rowing.ts';
+import { createDoorReach } from './door-gesture.ts';
 
 /** A clothed, articulated player with feet at the root and a forward axis of -Z. */
 export function createIslandAvatar(
@@ -108,6 +109,16 @@ export function createIslandAvatar(
     mesh(elbow, capsule, skin, 0, -0.3, 0, 0.067, 0.095, 0.064);
     arms.push({ shoulder, elbow });
   }
+  const fallbackHand = new THREE.Object3D();
+  fallbackHand.position.y = -0.3;
+  arms[1].elbow.add(fallbackHand);
+  let doorReach = createDoorReach(
+    arms[1].shoulder,
+    arms[1].elbow,
+    fallbackHand,
+  );
+  let doorTarget: THREE.Vector3 | null = null;
+  let doorWeight = 0;
   // Soft contact shadow remains visible when dynamic shadows are disabled on phones.
   const shadow = new THREE.Mesh(
     own(new THREE.CircleGeometry(0.4, 24)),
@@ -231,6 +242,11 @@ export function createIslandAvatar(
           walkAction;
         placeFeet = createFootPlacement(model);
         rowingHands = createRowingHands(model);
+        const upper = model.getObjectByName('Bip01_R_UpperArm');
+        const fore = model.getObjectByName('Bip01_R_Forearm');
+        const hand = model.getObjectByName('Bip01_R_Hand');
+        if (upper && fore && hand)
+          doorReach = createDoorReach(upper, fore, hand);
         activeAction = idleAction;
         activeAction?.reset().play();
         mixer.update(0);
@@ -274,6 +290,7 @@ export function createIslandAvatar(
     ground?: (x: number, z: number) => number,
   ) {
     rowingHands?.restore();
+    doorReach.restore();
     const changed = modelChanged;
     modelChanged = false;
     const speed =
@@ -369,6 +386,7 @@ export function createIslandAvatar(
       if (ground && !seated && !gesture && animate) placeFeet?.(ground);
       if (seated && rowingTargets)
         rowingHands?.apply(rowingTargets.left, rowingTargets.right);
+      if (!seated && doorTarget) doorReach.apply(doorTarget, doorWeight);
       return changed || animate;
     }
     const phase = distance * (automatic ? 8.8 : 7.2);
@@ -395,7 +413,8 @@ export function createIslandAvatar(
       : reducedMotion
         ? 0
         : Math.abs(Math.sin(phase)) * 0.035 * stride;
-    return blend > 0.001 || gesture !== null;
+    if (!seated && doorTarget) doorReach.apply(doorTarget, doorWeight);
+    return blend > 0.001 || gesture !== null || doorTarget !== null;
   }
   return {
     root,
@@ -405,6 +424,10 @@ export function createIslandAvatar(
     },
     update,
     perform,
+    setDoorReach(target?: THREE.Vector3, weight = 1) {
+      doorTarget = target ?? null;
+      doorWeight = weight;
+    },
     setRowingTargets(left?: THREE.Vector3, right?: THREE.Vector3) {
       rowingTargets = left && right ? { left, right } : null;
     },

@@ -60,6 +60,28 @@ for (const mobile of [false, true]) {
         solids.push(object);
       });
       const ray = new THREE.Raycaster();
+      for (const point of [
+        BOAT_DOCK,
+        { x: -32, z: -31 },
+        { x: -52, z: -31 },
+        ...[SHORE_ROUTE, TOWER_ROUTE, BRIDGE_ROUTE].flatMap((route) =>
+          route.map(([x, , z]) => ({ x, z })),
+        ),
+      ]) {
+        const floor = walkingHeight(point.x, point.z);
+        ray.set(
+          new THREE.Vector3(point.x, floor + 0.3, point.z),
+          new THREE.Vector3(0, -1, 0),
+        );
+        const hit = ray.intersectObjects(
+          environment.navigationSurfaces,
+          false,
+        )[0];
+        assert.ok(
+          hit && Math.abs(hit.point.y - floor) < 0.25,
+          `Taps must hit the rendered walking surface at ${point.x}, ${point.z}`,
+        );
+      }
       const failures: string[] = [];
       let checked = 0;
       for (const route of [

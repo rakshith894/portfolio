@@ -341,7 +341,10 @@
   color: #c8d5d2;
   backdrop-filter: blur(14px);
   flex-shrink: 0;
-  transition: background 0.18s, border-color 0.18s, color 0.18s;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s;
 }
 .island-toolbar button:hover:not(:disabled) {
   background: #172536cc;
@@ -1400,7 +1403,9 @@ body:has(.contact-apparition-dialog) [data-slot='dialog-overlay'] {
   font-size: 10.5px;
   text-transform: capitalize;
   color: #b8c8c5;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 .island-toolbar .island-modes button:hover {
   background: #ffffff0f;
@@ -2590,7 +2595,7 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 }
 .portfolio-contact-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: 12px;
   margin-top: 12px;
 }
@@ -2642,9 +2647,8 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 .contact-value {
   font-size: 13px;
   color: #d8ece5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .contact-arrow {
   color: #557579;
@@ -2661,7 +2665,7 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
 /* Skills Tab */
 .portfolio-skills-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
   gap: 12px;
   margin-top: 14px;
 }
@@ -5583,34 +5587,9 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
     background-color 0.25s;
 }
 :is(.island-viewer, .portfolio-dialog, .contact-apparition-dialog)
-  [data-slot='button']::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    105deg,
-    transparent 25%,
-    #c3ffe523 50%,
-    transparent 75%
-  );
-  transform: translateX(-125%);
-  animation: button-light-pass 7s ease-in-out infinite;
-}
-:is(.island-viewer, .portfolio-dialog, .contact-apparition-dialog)
   [data-slot='button']:is(:hover, :focus-visible) {
   box-shadow: 0 0 18px #8bdfc333;
   border-color: #b1edd080;
-}
-@keyframes button-light-pass {
-  0%,
-  65% {
-    transform: translateX(-125%);
-  }
-  90%,
-  100% {
-    transform: translateX(125%);
-  }
 }
 @keyframes companion-breathe {
   50% {
@@ -5659,23 +5638,155 @@ html[data-live-effects='off'] *::after {
     max-height: calc(100dvh - 115px);
   }
 }
-/* Keep positioned scene controls anchored while containing their light sweep. */
-:is(.tour-actions, .portfolio-bottom, .island-toolbar-actions)
-  [data-slot='button'] {
-  position: relative;
+/* Quiet surfaces keep the content and character movement in focus. */
+.portfolio-dialog[data-slot='dialog-content'],
+.portfolio-dialog .holo-corner,
+.portfolio-dialog .portfolio-pulse-dot,
+.portfolio-dialog .portrait-orbit-ring,
+.island-chat-trigger,
+.tour-start[data-slot='button'] {
+  animation: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  html[data-live-effects='on'] .hologram-transmission .is-transmitting {
-    animation: hologram-color-shift 4s linear infinite;
+.portfolio-dialog[data-slot='dialog-content']::before,
+.portfolio-dialog[data-slot='dialog-content']::after {
+  content: none;
+}
+.portfolio-dialog .portrait-orbit-ring {
+  opacity: 0.24;
+}
+.island-destinations {
+  z-index: 5;
+}
+.journey-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  pointer-events: auto;
+  font-size: 12px;
+  color: #e0e8e2;
+}
+.journey-status output {
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+.journey-status button {
+  min-height: 44px;
+}
+@media (any-pointer: coarse) {
+  .island-toolbar button,
+  .island-toolbar .island-modes button {
+    min-width: 44px;
+    min-height: 44px;
   }
-  html[data-live-effects='on']
-    .apparition-introduction
-    [data-slot='dialog-title'] {
-    background: linear-gradient(90deg, #a4ffe0, #c4b5fd, #67e8f9);
-    background-size: 200% 100%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    animation: hologram-color-shift 5s linear infinite;
+}
+@media (max-width: 700px) {
+  .island-toolbar button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .island-toolbar .island-modes button {
+    min-height: 44px;
+  }
+  .portfolio-scroll {
+    max-height: calc(92dvh - 2px);
+    padding-top: 54px !important;
+    padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+  }
+  .portfolio-header-badges {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .portfolio-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    height: auto;
+  }
+  .portfolio-tab-trigger {
+    min-width: 0;
+    min-height: 44px;
+    padding: 6px 4px;
+    gap: 4px;
+    justify-content: center;
+    white-space: normal;
+    height: auto;
+  }
+  .portfolio-dialog [data-slot='dialog-close'] {
+    width: 44px !important;
+    height: 44px !important;
+    top: 7px !important;
+    right: 7px !important;
+  }
+  .portfolio-bottom {
+    flex-wrap: wrap;
+  }
+  .portfolio-bottom button {
+    min-height: 44px;
+    white-space: normal;
+    height: auto;
+  }
+  .island-destinations-menu {
+    width: min(360px, calc(100vw - 24px));
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: min(45dvh, calc(100dvh - 270px));
+    overscroll-behavior: contain;
+  }
+  .island-destinations-menu button {
+    white-space: normal;
+    height: auto;
+    line-height: 1.4;
+    padding: 8px;
+    border-radius: 8px;
+  }
+  .walk-objective {
+    max-height: 26dvh;
+    overflow-y: auto;
+    pointer-events: auto;
+  }
+  .journey-status {
+    gap: 6px;
+  }
+  .journey-status output {
+    max-width: 180px;
+  }
+  .skill-gallery-dialog[data-slot='dialog-content'],
+  .contact-apparition-dialog[data-slot='dialog-content'] {
+    max-height: 92dvh;
+    padding: 52px 18px 22px;
+    overflow-y: auto;
+  }
+}
+@media (max-width: 360px) {
+  .portfolio-tab-trigger svg {
+    display: none;
+  }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  .island-header {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: 6px;
+  }
+  .island-header h1,
+  .walk-touch-hint {
+    display: none;
+  }
+  .island-destinations {
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .island-destinations-menu {
+    max-height: calc(100dvh - 150px);
+    width: min(400px, calc(100vw - 200px));
+  }
+  .walk-objective {
+    left: auto;
+    right: 16px;
+    bottom: 100px;
+    max-width: min(280px, 42vw);
+    max-height: 34dvh;
+  }
+  .island-viewer .house-sidebar-nav {
+    max-width: 300px;
+    max-height: calc(100dvh - 200px);
   }
 }

@@ -329,6 +329,15 @@ export function chooseMaleVoice<T extends { name: string; lang: string }>(
       ),
   );
 }
+/** Prefer the character's voice, but keep narration available on phones. */
+export function chooseNarrationVoice<T extends { name: string; lang: string }>(
+  voices: readonly T[],
+): T | undefined {
+  return (
+    chooseMaleVoice(voices) ??
+    voices.find((voice) => /^en(?:-|$)/i.test(voice.lang))
+  );
+}
 let narrationEnabled = true;
 export function setNarrationEnabled(enabled: boolean) {
   narrationEnabled = enabled;
@@ -357,54 +366,44 @@ export function speakIsland(
   const voice = new SpeechSynthesisUtterance(text);
   voice.lang = 'en-US';
   voice.rate = options.rate ?? 0.78;
-  voice.pitch = 0.72;
+  voice.pitch = 0.9;
   voice.volume = 0.96;
-  voice.onend = () => options.onEnd?.();
-  voice.onerror = () => options.onEnd?.();
   const synth = window.speechSynthesis;
-  const play = () => {
-    const selected = chooseMaleVoice(synth.getVoices());
-    if (!selected) return false;
-    voice.voice = selected;
-    voice.lang = selected.lang;
+  // Retain the utterance and detach callbacks before cancelling a superseded line.
+  const cleanup = () => {
+    voice.onend = null;
+    voice.onerror = null;
+  };
+  cancelPendingNarration = cleanup;
+  const finish = (failed = false) => {
+    if (cancelPendingNarration !== cleanup) return;
+    cleanup();
+    cancelPendingNarration = undefined;
+    if (failed) options.onUnavailable?.();
+    options.onEnd?.();
+  };
+  voice.onend = () => finish();
+  voice.onerror = () => finish(true);
+  try {
+    const selected = chooseNarrationVoice(synth.getVoices());
+    if (selected) {
+      voice.voice = selected;
+      voice.lang = selected.lang;
+    }
+    // Queue within the click gesture even if the browser's voice list is still
+    // loading. Waiting for voiceschanged loses activation on mobile browsers.
+    synth.resume();
     synth.speak(voice);
     return true;
-  };
-  try {
-    if (play()) return true;
   } catch {
+    finish(true);
     return false;
   }
-  // Voice lists often arrive after page load. Never fall back to an unknown or
-  // female default voice; captions remain available if no male voice is installed.
-  const finish = () => {
-    clearTimeout(timer);
-    synth.removeEventListener('voiceschanged', changed);
-    cancelPendingNarration = undefined;
-  };
-  const changed = () => {
-    try {
-      if (chooseMaleVoice(synth.getVoices())) {
-        finish();
-        play();
-      }
-    } catch {
-      finish();
-      options.onEnd?.();
-    }
-  };
-  const timer = setTimeout(() => {
-    finish();
-    options.onUnavailable?.();
-    options.onEnd?.();
-  }, 1200);
-  cancelPendingNarration = finish;
-  synth.addEventListener('voiceschanged', changed);
-  return true;
 }
 
 export function stopIslandSpeech() {
   cancelPendingNarration?.();
+  cancelPendingNarration = undefined;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window)
     window.speechSynthesis.cancel();
 }

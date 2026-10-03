@@ -486,7 +486,7 @@ export function createReferenceManor(
     own(new THREE.SphereGeometry(0.065, 8, 6)),
     amber,
   );
-  latch.position.set(1.88, 1.4, 0.1);
+  latch.position.set(1.88, 1.05, 0.1);
   door.add(latch);
   for (const frame of MANOR_ENTRY_ARCHES)
     arch(

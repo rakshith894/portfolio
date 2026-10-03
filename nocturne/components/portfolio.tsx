@@ -106,20 +106,11 @@ export default function Portfolio({
       <DialogContent className="portfolio-dialog">
         {/* ── Subtle Atmospheric Layer ── */}
         <div className="holo-fx" aria-hidden="true">
-          <div className="holo-shimmer" />
           {/* Corner brackets */}
           <span className="holo-corner hc-tl" />
           <span className="holo-corner hc-tr" />
           <span className="holo-corner hc-bl" />
           <span className="holo-corner hc-br" />
-          {/* Fewer ambient particles */}
-          {Array.from({ length: 4 }, (_, i) => (
-            <span
-              key={i}
-              className="holo-particle"
-              style={{ '--hi': i * 3 } as React.CSSProperties}
-            />
-          ))}
         </div>
 
         <div className="portfolio-scroll">
