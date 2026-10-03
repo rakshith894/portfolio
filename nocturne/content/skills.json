@@ -16,5 +16,11 @@
     "title": "HTML",
     "description": "Building structured web pages with HTML.",
     "color": "amber"
+  },
+  {
+    "id": "01b5cb4b-5f49-4bc4-a894-e65e791e873d",
+    "title": "AI",
+    "description": "",
+    "color": "crimson"
   }
 ]
