@@ -165,6 +165,7 @@ export function createIslandAvatar(
   let importedModelBaseY = 0;
   let captureScale = 1;
   let runningGait = false;
+  let lastReduced = false; // tracked so doorGesture() can respect reduce-motion
   const modelLoader = new GLTFLoader();
   if (typeof window !== 'undefined') {
     // Choose the fallback once on a stalled connection; never swap mid-walk.
@@ -276,6 +277,7 @@ export function createIslandAvatar(
     rowingHands?.restore();
     const changed = modelChanged;
     modelChanged = false;
+    lastReduced = reducedMotion;
     const speed =
       dt > 0 && moving ? Math.max(0, distance - previousDistance) / dt : 0;
     previousDistance = distance;
@@ -405,6 +407,28 @@ export function createIslandAvatar(
     },
     update,
     perform,
+    /**
+     * Drive the right arm into a door interaction pose.
+     * @param mode 'push' = reaching forward to push/open, 'pull' = reaching back to close
+     * @param t    0→1 blend weight for the pose (0 = rest, 1 = full reach)
+     */
+    doorGesture(mode: 'push' | 'pull' | 'none', t: number) {
+      const arm = arms[1]; // right arm (side === 1)
+      if (!arm || t <= 0 || lastReduced) return;
+      if (mode === 'push') {
+        // Reach arm forward-down, then straighten at peak (door fully open)
+        const peak = Math.sin(t * Math.PI);
+        arm.shoulder.rotation.x += -peak * 0.9 * t;
+        arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.06, t);
+        arm.elbow.rotation.x += -peak * 0.4 * t;
+      } else if (mode === 'pull') {
+        // Reach arm back and slightly out to grab/push door closed
+        const peak = Math.sin(t * Math.PI * 0.8);
+        arm.shoulder.rotation.x += peak * 0.7 * t;
+        arm.shoulder.rotation.z = THREE.MathUtils.lerp(arm.shoulder.rotation.z, 0.14, t);
+        arm.elbow.rotation.x += peak * 0.3 * t;
+      }
+    },
     setRowingTargets(left?: THREE.Vector3, right?: THREE.Vector3) {
       rowingTargets = left && right ? { left, right } : null;
     },

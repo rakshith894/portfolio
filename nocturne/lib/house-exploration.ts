@@ -249,6 +249,7 @@ export function createHouseExploration(
       outside / 0.96,
     );
   }
+
   function animateAvatar(
     dt: number,
     reduced: boolean,
@@ -288,6 +289,18 @@ export function createHouseExploration(
             ) ?? indoor.position.y)
           : passageHeight(x, z),
     );
+
+    // Door-push/pull arm gesture — applied after update() so it overlays the idle pose
+    if (phase === 'opening') {
+      // Reach forward and push as door swings open
+      player.doorGesture('push', THREE.MathUtils.clamp(doorProgress * 1.5, 0, 1));
+    } else if (phase === 'crossing' && elapsed < 0.5) {
+      // Hold the push briefly as character steps through
+      player.doorGesture('push', THREE.MathUtils.clamp(1 - elapsed / 0.5, 0, 1));
+    } else if (phase === 'leaving') {
+      // Reach back to grab/guide the door closed
+      player.doorGesture('pull', THREE.MathUtils.clamp(doorProgress * 1.3, 0, 1));
+    }
   }
   function moveTo(
     point: THREE.Vector3,
