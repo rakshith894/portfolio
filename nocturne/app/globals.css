@@ -2192,34 +2192,114 @@ a {
   max-width: 800px !important;
   max-height: 90svh;
   overflow-y: auto;
+  overflow-x: clip;
+  border: 1px solid #7ecfaf22 !important;
+  box-shadow:
+    0 0 0 1px #1e3a3022,
+    0 35px 110px #000d,
+    0 0 80px #0d2e2208 inset !important;
+  position: relative;
+}
+.portfolio-glow-ring {
+  pointer-events: none;
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--glow-angle, 0deg),
+    transparent 0%,
+    #3ecfa060 10%,
+    transparent 20%,
+    #2d8fcc50 55%,
+    transparent 65%,
+    #3ecfa060 85%,
+    transparent 100%
+  );
+  animation: portfolio-ring-spin 8s linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 1px;
+  z-index: 0;
+}
+.portfolio-eyebrow {
+  position: relative;
+  z-index: 1;
+  animation: pf-fade-up 0.55s cubic-bezier(0.22,1,0.36,1) both;
+}
+.portfolio-title-anim {
+  position: relative;
+  z-index: 1;
+  animation: pf-fade-up 0.6s 0.07s cubic-bezier(0.22,1,0.36,1) both;
+}
+.portfolio-desc-anim {
+  position: relative;
+  z-index: 1;
+  animation: pf-fade-up 0.6s 0.13s cubic-bezier(0.22,1,0.36,1) both;
 }
 .portfolio-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #3a5a5222;
   gap: 7px;
   padding-bottom: 8px;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+  animation: pf-fade-up 0.55s 0.18s cubic-bezier(0.22,1,0.36,1) both;
 }
 .portfolio-tabs button {
   font-size: 11px;
   border-radius: 0;
-  color: #8b9fa7;
+  color: #7a9298;
   padding: 10px 13px;
   height: 37px;
   font-weight: 400;
+  letter-spacing: 0.5px;
+  transition:
+    color 0.2s,
+    background 0.2s;
+  position: relative;
 }
-.portfolio-tabs .selected {
-  background: #bac8c015;
-  color: #e4e6da;
+.portfolio-tabs button::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3ecfa0, #2d8fcc);
+  transform: scaleX(0);
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1);
+  transform-origin: left;
+  border-radius: 1px;
+}
+.portfolio-tabs .selected,
+.portfolio-tabs button[data-active] {
+  background: #3ecfa00d;
+  color: #d8ece5;
+}
+.portfolio-tabs button[data-active]::after,
+.portfolio-tabs .selected::after {
+  transform: scaleX(1);
+}
+.portfolio-tabs button:hover {
+  color: #b8d8d0;
 }
 .portfolio-content {
   min-height: 245px;
   padding: 8px 0;
+  position: relative;
+  z-index: 1;
+}
+.portfolio-section-reveal {
+  animation: pf-section-in 0.4s cubic-bezier(0.22,1,0.36,1) both;
 }
 .section-index {
-  color: #849b9e;
+  color: #6aa48a;
   font-size: 8px;
-  letter-spacing: 1.8px;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  animation: pf-fade-up 0.4s both;
 }
 .portfolio-content h3 {
   font:
@@ -2227,13 +2307,18 @@ a {
     serif;
   margin: 17px 0 15px;
   color: #ece8da;
+  background: linear-gradient(110deg, #e8e4d5 30%, #a8d8c4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .portfolio-content p {
-  color: #aab8bc;
+  color: #9eb8bc;
   line-height: 1.85;
   font-size: 13px;
   max-width: 590px;
 }
+
 .content-caption {
   font-size: 8px !important;
   letter-spacing: 1px;
@@ -2263,6 +2348,8 @@ a {
   grid-template-columns: 180px 1fr;
   gap: 24px;
   margin-top: 19px;
+  overflow: hidden;
+  border-radius: 4px;
 }
 .project-preview img {
   width: 180px;
@@ -3913,11 +4000,39 @@ a {
 .quick-portrait {
   border-radius: 50%;
   object-fit: cover;
-  margin: 16px 0;
+  margin: 0;
+  display: block;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 3px #3ecfa022, 0 0 28px #3ecfa018;
+  transition: box-shadow 0.4s;
 }
-.preserve-copy {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.portrait-glow-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 16px 0;
+  display: inline-block;
+}
+.portrait-glow-wrap:hover .quick-portrait {
+  box-shadow: 0 0 0 3px #3ecfa055, 0 0 42px #3ecfa038;
+}
+.portrait-orbit {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #3ecfa0,
+    #2d8fcc 40%,
+    transparent 50%,
+    #3ecfa0 80%,
+    transparent 100%
+  );
+  animation: portrait-spin 4s linear infinite;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  opacity: 0.6;
 }
 .quick-contact {
   display: grid;
@@ -3927,20 +4042,40 @@ a {
 }
 .quick-contact a,
 .project-preview a {
-  color: #c3e9d9;
+  color: #9de8c8;
   text-decoration: underline;
   text-underline-offset: 4px;
+  transition: color 0.2s;
+}
+.quick-contact a:hover,
+.project-preview a:hover {
+  color: #c8f5e4;
 }
 .quick-skill {
   border-left: 2px solid;
-  padding: 10px 20px;
-  margin: 18px 0;
+  padding: 12px 20px;
+  margin: 14px 0;
+  border-radius: 0 6px 6px 0;
+  background: #0e1e2408;
+  transition:
+    background 0.25s,
+    transform 0.25s cubic-bezier(0.22,1,0.36,1),
+    box-shadow 0.25s;
+  animation: pf-section-in 0.4s cubic-bezier(0.22,1,0.36,1) both;
+}
+.quick-skill:hover {
+  background: #1a2e3818;
+  transform: translateX(4px);
+  box-shadow: -2px 0 18px #3ecfa012;
 }
 .quick-skill h4,
 .project-preview h4 {
-  font-size: 22px;
+  font-size: 20px;
   overflow-wrap: anywhere;
+  color: #d5e8e0;
+  margin-bottom: 6px;
 }
+
 .tour-start[data-slot='button'] {
   position: absolute;
   left: 22px;
@@ -4730,5 +4865,69 @@ a {
   .island-viewer .admin-status-bar {
     right: max(90px, calc(env(safe-area-inset-right) + 72px));
     max-width: calc(100% - 300px);
+  }
+}
+
+/* ─── Quick Portfolio: restore preserve-copy ──────────────────────── */
+.preserve-copy {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ─── Quick Portfolio: project-preview hover lift ─────────────────── */
+.project-preview {
+  transition:
+    transform 0.3s cubic-bezier(0.22,1,0.36,1),
+    box-shadow 0.3s;
+  animation: pf-section-in 0.4s cubic-bezier(0.22,1,0.36,1) both;
+}
+.project-preview:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 40px #00000030;
+}
+.project-preview img {
+  transition: filter 0.35s, transform 0.35s;
+}
+.project-preview:hover img {
+  filter: saturate(0.85) brightness(1.06);
+  transform: scale(1.015);
+  transform-origin: center;
+}
+
+/* ─── Quick Portfolio: bottom bar ─────────────────────────────────── */
+.portfolio-bottom {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Portfolio keyframe animations ───────────────────────────────── */
+@keyframes pf-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pf-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes portfolio-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes portrait-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

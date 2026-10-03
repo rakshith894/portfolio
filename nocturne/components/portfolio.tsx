@@ -39,6 +39,7 @@ export default function Portfolio({
   const [current, setCurrent] = useState(
     section === 'resume' ? 'about' : section,
   );
+  const [animKey, setAnimKey] = useState(0);
   const [profile, setProfile] = useState<ContactProfile>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -108,21 +109,25 @@ export default function Portfolio({
     ).catch(() => {});
     return () => controller.abort();
   }, []);
+
+  function handleTabChange(value: string) {
+    setCurrent(value as typeof current);
+    setAnimKey((k) => k + 1);
+  }
+
   const index = sections.indexOf(current as (typeof sections)[number]);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="archive-dialog portfolio-dialog">
-        <div className="eyebrow">NOCTURNE / QUICK PORTFOLIO</div>
-        <DialogTitle className="dialog-heading">
+        <div className="portfolio-glow-ring" aria-hidden />
+        <div className="eyebrow portfolio-eyebrow">NOCTURNE / QUICK PORTFOLIO</div>
+        <DialogTitle className="dialog-heading portfolio-title-anim">
           {profile.name}. The person and the work.
         </DialogTitle>
-        <DialogDescription>
-          About & contact → Skills → Projects. Everything in one place.
+        <DialogDescription className="portfolio-desc-anim">
+          About &amp; contact → Skills → Projects. Everything in one place.
         </DialogDescription>
-        <Tabs
-          value={current}
-          onValueChange={(value) => setCurrent(String(value) as typeof current)}
-        >
+        <Tabs value={current} onValueChange={handleTabChange}>
           <TabsList
             className="portfolio-tabs"
             variant="line"
@@ -135,104 +140,122 @@ export default function Portfolio({
             ))}
           </TabsList>
           <TabsContent className="portfolio-content" value="about">
-            <span className="section-index">01 / ABOUT</span>
-            {profile.photo && (
-              <Image
-                unoptimized
-                className="quick-portrait"
-                src={profile.photo}
-                width={100}
-                height={100}
-                alt={profile.name}
-              />
-            )}
-            <h3>{profile.role}</h3>
-            <p className="preserve-copy">{profile.bio}</p>
-            <ResumeActions url={profile.resume} name={profile.name} />
+            <div key={`about-${animKey}`} className="portfolio-section-reveal">
+              <span className="section-index">01 / ABOUT</span>
+              {profile.photo && (
+                <div className="portrait-glow-wrap">
+                  <span className="portrait-orbit" aria-hidden />
+                  <Image
+                    unoptimized
+                    className="quick-portrait"
+                    src={profile.photo}
+                    width={100}
+                    height={100}
+                    alt={profile.name}
+                  />
+                </div>
+              )}
+              <h3>{profile.role}</h3>
+              <p className="preserve-copy">{profile.bio}</p>
+              <ResumeActions url={profile.resume} name={profile.name} />
+            </div>
           </TabsContent>
           <TabsContent className="portfolio-content" value="contact">
-            <span className="section-index">01 / CONTACT</span>
-            <h3>Start a conversation.</h3>
-            <div className="quick-contact">
-              {profile.email && (
-                <a href={'mailto:' + profile.email}>{profile.email}</a>
-              )}
-              {profile.phone && (
-                <a href={'tel:' + profile.phone}>{profile.phone}</a>
-              )}
-              {profile.location && <p>{profile.location}</p>}
-              {(['website', 'github', 'linkedin'] as const).map(
-                (key) =>
-                  profile[key] && (
-                    <a
-                      key={key}
-                      href={profile[key]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {key} ↗
-                    </a>
-                  ),
-              )}
-              {!profile.email &&
-                !profile.phone &&
-                !profile.location &&
-                !profile.website &&
-                !profile.github &&
-                !profile.linkedin && (
-                  <p>Contact details have not been added yet.</p>
+            <div key={`contact-${animKey}`} className="portfolio-section-reveal">
+              <span className="section-index">02 / CONTACT</span>
+              <h3>Start a conversation.</h3>
+              <div className="quick-contact">
+                {profile.email && (
+                  <a href={'mailto:' + profile.email}>{profile.email}</a>
                 )}
+                {profile.phone && (
+                  <a href={'tel:' + profile.phone}>{profile.phone}</a>
+                )}
+                {profile.location && <p>{profile.location}</p>}
+                {(['website', 'github', 'linkedin'] as const).map(
+                  (key) =>
+                    profile[key] && (
+                      <a
+                        key={key}
+                        href={profile[key]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {key} ↗
+                      </a>
+                    ),
+                )}
+                {!profile.email &&
+                  !profile.phone &&
+                  !profile.location &&
+                  !profile.website &&
+                  !profile.github &&
+                  !profile.linkedin && (
+                    <p>Contact details have not been added yet.</p>
+                  )}
+              </div>
             </div>
           </TabsContent>
           <TabsContent className="portfolio-content" value="skills">
-            <span className="section-index">02 / SKILLS</span>
-            <h3>Tools, ideas, and experience.</h3>
-            {skills.length ? (
-              skills.map((skill) => (
-                <article
-                  className="quick-skill"
-                  key={skill.id}
-                  style={{ borderColor: SKILL_COLORS[skill.color] }}
-                >
-                  <h4>{skill.title}</h4>
-                  <p className="preserve-copy">{skill.description}</p>
-                </article>
-              ))
-            ) : (
-              <p>Skills have not been added yet.</p>
-            )}
+            <div key={`skills-${animKey}`} className="portfolio-section-reveal">
+              <span className="section-index">03 / SKILLS</span>
+              <h3>Tools, ideas, and experience.</h3>
+              {skills.length ? (
+                skills.map((skill, i) => (
+                  <article
+                    className="quick-skill"
+                    key={skill.id}
+                    style={{
+                      borderColor: SKILL_COLORS[skill.color],
+                      animationDelay: `${i * 55}ms`,
+                    }}
+                  >
+                    <h4>{skill.title}</h4>
+                    <p className="preserve-copy">{skill.description}</p>
+                  </article>
+                ))
+              ) : (
+                <p>Skills have not been added yet.</p>
+              )}
+            </div>
           </TabsContent>
           <TabsContent className="portfolio-content" value="projects">
-            <span className="section-index">03 / PROJECTS</span>
-            <h3>Selected work.</h3>
-            {projects.length ? (
-              projects.map((project) => (
-                <article className="project-preview" key={project.id}>
-                  {project.cover && (
-                    <Image
-                      unoptimized
-                      src={project.cover}
-                      width={320}
-                      height={200}
-                      alt={project.title}
-                    />
-                  )}
-                  <div>
-                    <h4>{project.title}</h4>
-                    <p className="preserve-copy">{project.description}</p>
-                    <a
-                      href={project.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Open project ↗
-                    </a>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <p>Projects have not been added yet.</p>
-            )}
+            <div key={`projects-${animKey}`} className="portfolio-section-reveal">
+              <span className="section-index">04 / PROJECTS</span>
+              <h3>Selected work.</h3>
+              {projects.length ? (
+                projects.map((project, i) => (
+                  <article
+                    className="project-preview"
+                    key={project.id}
+                    style={{ animationDelay: `${i * 75}ms` }}
+                  >
+                    {project.cover && (
+                      <Image
+                        unoptimized
+                        src={project.cover}
+                        width={320}
+                        height={200}
+                        alt={project.title}
+                      />
+                    )}
+                    <div>
+                      <h4>{project.title}</h4>
+                      <p className="preserve-copy">{project.description}</p>
+                      <a
+                        href={project.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open project ↗
+                      </a>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p>Projects have not been added yet.</p>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
         <div className="portfolio-bottom">
@@ -242,7 +265,11 @@ export default function Portfolio({
           {index < sections.length - 1 ? (
             <Button
               variant="outline"
-              onClick={() => setCurrent(sections[index + 1])}
+              onClick={() => {
+                const next = sections[index + 1];
+                setCurrent(next);
+                setAnimKey((k) => k + 1);
+              }}
             >
               Next: {labels[sections[index + 1]]} →
             </Button>
