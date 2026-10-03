@@ -66,14 +66,11 @@ import {
   ArrowRight,
   Square,
   DoorOpen,
-  Maximize2,
   Mic,
   Sun,
   Moon,
   Snowflake,
   Lightbulb,
-  Volume2,
-  VolumeX,
   FolderGit2,
   Sparkles,
   Compass,
@@ -461,7 +458,7 @@ export default function IslandViewer({
   const [boatMode, setBoatMode] = useState(false);
   const [nearBoat, setNearBoat] = useState(false);
   const [atDock, setAtDock] = useState(false);
-  const [overview, setOverview] = useState(false);
+  const [_overview, setOverview] = useState(false);
   const [nearHouse, setNearHouse] = useState(false);
   const [destinationsOpen, setDestinationsOpen] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
@@ -476,7 +473,7 @@ export default function IslandViewer({
   useEffect(() => {
     setNarrationEnabled(narration);
   }, [narration]);
-  function toggleNarration() {
+  function _toggleNarration() {
     const enabled = !narration;
     setNarration(enabled);
     setNarrationEnabled(enabled);
@@ -2068,16 +2065,6 @@ export default function IslandViewer({
             </fieldset>
           )}
           <div className="island-toolbar-actions">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleNarration}
-              aria-label={narration ? 'Mute narration' : 'Enable narration'}
-              aria-pressed={narration}
-              title="Speech only; ambience and footsteps stay on"
-            >
-              {narration ? <Volume2 /> : <VolumeX />}
-            </Button>
             {houseStatus?.inside && (
               <Button
                 className="island-portfolio-link"
@@ -2128,21 +2115,6 @@ export default function IslandViewer({
               title="Voice command"
             >
               <Mic />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                overviewRef.current = !overviewRef.current;
-                setOverview(overviewRef.current);
-              }}
-              disabled={!!houseStatus}
-              aria-label={
-                overview ? 'Return to close camera' : 'View the whole island'
-              }
-              aria-pressed={overview}
-            >
-              <Maximize2 />
             </Button>
           </div>
         </div>
