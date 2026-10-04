@@ -109,6 +109,35 @@ export function createHouseExploration(
       doorProgress = progress;
     }
   }
+  function frontDoorCanClose(next: number) {
+    const steps = Math.max(1, Math.ceil(Math.abs(next - doorProgress) / 0.02));
+    const initial = doorProgress;
+    for (let sample = 1; sample <= steps; sample++) {
+      const progress = initial + ((next - initial) * sample) / steps;
+      const { a, b } = doorSegment(indoor.doors[0], progress);
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      if (
+        [walker.position, ...followers()].some((point) => {
+          if (
+            point.y + 1.82 < origin.y ||
+            point.y > origin.y + MANOR_DOOR.height
+          )
+            return false;
+          const x = point.x - origin.x - a.x;
+          const z = point.z - origin.z - a.z;
+          const along = THREE.MathUtils.clamp(
+            (x * dx + z * dz) / (dx * dx + dz * dz),
+            0,
+            1,
+          );
+          return Math.hypot(x - dx * along, z - dz * along) < HOUSE_RADIUS + 0.16;
+        })
+      )
+        return false;
+    }
+    return true;
+  }
   function openRoomDoor(id: string) {
     const door = indoor.doors.find((entry) => entry.id === id);
     if (!door || door.target) return;
@@ -660,6 +689,15 @@ export function createHouseExploration(
           y: point.y - origin.y,
           z: point.z - origin.z,
         }));
+        if (exitAfterRoute) {
+          const projectsDoor = indoor.doors.find(
+            (door) => door.id === 'master-hall',
+          );
+          if (projectsDoor) {
+            if (!projectsDoor.target) indoor.open(projectsDoor.id);
+            projectsDoor.hold = Math.max(projectsDoor.hold, dt + 0.1);
+          }
+        }
         for (const door of indoor.doors) {
           if (
             !door.target &&
@@ -811,7 +849,9 @@ export function createHouseExploration(
           );
         });
         if (occupied) return;
-        doorProgress = Math.max(0, doorProgress - dt / 1.1);
+        const next = Math.max(0, doorProgress - dt / 1.1);
+        if (!frontDoorCanClose(next)) return;
+        doorProgress = next;
         exteriorDoor.rotation.y =
           (easeDoor(doorProgress) * MANOR_DOOR.swing * Math.PI) / 2 || 0;
       }
