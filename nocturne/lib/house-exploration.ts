@@ -518,14 +518,17 @@ export function createHouseExploration(
         if (leaveStage === 'approach') {
           target
             .copy(origin)
-            .add(new THREE.Vector3(0.35, 0, MANOR_DOOR.hingeOffset - 0.53));
+            .add(new THREE.Vector3(0.35, 0, MANOR_DOOR.hingeOffset - 0.85));
           if (moveTo(target, 1.45, dt, false)) {
             leaveStage = 'opening';
             elapsed = 0;
             creak();
           }
         } else if (leaveStage === 'opening') {
-          const retreat = easeDoor((elapsed - 0.35) / 1.5);
+          // Player retreats away from the door as it swings inward.
+          // Starting clearance is larger (0.85 instead of 0.53) so the door
+          // always has room to begin its arc before the player is in its path.
+          const retreat = easeDoor((elapsed - 0.2) / 1.3);
           target
             .copy(origin)
             .add(
@@ -533,12 +536,12 @@ export function createHouseExploration(
                 0.35 * (1 - retreat),
                 0,
                 MANOR_DOOR.hingeOffset -
-                  0.53 -
+                  0.85 -
                   retreat * (MANOR_DOOR.width + 0.22),
               ),
             );
-          moveTo(target, 2.5, dt, false);
-          if (elapsed > 0.35) openFrontDoor(dt);
+          moveTo(target, 2.8, dt, false);
+          if (elapsed > 0.2) openFrontDoor(dt);
           if (doorProgress === 1) leaveStage = 'crossing';
         } else {
           target
