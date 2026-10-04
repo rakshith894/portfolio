@@ -2253,7 +2253,7 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
     0 0 0 1px #3ecfa033,
     0 0 45px #3ecfa022,
     0 0 90px #2d8fcc18,
-    0 35px 110px #000000ee !important;
+    0 35px 110px #000000ee;
   color: #f0e8d5;
   animation: dialog-border-pulse 6s ease-in-out infinite;
 }
@@ -2404,25 +2404,6 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
     opacity: 0.4;
     transform: scale(0.8);
   }
-}
-.portfolio-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid #3ecfa033;
-  background: #3ecfa00d;
-  color: #8ce8cf;
-}
-.portfolio-status-beacon {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #3ecfa0;
-  box-shadow: 0 0 6px #3ecfa0;
 }
 .portfolio-dialog-title {
   font-family: Georgia, serif !important;
@@ -5638,21 +5619,10 @@ html[data-live-effects='off'] *::after {
     max-height: calc(100dvh - 115px);
   }
 }
-/* Quiet surfaces keep the content and character movement in focus. */
-.portfolio-dialog[data-slot='dialog-content'],
-.portfolio-dialog .holo-corner,
-.portfolio-dialog .portfolio-pulse-dot,
-.portfolio-dialog .portrait-orbit-ring,
+/* Keep the island's utility controls quiet while portfolio effects stay live. */
 .island-chat-trigger,
 .tour-start[data-slot='button'] {
   animation: none;
-}
-.portfolio-dialog[data-slot='dialog-content']::before,
-.portfolio-dialog[data-slot='dialog-content']::after {
-  content: none;
-}
-.portfolio-dialog .portrait-orbit-ring {
-  opacity: 0.24;
 }
 .island-destinations {
   z-index: 5;
@@ -5791,7 +5761,7 @@ html[data-live-effects='off'] *::after {
   }
 }
 
-/* Quiet, stationary light gives the quick portfolio a little atmosphere. */
+/* Portfolio atmosphere follows the shared live-effects and motion preferences. */
 .portfolio-ambient-glow {
   position: absolute;
   width: min(480px, 85%);
@@ -5803,18 +5773,18 @@ html[data-live-effects='off'] *::after {
 .portfolio-ambient-glow.ambient-sage {
   top: -180px;
   left: -130px;
-  background: radial-gradient(circle, #67d6b51c, transparent 70%);
+  background: radial-gradient(circle, #67d6b54d, transparent 70%);
 }
 .portfolio-ambient-glow.ambient-violet {
   bottom: -200px;
   right: -120px;
-  background: radial-gradient(circle, #a695df17, transparent 70%);
+  background: radial-gradient(circle, #a695df40, transparent 70%);
 }
 .portfolio-starlight {
   position: absolute;
-  inset: -24px;
+  inset: -40px;
   pointer-events: none;
-  opacity: 0.38;
+  opacity: 0.6;
   background:
     radial-gradient(circle at 20% 30%, #c3ffe5 0 1px, transparent 2px) 0 0 /
       157px 173px,
@@ -5822,46 +5792,34 @@ html[data-live-effects='off'] *::after {
       211px 239px;
   mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .portfolio-starlight {
-    animation: portfolio-stars-drift 18s ease-in-out infinite alternate;
-  }
-  .portfolio-ambient-glow {
-    animation: portfolio-ambient-breathe 11s ease-in-out infinite alternate;
-  }
-  .portfolio-ambient-glow.ambient-violet {
-    animation-delay: -7s;
-    animation-duration: 14s;
-  }
-  .portfolio-dialog .portfolio-status-beacon {
-    animation: portfolio-beacon-breathe 5.5s ease-in-out infinite;
-  }
+.portfolio-starlight {
+  animation: portfolio-stars-drift 12s ease-in-out infinite alternate;
+}
+.portfolio-ambient-glow {
+  animation: portfolio-ambient-breathe 8s ease-in-out infinite alternate;
+}
+.portfolio-ambient-glow.ambient-violet {
+  animation-delay: -5s;
+  animation-duration: 11s;
 }
 @keyframes portfolio-stars-drift {
   from {
-    transform: translate3d(0, 8px, 0);
-    opacity: 0.2;
+    transform: translate3d(-8px, 18px, 0);
+    opacity: 0.45;
   }
   to {
-    transform: translate3d(10px, -12px, 0);
-    opacity: 0.48;
+    transform: translate3d(18px, -22px, 0);
+    opacity: 0.8;
   }
 }
 @keyframes portfolio-ambient-breathe {
   from {
-    opacity: 0.35;
+    opacity: 0.5;
+    transform: translate3d(0, 0, 0) scale(0.95);
   }
   to {
-    opacity: 0.9;
-  }
-}
-@keyframes portfolio-beacon-breathe {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
     opacity: 1;
+    transform: translate3d(24px, 16px, 0) scale(1.08);
   }
 }
 .skill-gallery-tabs button {

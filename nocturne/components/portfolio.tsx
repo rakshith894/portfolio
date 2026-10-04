@@ -20,6 +20,7 @@ import {
   type ContactProfile,
 } from '@/lib/contact-profile';
 import { ResumeActions } from '@/components/resume-actions';
+import { useLiveEffects } from '@/lib/live-effects';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -52,6 +53,7 @@ export default function Portfolio({
   onClose: () => void;
   onEnter: () => void;
 }) {
+  useLiveEffects();
   const [current, setCurrent] = useState(
     section === 'resume' ? 'about' : section,
   );
@@ -123,10 +125,6 @@ export default function Portfolio({
               <div className="portfolio-eyebrow-badge">
                 <span className="portfolio-pulse-dot" />
                 <span>NOCTURNE SYSTEM · QUICK PORTFOLIO</span>
-              </div>
-              <div className="portfolio-status-pill">
-                <span className="portfolio-status-beacon" />
-                <span>LIVE OVERVIEW</span>
               </div>
             </div>
 
