@@ -236,6 +236,13 @@ export function createHouseExploration(
   }
   function returnToDoor() {
     if (phase !== 'inside') return;
+    const projectsDoor = indoor.doors.find(
+      (door) => door.id === 'master-hall',
+    );
+    if (projectsDoor) {
+      if (!projectsDoor.target) indoor.open(projectsDoor.id);
+      projectsDoor.hold = Math.max(projectsDoor.hold, 1);
+    }
     route =
       houseRoute(
         indoor.position,
