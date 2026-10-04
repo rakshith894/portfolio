@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { projectSurfaceUV } from './surface-uv.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cutManorInterior } from './manor-interior-cut.ts';
+import { createManorDoorway, pointedShape } from './manor-doorway.ts';
 
 export type ManorMaterials = Record<
   | 'stone'
@@ -127,16 +128,6 @@ export function createReferenceManor(
     const list = groups.get(m) || [];
     list.push(geometry);
     groups.set(m, list);
-  }
-  function pointedShape(w: number, h: number) {
-    const s = new THREE.Shape();
-    s.moveTo(-w / 2, 0);
-    s.lineTo(w / 2, 0);
-    s.lineTo(w / 2, h * 0.62);
-    s.quadraticCurveTo(w / 2, h * 0.85, 0, h);
-    s.quadraticCurveTo(-w / 2, h * 0.85, -w / 2, h * 0.62);
-    s.closePath();
-    return s;
   }
   function arch(
     m: THREE.Material,
@@ -461,7 +452,7 @@ export function createReferenceManor(
   // Central entrance projects forward, with a vaulted stone portico.
   const portalZ = front + 1.32;
   const portalShape = new THREE.ShapeGeometry(
-    pointedShape(MANOR_DOOR.width, 3.76),
+    pointedShape(MANOR_DOOR.width, MANOR_DOOR.height),
     16,
   );
   const door = new THREE.Group();
@@ -623,5 +614,8 @@ export function createReferenceManor(
     mesh.receiveShadow = true;
     root.add(mesh);
   }
+  // Keep the fitted entrance out of the broad rectangular interior cut. That
+  // cut clears room air; applying it here would reopen the gaps above the arch.
+  root.add(createManorDoorway(stone, resources));
   return root;
 }
