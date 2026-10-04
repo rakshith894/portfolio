@@ -179,14 +179,6 @@ export default function Portfolio({
                   <div className="portfolio-about-hero">
                     {profile.photo && (
                       <div className="portfolio-portrait-frame">
-                        <span
-                          className="portrait-orbit-ring ring-1"
-                          aria-hidden
-                        />
-                        <span
-                          className="portrait-orbit-ring ring-2"
-                          aria-hidden
-                        />
                         <Image
                           unoptimized
                           className="quick-portrait"

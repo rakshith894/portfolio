@@ -2509,32 +2509,6 @@ body:has(.portfolio-dialog) [data-slot='dialog-overlay'] {
   transform: scale(1.03);
   box-shadow: 0 0 32px #3ecfa066;
 }
-.portrait-orbit-ring {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-.portrait-orbit-ring.ring-1 {
-  inset: -6px;
-  border: 1.5px dashed #3ecfa066;
-  animation: portrait-orbit-spin 12s linear infinite;
-}
-.portrait-orbit-ring.ring-2 {
-  inset: -12px;
-  border: 1px dotted #2d8fcc55;
-  animation: portrait-orbit-spin-reverse 18s linear infinite;
-}
-@keyframes portrait-orbit-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes portrait-orbit-spin-reverse {
-  to {
-    transform: rotate(-360deg);
-  }
-}
-
 .portfolio-about-meta {
   display: flex;
   flex-direction: column;

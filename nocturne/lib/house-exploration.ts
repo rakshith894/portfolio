@@ -100,7 +100,10 @@ export function createHouseExploration(
           0,
           1,
         );
-        return Math.hypot(x - dx * along, z - dz * along) < 0.52;
+        return (
+          Math.hypot(x - dx * along, z - dz * along) <
+          HOUSE_RADIUS + 0.16
+        );
       });
       if (occupied) break;
       doorProgress = progress;
@@ -525,9 +528,8 @@ export function createHouseExploration(
             creak();
           }
         } else if (leaveStage === 'opening') {
-          // Player retreats away from the door as it swings inward.
-          // Starting clearance is larger (0.85 instead of 0.53) so the door
-          // always has room to begin its arc before the player is in its path.
+          // Keep the traveller outside the full sweep of the leaf while it
+          // opens, rather than letting the animated mesh overlap the avatar.
           const retreat = easeDoor((elapsed - 0.2) / 1.3);
           target
             .copy(origin)
@@ -536,7 +538,7 @@ export function createHouseExploration(
                 0.35 * (1 - retreat),
                 0,
                 MANOR_DOOR.hingeOffset -
-                  0.85 -
+                  1.1 -
                   retreat * (MANOR_DOOR.width + 0.22),
               ),
             );
@@ -791,14 +793,23 @@ export function createHouseExploration(
     },
     updateOutside(dt: number) {
       if (phase === 'outside') {
-        const occupied = [walker.position, ...followers()].some(
-          (point) =>
-            Math.hypot(
-              point.x - exteriorDoor.position.x,
-              point.z - exteriorDoor.position.z,
-            ) <
-            MANOR_DOOR.width + HOUSE_RADIUS + 0.45,
-        );
+        const front = indoor.doors[0];
+        const { a, b } = doorSegment(front, doorProgress);
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const occupied = [walker.position, ...followers()].some((point) => {
+          const x = point.x - origin.x - a.x;
+          const z = point.z - origin.z - a.z;
+          const along = THREE.MathUtils.clamp(
+            (x * dx + z * dz) / (dx * dx + dz * dz),
+            0,
+            1,
+          );
+          return (
+            Math.hypot(x - dx * along, z - dz * along) <
+            HOUSE_RADIUS + 0.16
+          );
+        });
         if (occupied) return;
         doorProgress = Math.max(0, doorProgress - dt / 1.1);
         exteriorDoor.rotation.y =

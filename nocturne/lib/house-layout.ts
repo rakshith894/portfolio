@@ -76,6 +76,7 @@ export const HOUSE_FLOORS = [
   })),
 ];
 export const HOUSE_RADIUS = 0.26;
+const DOOR_CLEARANCE = HOUSE_RADIUS + 0.08;
 export const DOOR_WIDTH = 1.6;
 export type HouseDoor = HousePoint & {
   id: string;
@@ -275,7 +276,7 @@ export function createHouseWalker() {
         });
       }
       const { a, b } = doorSegment(door, door.progress);
-      return segmentDistance(point, a, b) < HOUSE_RADIUS + 0.08;
+      return segmentDistance(point, a, b) < DOOR_CLEARANCE;
     });
   };
   return {
@@ -344,7 +345,7 @@ export function createHouseWalker() {
             [position, ...occupants].some(
               (point) =>
                 overlapsHeight(point, door) &&
-                segmentDistance(point, a, b) < HOUSE_RADIUS + 0.08,
+                segmentDistance(point, a, b) < DOOR_CLEARANCE,
             )
           )
             break;
