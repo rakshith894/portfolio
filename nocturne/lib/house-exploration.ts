@@ -149,19 +149,6 @@ export function createHouseExploration(
   }
   const walkSpeed = 1.45;
   let hallSettings = { ...DEFAULT_HALL_SETTINGS };
-  const markerGeometry = new THREE.RingGeometry(0.16, 0.23, 32);
-  const markerMaterial = new THREE.MeshBasicMaterial({
-    color: 0xe6d7a1,
-    transparent: true,
-    opacity: 0.8,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-  marker.name = 'Indoor walk destination';
-  marker.rotation.x = -Math.PI / 2;
-  marker.visible = false;
-  root.add(marker);
   let viewDistance = 2.65,
     smoothedConstrainDist: number | null = null;
   const target = new THREE.Vector3(),
@@ -252,7 +239,6 @@ export function createHouseExploration(
       ) ?? [];
     exitAfterRoute = route.length > 0;
     arrivalDoor = null;
-    marker.visible = false;
     routeBlocked = 0;
     emit();
   }
@@ -261,7 +247,6 @@ export function createHouseExploration(
     route = [];
     exitAfterRoute = false;
     arrivalDoor = null;
-    marker.visible = false;
     routeBlocked = 0;
     travelDirection(0, 0, camera.position, walker.position);
     emit();
@@ -289,8 +274,6 @@ export function createHouseExploration(
     exitAfterRoute = false;
     arrivalDoor = null;
     routeBlocked = 0;
-    marker.position.set(goal.x, (goal.y ?? 0) + 0.025, goal.z);
-    marker.visible = true;
     emit();
     return true;
   }
@@ -596,7 +579,6 @@ export function createHouseExploration(
           route = [];
           exitAfterRoute = false;
           arrivalDoor = null;
-          marker.visible = false;
           routeBlocked = 0;
         }
         const following = route.length > 0;
@@ -619,7 +601,6 @@ export function createHouseExploration(
             route.shift();
             if (!route.length) {
               velocity.set(0, 0, 0);
-              marker.visible = false;
               if (exitAfterRoute) startLeaving();
               else if (arrivalDoor) {
                 openRoomDoor(arrivalDoor);
@@ -844,8 +825,6 @@ export function createHouseExploration(
       }
     },
     dispose() {
-      markerGeometry.dispose();
-      markerMaterial.dispose();
       world.dispose();
       root.removeFromParent();
     },
