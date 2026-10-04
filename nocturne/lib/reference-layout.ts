@@ -58,7 +58,9 @@ export function coastRadius(angle: number) {
     Math.sin(angle * 3 + 0.6) * 4.1 +
     Math.cos(angle * 5 - 0.4) * 2.4 +
     Math.sin(angle * 9) * 1.25 +
-    Math.cos(angle * 17) * 0.48
+    Math.cos(angle * 17) * 0.48 +
+    // Give the east wing a continuous strip of ground to the rear garden.
+    4 * Math.exp(-(((angle + 0.97) / 0.24) ** 2))
   );
 }
 export function coastPoint(angle: number, fraction = 1) {
@@ -136,6 +138,23 @@ export const cemeteryFences: [number, number][][] = [
   ],
 ];
 export const HOUSE_SIDE_PASSAGE = { x: 27.5, z: -13.5 };
+// Keep a continuous aisle through the eastern graves to the backyard passage.
+export const CEMETERY_AISLES = [
+  [18, 0, 24, 0],
+  [24, 4, 24, -13.5],
+  [23, -13.5, 32, -13.5],
+  [27.5, -13.5, 26, -24],
+  [26, -24, 25, -34.8],
+  [25, -34.8, 20, -39],
+  [20, -39, 10, -40],
+] as const;
+export function cemeteryAisleDistance(x: number, z: number) {
+  return Math.min(
+    ...CEMETERY_AISLES.map(([ax, az, bx, bz]) =>
+      distanceToSegment(x, z, ax, az, bx, bz),
+    ),
+  );
+}
 // Join the stair handrails on the same edge, leaving only the two branch openings.
 export const bridgeParapets = [
   { side: 1, ax: -47.7, bx: -14.3 },
@@ -265,7 +284,7 @@ export function cemeteryRocks() {
     const turn = random() * 6,
       radius = Math.max(sx, sz) * 1.28;
     if (!onIsland(x, z, 1) || pathDistance(x, z) < 2.6 + radius) continue;
-    if (distanceToSegment(x, z, 23, -13.5, 32, -13.5) < radius + 1.1) continue;
+    if (cemeteryAisleDistance(x, z) < radius + 1.1) continue;
     if (
       cemeteryFences.some((points) =>
         points
@@ -286,7 +305,7 @@ export function cemeteryRocks() {
 export const referenceCoastGLSL = `
 vec2 coastPoint=vec2(oceanPosition.x-7.,(oceanPosition.z+6.)/1.38);
 float angle=atan(coastPoint.y,coastPoint.x);
-float coast=31.5+sin(angle*3.+.6)*4.1+cos(angle*5.-.4)*2.4+sin(angle*9.)*1.25+cos(angle*17.)*.48;
+float coast=31.5+sin(angle*3.+.6)*4.1+cos(angle*5.-.4)*2.4+sin(angle*9.)*1.25+cos(angle*17.)*.48+4.*exp(-pow((angle+.97)/.24,2.));
 float mainDistance=length(coastPoint)-coast;
 float towerDistance=length((oceanPosition.xz-vec2(-52.,-31.))/vec2(1.,1.15))-9.;
 float distanceToCliff=min(mainDistance,towerDistance);`;

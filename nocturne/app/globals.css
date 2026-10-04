@@ -5790,3 +5790,103 @@ html[data-live-effects='off'] *::after {
     max-height: calc(100dvh - 200px);
   }
 }
+
+/* Quiet, stationary light gives the quick portfolio a little atmosphere. */
+.portfolio-ambient-glow {
+  position: absolute;
+  width: min(480px, 85%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.portfolio-ambient-glow.ambient-sage {
+  top: -180px;
+  left: -130px;
+  background: radial-gradient(circle, #67d6b51c, transparent 70%);
+}
+.portfolio-ambient-glow.ambient-violet {
+  bottom: -200px;
+  right: -120px;
+  background: radial-gradient(circle, #a695df17, transparent 70%);
+}
+.portfolio-starlight {
+  position: absolute;
+  inset: -24px;
+  pointer-events: none;
+  opacity: 0.38;
+  background:
+    radial-gradient(circle at 20% 30%, #c3ffe5 0 1px, transparent 2px) 0 0 /
+      157px 173px,
+    radial-gradient(circle at 75% 60%, #cab8ff 0 1px, transparent 2px) 0 0 /
+      211px 239px;
+  mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .portfolio-starlight {
+    animation: portfolio-stars-drift 18s ease-in-out infinite alternate;
+  }
+  .portfolio-ambient-glow {
+    animation: portfolio-ambient-breathe 11s ease-in-out infinite alternate;
+  }
+  .portfolio-ambient-glow.ambient-violet {
+    animation-delay: -7s;
+    animation-duration: 14s;
+  }
+  .portfolio-dialog .portfolio-status-beacon {
+    animation: portfolio-beacon-breathe 5.5s ease-in-out infinite;
+  }
+}
+@keyframes portfolio-stars-drift {
+  from {
+    transform: translate3d(0, 8px, 0);
+    opacity: 0.2;
+  }
+  to {
+    transform: translate3d(10px, -12px, 0);
+    opacity: 0.48;
+  }
+}
+@keyframes portfolio-ambient-breathe {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+@keyframes portfolio-beacon-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.skill-gallery-tabs button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: 36px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+@media (max-width: 700px) {
+  .skill-gallery-tabs {
+    max-height: min(180px, 26dvh);
+    flex-shrink: 0;
+  }
+  .skill-gallery-tabs button {
+    min-height: 44px;
+  }
+  .portfolio-ambient-glow.ambient-sage {
+    top: -100px;
+    left: -80px;
+  }
+  .portfolio-ambient-glow.ambient-violet {
+    bottom: -100px;
+    right: -80px;
+  }
+}

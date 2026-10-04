@@ -535,6 +535,8 @@ export function createReferenceEnvironment(
     tall = false,
     light = false,
   ) {
+    // A stone socket overlaps the supporting surface instead of floating above it.
+    box(darkStone, x, y - 0.12, z, 0.28, 0.32, 0.28);
     if (tall) {
       taper(iron, x, y + 0.85, z, 0.05, 0.11, 1.7);
       y += 1.7;
@@ -688,7 +690,7 @@ export function createReferenceEnvironment(
   }
   for (const x of [8.1, 11.9])
     lantern(x, MANOR_ORIGIN.y + 3.9, -24.1, false, true);
-  for (const { x, y, z } of islandLamps) lantern(x, y + 0.1, z, true, true);
+  for (const { x, y, z } of islandLamps) lantern(x, y, z, true, true);
 
   const cemetery = createReferenceGraves(graveStone, resources, mobile);
   scene.add(cemetery.root);
@@ -1131,35 +1133,9 @@ transformed.z += sway * 0.38;`,
   const traffic = createOceanTraffic(scene, boat, resources, mobile);
   const haunting = createHaunting(scene, resources, mobile);
 
-  // Tower entrance from the viaduct and a visible stair run to its roof lookout.
-  const towerDoor = new THREE.Group();
-  towerDoor.position.set(-48.55, 27.05, -32.38);
-  const towerDoorLeaf = new THREE.Group();
-  towerDoorLeaf.position.z = 1.08;
-  const towerDoorPanel = new THREE.Mesh(
-    own(new THREE.BoxGeometry(0.16, 3.1, 2.16)),
-    wood,
-  );
-  towerDoorPanel.castShadow = !mobile;
-  towerDoorLeaf.add(towerDoorPanel);
-  towerDoor.add(towerDoorLeaf);
-  const towerDoorFrame = new THREE.Group();
-  const frameParts = [
-    [-0.27, 0, 0.24, 3.55, 0.28],
-    [2.43, 0, 0.24, 3.55, 0.28],
-    [1.08, 1.64, 0.24, 0.28, 3],
-  ] as const;
-  for (const [z, y, width, height, depth] of frameParts) {
-    const part = new THREE.Mesh(
-      own(new THREE.BoxGeometry(width, height, depth)),
-      edge,
-    );
-    part.position.set(-0.12, y, z);
-    towerDoorFrame.add(part);
-  }
-  towerDoor.add(towerDoorFrame);
-  towerDoor.userData.leaf = towerDoorLeaf;
-  scene.add(towerDoor);
+  // Seal the old bridge doorway with the tower's matching masonry.
+  // The exterior stair remains the route to the lookout.
+  box(darkStone, -49.55, towerBase + 5, -31.15, 0.9, 10, 2.6);
   // Human-scale exterior flights replace the old near-vertical tower steps.
   buildStairRoute(TOWER_ROUTE);
   box(stone, -52, 35.15, -31, 5.7, 0.35, 5.5);
@@ -1296,7 +1272,6 @@ transformed.z += sway * 0.38;`,
     rowing,
     traffic,
     entranceGate,
-    towerDoor,
     coffins: cemetery.coffins,
     ready: Promise.all(pending),
     detailsReady,

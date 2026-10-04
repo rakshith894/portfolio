@@ -36,6 +36,15 @@ export function SkillGalleryDialog(props: Props) {
           A constellation of what I know, and how I use it.
         </DialogDescription>
         <nav className="skill-gallery-tabs" aria-label="Skills">
+          {!props.canEdit && (
+            <Button
+              variant="ghost"
+              aria-pressed={!selected}
+              onClick={() => props.onSelect(null)}
+            >
+              All skills
+            </Button>
+          )}
           {props.skills.map((skill) => (
             <Button
               key={skill.id}
@@ -59,7 +68,7 @@ export function SkillGalleryDialog(props: Props) {
             </Button>
           )}
         </nav>
-        {!props.canEdit && (
+        {!props.canEdit && !selected && (
           <div className="skill-reading-list">
             {props.skills.map((skill, index) => (
               <article
@@ -79,7 +88,7 @@ export function SkillGalleryDialog(props: Props) {
             ))}
           </div>
         )}
-        {props.canEdit && (
+        {(props.canEdit || selected) && (
           <SkillContent
             key={selected?.id ?? 'new'}
             {...props}

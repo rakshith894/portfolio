@@ -130,19 +130,6 @@ export function createHouseExploration(
   marker.rotation.x = -Math.PI / 2;
   marker.visible = false;
   root.add(marker);
-  const pathGeometry = new THREE.BufferGeometry();
-  const pathMaterial = new THREE.LineDashedMaterial({
-    color: 0x9fffe0,
-    transparent: true,
-    opacity: 0.7,
-    dashSize: 0.22,
-    gapSize: 0.14,
-    depthWrite: false,
-  });
-  const path = new THREE.Line(pathGeometry, pathMaterial);
-  path.name = 'Guided indoor walking path';
-  path.visible = false;
-  root.add(path);
   let viewDistance = 2.65,
     smoothedConstrainDist: number | null = null;
   const target = new THREE.Vector3(),
@@ -226,7 +213,6 @@ export function createHouseExploration(
     exitAfterRoute = route.length > 0;
     arrivalDoor = null;
     marker.visible = false;
-    path.visible = false;
     routeBlocked = 0;
     emit();
   }
@@ -236,7 +222,6 @@ export function createHouseExploration(
     exitAfterRoute = false;
     arrivalDoor = null;
     marker.visible = false;
-    path.visible = false;
     routeBlocked = 0;
     travelDirection(0, 0, camera.position, walker.position);
     emit();
@@ -264,15 +249,6 @@ export function createHouseExploration(
     exitAfterRoute = false;
     arrivalDoor = null;
     routeBlocked = 0;
-    pathGeometry.dispose();
-    pathGeometry.deleteAttribute('position');
-    pathGeometry.setFromPoints(
-      [indoor.position, ...planned].map(
-        (p) => new THREE.Vector3(p.x, (p.y ?? 0) + 0.04, p.z),
-      ),
-    );
-    path.computeLineDistances();
-    path.visible = true;
     marker.position.set(goal.x, (goal.y ?? 0) + 0.025, goal.z);
     marker.visible = true;
     emit();
@@ -489,10 +465,10 @@ export function createHouseExploration(
       player.setDoorReach();
       elapsed += dt;
       if (phase === 'approach') {
-        // Approach the latch first; the opening phase steps back with the leaf.
+        // Approach the latch and push the leaf into the foyer.
         target
           .copy(origin)
-          .add(new THREE.Vector3(0.35, 0, MANOR_DOOR.hingeOffset + 0.53));
+          .add(new THREE.Vector3(0.35, 0, 0.98));
         if (moveTo(target, 2, dt, true)) {
           phase = 'opening';
           elapsed = 0;
@@ -507,19 +483,6 @@ export function createHouseExploration(
           return false;
         }
       } else if (phase === 'opening') {
-        const retreat = easeDoor((elapsed - 0.35) / 1.5);
-        target
-          .copy(origin)
-          .add(
-            new THREE.Vector3(
-              0.35 * (1 - retreat),
-              0,
-              MANOR_DOOR.hingeOffset +
-                0.53 +
-                retreat * (MANOR_DOOR.width + 0.22),
-            ),
-          );
-        moveTo(target, 2.5, dt, true);
         if (elapsed > 0.4) openFrontDoor(dt);
         player.root.rotation.y = THREE.MathUtils.damp(
           player.root.rotation.y,
@@ -527,7 +490,7 @@ export function createHouseExploration(
           12,
           dt,
         );
-        if (doorProgress === 1 && elapsed >= 2.1) {
+        if (doorProgress === 1) {
           phase = 'crossing';
           elapsed = 0;
         }
@@ -553,13 +516,28 @@ export function createHouseExploration(
         // Do NOT disable controls.enabled here — the player should be able to
         // rotate the camera while the exit animation plays.
         if (leaveStage === 'approach') {
-          target.copy(origin).add(new THREE.Vector3(0.35, 0, -0.12));
+          target
+            .copy(origin)
+            .add(new THREE.Vector3(0.35, 0, MANOR_DOOR.hingeOffset - 0.53));
           if (moveTo(target, 1.45, dt, false)) {
             leaveStage = 'opening';
             elapsed = 0;
             creak();
           }
         } else if (leaveStage === 'opening') {
+          const retreat = easeDoor((elapsed - 0.35) / 1.5);
+          target
+            .copy(origin)
+            .add(
+              new THREE.Vector3(
+                0.35 * (1 - retreat),
+                0,
+                MANOR_DOOR.hingeOffset -
+                  0.53 -
+                  retreat * (MANOR_DOOR.width + 0.22),
+              ),
+            );
+          moveTo(target, 2.5, dt, false);
           if (elapsed > 0.35) openFrontDoor(dt);
           if (doorProgress === 1) leaveStage = 'crossing';
         } else {
@@ -600,7 +578,6 @@ export function createHouseExploration(
           arrivalDoor = null;
           marker.visible = false;
           routeBlocked = 0;
-          path.visible = false;
         }
         const following = route.length > 0;
         const speed = following ? walkSpeed : running ? 3.1 : walkSpeed;
@@ -623,7 +600,6 @@ export function createHouseExploration(
             if (!route.length) {
               velocity.set(0, 0, 0);
               marker.visible = false;
-              path.visible = false;
               if (exitAfterRoute) startLeaving();
               else if (arrivalDoor) {
                 openRoomDoor(arrivalDoor);
@@ -711,7 +687,11 @@ export function createHouseExploration(
         phase === 'opening' ||
         (phase === 'leaving' && leaveStage === 'opening')
       ) {
-        handleTarget.set(1.88, 1.05, phase === 'opening' ? 0.1 : -0.1);
+        handleTarget.set(
+          MANOR_DOOR.width - 0.3,
+          1.05,
+          phase === 'opening' ? 0.1 : -0.1,
+        );
         exteriorDoor.localToWorld(handleTarget);
         player.setDoorReach(
           handleTarget,
@@ -741,8 +721,9 @@ export function createHouseExploration(
         if (reachTime >= 1) reachDoor = null;
       }
       animateAvatar(dt, reduced, old);
-      // Backing away from a pulled door keeps the torso facing the handle.
       if (phase === 'opening') player.root.rotation.y = 0;
+      if (phase === 'leaving' && leaveStage === 'opening')
+        player.root.rotation.y = Math.PI;
       if (phase === 'inside') {
         target.copy(player.root.position).add(new THREE.Vector3(0, 1.35, 0));
         camera.position.add(target.clone().sub(controls.target));
@@ -822,8 +803,6 @@ export function createHouseExploration(
       }
     },
     dispose() {
-      pathGeometry.dispose();
-      pathMaterial.dispose();
       markerGeometry.dispose();
       markerMaterial.dispose();
       world.dispose();

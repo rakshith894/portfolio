@@ -486,7 +486,7 @@ export function createReferenceManor(
     own(new THREE.SphereGeometry(0.065, 8, 6)),
     amber,
   );
-  latch.position.set(1.88, 1.05, 0.1);
+  latch.position.set(MANOR_DOOR.width - 0.3, 1.05, 0.1);
   door.add(latch);
   for (const frame of MANOR_ENTRY_ARCHES)
     arch(
@@ -500,10 +500,10 @@ export function createReferenceManor(
     );
   for (const y of [0.45, 2.1]) {
     const strap = new THREE.Mesh(
-      own(new THREE.BoxGeometry(2, 0.07, 0.055)),
+      own(new THREE.BoxGeometry(MANOR_DOOR.width - 0.2, 0.07, 0.055)),
       iron,
     );
-    strap.position.set(1.1, y, 0.06);
+    strap.position.set(MANOR_DOOR.width / 2, y, 0.06);
     door.add(strap);
   }
   pane(0, base + 5.2, portalZ + 0.025, 1.3, 3, true);

@@ -3,6 +3,7 @@ import {
   distanceToSegment,
   groundHeight,
   pathDistance,
+  cemeteryAisleDistance,
 } from './reference-layout.ts';
 import {
   BOAT_MOORING,
@@ -49,8 +50,7 @@ export function coastalRocks(mobile = false) {
     if (
       !offshore &&
       (pathDistance(point.x, point.y) < radius + 3 ||
-        distanceToSegment(point.x, point.y, 23, -13.5, 32, -13.5) <
-          radius + 1.1)
+        cemeteryAisleDistance(point.x, point.y) < radius + 1.1)
     )
       continue;
     // Keep an unobstructed departure channel beyond the landing.

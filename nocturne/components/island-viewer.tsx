@@ -79,6 +79,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { createReferenceEnvironment } from '@/lib/reference-environment';
 import { referenceCameraPose } from '@/lib/reference-layout';
+import { pickIslandDestination } from '@/lib/island-picking';
 import {
   createIslandWalker,
   gateOpening,
@@ -471,7 +472,6 @@ export default function IslandViewer({
   const [nearBoat, setNearBoat] = useState(false);
   const [atDock, setAtDock] = useState(false);
   const [_overview, setOverview] = useState(false);
-  const [nearHouse, setNearHouse] = useState(false);
   const [destinationsOpen, setDestinationsOpen] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
   const [speechText, setSpeechText] = useState('');
@@ -649,7 +649,6 @@ export default function IslandViewer({
     // previous avatar position or keep touch input enabled during loading.
     setReady(false);
     setFailed(false);
-    setNearHouse(false);
     setNearBoat(false);
     setAtDock(false);
     setBoatMode(false);
@@ -683,7 +682,6 @@ export default function IslandViewer({
     let previous = 0,
       lastRendered = 0,
       interactive = false,
-      wasNearHouse = false,
       wasOverview = false,
       contextFailed = false;
     const keys = new Set<string>();
@@ -1500,15 +1498,14 @@ export default function IslandViewer({
         } else setVoiceNotice('Choose open water away from the shore.');
         return;
       }
-      const clickTargets: THREE.Object3D[] = [
-        ...environment.navigationSurfaces,
-      ];
-      if (environment.manor) clickTargets.push(environment.manor);
-      const hit = clickRay.intersectObjects(clickTargets, true)[0];
-      // A terrain or scenery hit is authoritative; never project a blocked hit through scenery.
-      if (hit) {
-        let targetX = hit.point.x;
-        let targetZ = hit.point.z;
+      const point = pickIslandDestination(
+        clickRay,
+        environment.navigationSurfaces,
+        environment.manor,
+      );
+      if (point) {
+        let targetX = point.x;
+        let targetZ = point.z;
         // If clicking on the manor stairs or door landing, snap to the walkable stair corridor
         if (
           Math.abs(targetX - 10) < 2.6 &&
@@ -1519,13 +1516,6 @@ export default function IslandViewer({
           targetZ = Math.max(-23.9, Math.min(-20.8, targetZ));
         }
         void navigateTo({ x: targetX, z: targetZ }, 'the selected spot');
-      } else {
-        const level = new THREE.Plane(
-          new THREE.Vector3(0, 1, 0),
-          -walker.position.y,
-        );
-        const point = clickRay.ray.intersectPlane(level, new THREE.Vector3());
-        if (point) void navigateTo(point, 'the selected spot');
       }
     };
     const pointerCancel = (event: PointerEvent) => {
@@ -1843,20 +1833,6 @@ export default function IslandViewer({
         hasDestination,
         inBoat ? undefined : walkingHeight,
       );
-      const towerDoor = environment.towerDoor;
-      const towerDoorDistance = Math.hypot(
-        walker.position.x - towerDoor.position.x,
-        walker.position.z - towerDoor.position.z,
-      );
-      const towerDoorTarget = towerDoorDistance < 2.8 ? Math.PI * 0.38 : 0;
-      towerDoor.userData.leaf.rotation.y = motion.matches
-        ? towerDoorTarget
-        : THREE.MathUtils.damp(
-            towerDoor.userData.leaf.rotation.y,
-            towerDoorTarget,
-            7,
-            dt,
-          );
       const gateOpen = gateOpening(walker.position.x, walker.position.z);
       soundCues.update(
         simulationTime,
@@ -1931,10 +1907,6 @@ export default function IslandViewer({
         const inset = Math.min(150, host.clientWidth / 2);
         speechBubble.current.style.left = `${THREE.MathUtils.clamp((bubblePosition.x * 0.5 + 0.5) * host.clientWidth, inset, host.clientWidth - inset)}px`;
         speechBubble.current.style.top = `${Math.max(160, (-bubblePosition.y * 0.5 + 0.5) * host.clientHeight - 12)}px`;
-      }
-      if (walker.nearHouse !== wasNearHouse) {
-        wasNearHouse = walker.nearHouse;
-        setNearHouse(wasNearHouse);
       }
       const closeBoat =
         !inBoat &&
@@ -2172,56 +2144,39 @@ export default function IslandViewer({
           {speechText}
         </output>
       )}
-      {!houseStatus &&
-        (voiceNotice || journey || nearHouse || nearBoat || boatMode) && (
-          <div className="walk-objective" aria-live="polite">
-            {journey && (
-              <div className="journey-status">
-                <output>{journey.name}</output>
-                <Button
-                  variant="outline"
-                  onClick={() => stopNavigation.current()}
-                >
-                  Stop travelling
-                </Button>
-              </div>
-            )}
-            {voiceNotice && (
-              <output className="voice-feedback">{voiceNotice}</output>
-            )}
-            {nearHouse && !boatMode && (
-              <Button variant="outline" onClick={() => requestHouse.current()}>
-                <DoorOpen size={16} /> Enter the house
-              </Button>
-            )}
-            {nearBoat && (
+      {!houseStatus && (voiceNotice || nearBoat || boatMode) && (
+        <div className="walk-objective" aria-live="polite">
+          {voiceNotice && (
+            <output className="voice-feedback">{voiceNotice}</output>
+          )}
+          {nearBoat && (
+            <Button
+              variant="outline"
+              onClick={() => waterAction.current('board')}
+            >
+              Board the boat <kbd>E</kbd>
+            </Button>
+          )}
+          {boatMode && (
+            <>
               <Button
                 variant="outline"
-                onClick={() => waterAction.current('board')}
+                onClick={() => waterAction.current('return')}
               >
-                Board the boat <kbd>E</kbd>
+                Return to dock
               </Button>
-            )}
-            {boatMode && (
-              <>
+              {atDock && (
                 <Button
                   variant="outline"
-                  onClick={() => waterAction.current('return')}
+                  onClick={() => waterAction.current('leaveBoat')}
                 >
-                  Return to dock
+                  Step ashore <kbd>E</kbd>
                 </Button>
-                {atDock && (
-                  <Button
-                    variant="outline"
-                    onClick={() => waterAction.current('leaveBoat')}
-                  >
-                    Step ashore <kbd>E</kbd>
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
+      )}
       {houseStatus && (
         <div className="house-sidebar-nav" aria-label="Manor navigation">
           <span className="house-sidebar-title">Manor Sections</span>

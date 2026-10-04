@@ -45,8 +45,8 @@ void test('the front door swings clear of the foyer walls at every opening angle
       const x = THREE.MathUtils.lerp(a.x, b.x, sample / 40);
       const z = THREE.MathUtils.lerp(a.z, b.z, sample / 40);
       assert.ok(
-        z >= MANOR_DOOR.hingeOffset - 1e-8,
-        'The leaf opens onto the porch',
+        z <= MANOR_DOOR.hingeOffset + 1e-8,
+        'The leaf opens inward into the foyer',
       );
       for (const wall of HOUSE_WALLS.filter((wall) => !wall.y))
         assert.ok(
@@ -651,7 +651,7 @@ void test('the same avatar walks through an actual open portal, explores, and wa
     assert.equal(
       door.rotation.y,
       0,
-      'The door closes once the visitor is clear of its outward sweep',
+      'The door closes once the visitor has left the threshold',
     );
     assert.equal(manor.visible, true);
   } finally {

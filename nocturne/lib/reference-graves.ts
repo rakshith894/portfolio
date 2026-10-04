@@ -6,6 +6,7 @@ import {
   pathDistance,
   cemeteryFences,
   distanceToSegment,
+  cemeteryAisleDistance,
 } from './reference-layout.ts';
 
 type Disposable = { dispose: () => void };
@@ -65,7 +66,7 @@ export function cemeteryLayout(mobile: boolean): GravePlacement[] {
   }
   return graves.filter(
     ({ x, z, scale, kind }) =>
-      distanceToSegment(x, z, 23, -13.5, 32, -13.5) >= 1.1 + 2.4 * scale &&
+      cemeteryAisleDistance(x, z) >= 1.1 + 2.4 * scale &&
       !cemeteryFences.some((points) =>
         points
           .slice(1)

@@ -89,6 +89,35 @@ void test('routes go around obstacles and reject disconnected or invalid targets
 });
 
 for (const mobile of [false, true]) {
+  void test(`eastern graves connect to both backyard passages (${mobile ? 'mobile' : 'desktop'})`, () => {
+    const walker = createIslandWalker(mobile);
+    const navigator = createIslandNavigator(
+      walker.canStand,
+      walker.canTraverse,
+    );
+    let start = { x: 17, z: 5 };
+    for (const target of [
+      { x: 24, z: 4 },
+      { x: 24, z: 0 },
+      { x: 24, z: -4 },
+      { x: 27.5, z: -13.5 },
+      { x: 25, z: -29 },
+      { x: 20, z: -39 },
+      { x: 10, z: -40 },
+      { x: -6, z: -37 },
+      { x: -10, z: -25 },
+    ]) {
+      const route = navigator.route(start, target, 0.55);
+      assert.ok(
+        route?.length,
+        `Unreachable ground at ${JSON.stringify(target)}`,
+      );
+      for (const next of route) {
+        assert.ok(navigator.clear(start, next));
+        start = next;
+      }
+    }
+  });
   void test(`all destinations have collision-free routes (${mobile ? 'mobile' : 'desktop'})`, () => {
     const walker = createIslandWalker(mobile);
     const navigator = createIslandNavigator(

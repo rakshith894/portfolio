@@ -106,6 +106,9 @@ export default function Portfolio({
       <DialogContent className="portfolio-dialog">
         {/* ── Subtle Atmospheric Layer ── */}
         <div className="holo-fx" aria-hidden="true">
+          <span className="portfolio-ambient-glow ambient-sage" />
+          <span className="portfolio-ambient-glow ambient-violet" />
+          <span className="portfolio-starlight" />
           {/* Corner brackets */}
           <span className="holo-corner hc-tl" />
           <span className="holo-corner hc-tr" />
