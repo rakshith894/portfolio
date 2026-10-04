@@ -261,6 +261,41 @@ void test('master hall has a solid side entrance and independent room lighting',
   assert.equal(hallLighting({ mode: 'dark', lights: true }).lamps, 1);
 });
 
+void test('the Projects Room door swings away on entry and return, even at the latch', () => {
+  for (const side of [-1, 1]) {
+    const walker = createHouseWalker();
+    const door = walker.doors.find((entry) => entry.id === 'master-hall')!;
+    Object.assign(walker.position, {
+      x: door.x + side * 0.65,
+      z: door.z + 0.9,
+      y: door.y,
+    });
+    walker.open(door.id);
+    for (let frame = 0; frame < 60; frame++) {
+      walker.update(1 / 60);
+      const { a, b } = doorSegment(door, door.progress);
+      assert.ok(
+        (b.x - a.x) * side <= 1e-8,
+        'The leaf swings away from the visitor',
+      );
+      assert.ok(
+        walker.canStand(walker.position),
+        'The visitor remains clear of the leaf',
+      );
+    }
+    assert.equal(
+      door.progress,
+      1,
+      'Opening completes without the visitor stepping back',
+    );
+    for (const z of [-2.8, -3.1, -3.3])
+      assert.ok(
+        walker.canStand({ x: HOUSE_STAIRS.right, z, y: UPPER_HALL.y }),
+        'The open leaf leaves the top of the staircase clear',
+      );
+  }
+});
+
 void test('the same avatar walks through an actual open portal, explores, and walks back outside', (context) => {
   const oldDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
   Object.defineProperty(globalThis, 'document', {
@@ -602,18 +637,32 @@ void test('the same avatar walks through an actual open portal, explores, and wa
       'Stop cancels a floor route immediately',
     );
     assert.equal(exploration.walkTo({ x: 100, z: 100, y: 0 }), false);
+    const returnStart = origin.clone().add(new THREE.Vector3(5, 5, -5));
+    assert.ok(exploration.walkTo({ x: 5, z: -5, y: 5 }));
+    for (
+      let frame = 0;
+      frame < 6000 && walker.position.distanceTo(returnStart) > 0.04;
+      frame++
+    )
+      exploration.update(1 / 60, 160 + frame / 60, 0, 0, false, false);
+    assert.ok(walker.position.distanceTo(returnStart) < 0.04);
+    for (let frame = 0; frame < 180; frame++)
+      exploration.update(1 / 60, 260 + frame / 60, 0, 0, false, false);
     exploration.returnToDoor();
     for (let frame = 0; frame < 2400 && exploration.active; frame++) {
+      const previousZ = walker.position.z;
       exploration.update(1 / 60, 30 + frame / 60, 0, 0, false, false);
-      const front = createHouseWalker().doors[0];
-      const { a, b } = doorSegment(
-        front,
-        door.rotation.y / ((MANOR_DOOR.swing * Math.PI) / 2),
-      );
-      const leaf = new THREE.Line3(
-        new THREE.Vector3(a.x, 0, a.z),
-        new THREE.Vector3(b.x, 0, b.z),
-      );
+      if (!exploration.inside)
+        assert.ok(
+          walker.position.z >= previousZ - 1e-8,
+          'Exiting never forces a backward step',
+        );
+      const hinge = door.localToWorld(new THREE.Vector3()).sub(origin).setY(0);
+      const tip = door
+        .localToWorld(new THREE.Vector3(MANOR_DOOR.width, 0, 0))
+        .sub(origin)
+        .setY(0);
+      const leaf = new THREE.Line3(hinge, tip);
       const local = walker.position.clone().sub(origin).setY(0);
       assert.ok(
         leaf
@@ -631,15 +680,13 @@ void test('the same avatar walks through an actual open portal, explores, and wa
     assert.ok(avatar.position.z > portal.z);
     for (let frame = 0; frame < 120; frame++) {
       exploration.updateOutside(1 / 60);
-      const { a, b } = doorSegment(
-        HOUSE_DOORS[0],
-        door.rotation.y / ((MANOR_DOOR.swing * Math.PI) / 2),
-      );
+      const hinge = door.localToWorld(new THREE.Vector3()).sub(origin).setY(0);
+      const tip = door
+        .localToWorld(new THREE.Vector3(MANOR_DOOR.width, 0, 0))
+        .sub(origin)
+        .setY(0);
       const local = walker.position.clone().sub(origin).setY(0);
-      const leaf = new THREE.Line3(
-        new THREE.Vector3(a.x, 0, a.z),
-        new THREE.Vector3(b.x, 0, b.z),
-      );
+      const leaf = new THREE.Line3(hinge, tip);
       assert.ok(
         leaf
           .closestPointToPoint(local, true, new THREE.Vector3())

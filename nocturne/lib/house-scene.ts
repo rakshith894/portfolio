@@ -10,6 +10,7 @@ import {
   HOUSE_WALLS,
   HOUSE_FLOORS,
   HOUSE_HALL,
+  doorHinge,
 } from './house-layout.ts';
 import {
   HOUSE_STAIRS,
@@ -626,11 +627,13 @@ export function createHouseScene(scene: THREE.Scene, mobile: boolean) {
     const width = door.width;
     const pivot = new THREE.Group();
     pivot.name = `Hinged door: ${door.name}`;
-    pivot.position.set(door.x, door.y ?? 0, door.z);
+    const hinge = doorHinge(door);
+    pivot.position.set(hinge.x, door.y ?? 0, hinge.z);
     scene.add(pivot);
     doors.set(door.id, pivot);
     const leaf = new THREE.Group();
     if (door.axis === 'z') leaf.rotation.y = -Math.PI / 2;
+    if (door.hingeAtEnd) leaf.rotation.y += Math.PI;
     pivot.add(leaf);
     leaf.scale.y = door.height / 3.2;
     box(leaf, panel, width / 2, 1.6, 0, width, 3.2, 0.14);
@@ -644,7 +647,7 @@ export function createHouseScene(scene: THREE.Scene, mobile: boolean) {
     }
     if (door.id !== 'front') {
       const frame = new THREE.Group();
-      frame.position.copy(pivot.position);
+      frame.position.set(door.x, door.y ?? 0, door.z);
       if (door.axis === 'z') frame.rotation.y = -Math.PI / 2;
       scene.add(frame);
       for (const x of [-0.1, width + 0.1])

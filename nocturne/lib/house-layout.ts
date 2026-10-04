@@ -82,6 +82,7 @@ export type HouseDoor = HousePoint & {
   id: string;
   name: string;
   axis: 'x' | 'z';
+  hingeAtEnd?: boolean;
   swing: number;
   width: number;
   height: number;
@@ -112,7 +113,9 @@ export const HOUSE_DOORS: HouseDoor[] = [
     id: 'master-hall',
     name: 'Projects Room door',
     axis: 'z',
-    swing: 1,
+    swing: -1,
+    // Keep an outward return swing along the landing wall, clear of the stairs.
+    hingeAtEnd: true,
   },
 ];
 const wall = (
@@ -188,15 +191,24 @@ export const HOUSE_FIXTURES: HouseSolid[] = [
     })),
   ),
 ];
+export function doorHinge(door: HouseDoor) {
+  const offset = door.hingeAtEnd ? door.width : 0;
+  return {
+    x: door.x + (door.axis === 'x' ? offset : 0),
+    z: door.z + (door.axis === 'z' ? offset : 0),
+  };
+}
 export function doorSegment(door: HouseDoor, progress: number) {
   const angle = ((easeDoor(progress) * Math.PI) / 2) * door.swing;
-  const dx = door.axis === 'x' ? door.width : 0;
-  const dz = door.axis === 'z' ? door.width : 0;
+  const hinge = doorHinge(door);
+  const length = door.hingeAtEnd ? -door.width : door.width;
+  const dx = door.axis === 'x' ? length : 0;
+  const dz = door.axis === 'z' ? length : 0;
   return {
-    a: { x: door.x, z: door.z },
+    a: hinge,
     b: {
-      x: door.x + dx * Math.cos(angle) + dz * Math.sin(angle),
-      z: door.z - dx * Math.sin(angle) + dz * Math.cos(angle),
+      x: hinge.x + dx * Math.cos(angle) + dz * Math.sin(angle),
+      z: hinge.z - dx * Math.sin(angle) + dz * Math.cos(angle),
     },
   };
 }
@@ -233,7 +245,7 @@ export function createHouseWalker() {
     [position, ...occupants].every(
       (point) =>
         !overlapsHeight(point, door) ||
-        Math.hypot(point.x - door.x, point.z - door.z) >
+        Math.hypot(point.x - doorHinge(door).x, point.z - doorHinge(door).z) >
           door.width + HOUSE_RADIUS + 0.45,
     );
   const canStand = (point: HousePoint, ignoreDoors = false) => {
@@ -270,7 +282,7 @@ export function createHouseWalker() {
         // A hypothetical open hall door must not disconnect the staircase.
         // Actual door leaves still block movement until they close behind us.
         if (height > 0.2 && height < UPPER_HALL.y - 0.01) return false;
-        return (door.id === 'master-hall' ? [1] : [-1, 1]).some((swing) => {
+        return [-1, 1].some((swing) => {
           const { a, b } = doorSegment({ ...door, swing }, 1);
           return segmentDistance(point, a, b) < HOUSE_RADIUS + 0.12;
         });
@@ -288,7 +300,7 @@ export function createHouseWalker() {
       if (!door) return;
       // Swing away from the visitor on either side of a room's threshold.
       if (door.axis === 'z' && door.progress === 0)
-        door.swing = door.id === 'master-hall' ? 1 : -side(door) || door.swing;
+        door.swing = -side(door) * (door.hingeAtEnd ? -1 : 1) || door.swing;
       door.target = 1;
       door.crossed = false;
       door.side = side(door);

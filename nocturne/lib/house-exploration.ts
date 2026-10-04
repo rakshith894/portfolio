@@ -80,7 +80,7 @@ export function createHouseExploration(
   const handleTarget = new THREE.Vector3();
   let reachDoor: string | null = null;
   let reachTime = 0;
-  let leaveStage: 'approach' | 'opening' | 'crossing' = 'approach';
+  let leaveStage: 'opening' | 'crossing' = 'opening';
   function openFrontDoor(dt: number) {
     const next = Math.min(1, doorProgress + dt / 1.3);
     const steps = Math.max(1, Math.ceil((next - doorProgress) / 0.02));
@@ -230,9 +230,10 @@ export function createHouseExploration(
   };
   function startLeaving() {
     phase = 'leaving';
-    leaveStage = 'approach';
+    leaveStage = 'opening';
     elapsed = 0;
     route = [];
+    creak();
   }
   function returnToDoor() {
     if (phase !== 'inside') return;
@@ -554,31 +555,9 @@ export function createHouseExploration(
       } else if (phase === 'leaving') {
         // Do NOT disable controls.enabled here — the player should be able to
         // rotate the camera while the exit animation plays.
-        if (leaveStage === 'approach') {
-          target
-            .copy(origin)
-            .add(new THREE.Vector3(0.35, 0, MANOR_DOOR.hingeOffset - 0.85));
-          if (moveTo(target, 1.45, dt, false)) {
-            leaveStage = 'opening';
-            elapsed = 0;
-            creak();
-          }
-        } else if (leaveStage === 'opening') {
-          // Keep the traveller outside the full sweep of the leaf while it
-          // opens, rather than letting the animated mesh overlap the avatar.
-          const retreat = easeDoor((elapsed - 0.2) / 1.3);
-          target
-            .copy(origin)
-            .add(
-              new THREE.Vector3(
-                0.35 * (1 - retreat),
-                0,
-                MANOR_DOOR.hingeOffset -
-                  1.1 -
-                  retreat * (MANOR_DOOR.width + 0.22),
-              ),
-            );
-          moveTo(target, 2.8, dt, false);
+        if (leaveStage === 'opening') {
+          // The return route stops clear of the complete inward swing. Open
+          // here, then walk straight out without approaching and backing away.
           if (elapsed > 0.2) openFrontDoor(dt);
           if (doorProgress === 1) leaveStage = 'crossing';
         } else {
@@ -702,7 +681,8 @@ export function createHouseExploration(
           );
           if (projectsDoor) {
             if (!projectsDoor.target) indoor.open(projectsDoor.id);
-            projectsDoor.hold = Math.max(projectsDoor.hold, dt + 0.1);
+            if (projectsDoor.progress >= 1)
+              projectsDoor.hold = Math.max(projectsDoor.hold, dt + 0.1);
           }
         }
         for (const door of indoor.doors) {
